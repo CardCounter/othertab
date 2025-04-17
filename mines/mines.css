@@ -1,0 +1,248 @@
+* {
+    font-family: "Times New Roman", Times, serif;
+}
+
+:root {
+    --bg-color: white;
+    --text-color: black;
+
+    --title-box-bg-color: black;
+    --title-box-text-color: white;
+
+    --cell-bg: #c0c0c0;
+    --cell-revealed-bg: #d0d0d0;
+    
+    --button-bg: #d3d3d3;
+    --button-hover: grey;
+    --button-active: #c0c0c0;
+    --button-text: black;
+}
+
+.dark-mode {
+    --bg-color: black;
+    --text-color: white;
+
+    --title-box-bg-color: white;
+    --title-box-text-color: black;
+
+    --cell-bg: #2a2a2a;
+    --cell-revealed-bg: #1c1c1c;
+
+    --button-bg: black;
+    --button-hover: gray;
+    --button-active: #2a2a2a;
+    --button-text: white;
+}
+
+body {
+    margin: 0;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+header {
+    padding: 0.01rem;
+    text-align: center;
+}
+
+.title-box {
+    background-color: var(--title-box-bg-color);
+    color: var(--title-box-text-color);
+    padding: 1rem 2rem;
+    display: inline-block;
+}
+
+.dark-mode .title-box {
+    background-color: var(--title-box-bg-color);
+    color: var(--title-box-text-color);
+}
+
+.page-button {
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    font-size: 16px;
+}  
+
+.dark-mode .page-button {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+}
+
+.page-button:hover {
+    background-color: var(--button-hover);
+}
+
+#dark-toggle {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    margin: 0px;
+}
+
+#home-button {
+    position: absolute;
+    top: 1rem;
+    left: 1rem;
+    margin: 0px;
+}
+
+button {
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    margin-left: 5px;
+    margin-right: 5px;
+    margin-top: 5px;
+    margin-bottom: 5px;
+    font-size: 14px;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    border: none;
+}
+
+button:hover {
+    background-color: grey;
+}
+
+.difficulty-buttons {
+    display: flex;
+    justify-content: space-evenly;
+}
+
+.stats {
+    display: flex;
+    align-items: center;
+    justify-content: space-evenly;
+    width: 100%;
+    max-width: 500px;
+    margin: 0.8rem 0;
+    font-size: 18px;
+}
+
+.game-container {
+    border: 5px solid var(--bg-color);
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.win-border {
+    border-color: green !important;
+}
+
+.lose-border {
+    border-color: red !important;
+}
+
+.grid {
+    display: grid;
+    user-select: none;
+    margin: 0 auto;
+}
+
+.cell {
+    width: 30px;
+    height: 30px;
+    background-color: var(--cell-bg);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: bold;
+    font-size: 25px;
+    user-select: none;
+}
+
+.revealed {
+    background-color: var(--cell-revealed-bg);
+}
+
+.mine {
+    background-color: #ff0000;
+}
+
+.flag {
+    background-color: var(--cell-bg);
+    color: #ff0000 !important;
+    font-size: 25px !important;
+    font-weight: bold;
+}
+
+.false-flag {
+    background-color: var(--cell-bg);
+    color: #ff0000 !important;
+    font-size: 25px !important;
+    font-weight: bold;
+}
+
+.mine-symbol {
+    color: #000000 !important;
+    font-size: 25px !important;
+    font-weight: bold;
+}
+
+.color-1 { color: #0000ff; }
+.color-2 { color: #00aa00; }
+.color-3 { color: #ff0000; }
+.color-4 { color: #0000cc; }
+.color-5 { color: #aa0000; }
+.color-6 { color: #00cccc; }
+.color-7 { color: #000000; }
+.color-8 { color: #666666; }
+
+.dark-mode .color-1 { color: #4488ff; }
+.dark-mode .color-2 { color: #44ff44; }
+.dark-mode .color-3 { color: #ff6666; }
+.dark-mode .color-4 { color: #6666ff; }
+.dark-mode .color-5 { color: #ff9999; }
+.dark-mode .color-6 { color: #66ffff; }
+.dark-mode .color-7 { color: #ffffff; }
+.dark-mode .color-8 { color: #cccccc; }
+
+.controls {
+    display: flex;
+    justify-content: center;
+    margin-top: 10px;
+    margin-bottom: 10px;
+    align-items: center;
+}
+
+.checkbox-wrapper {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    margin: 20px;
+}
+
+.dark-mode .checkbox-wrapper {
+    accent-color: red;
+}
+
+.win-popup {
+    position: absolute;
+    margin-left: 0.2rem;
+    flex: 1;
+    padding: 1rem;
+    background-color: var(--bg-color);
+    left: calc(100% + 20px);
+    font-size: 1rem;
+    user-select: text;
+    max-width: 90vw;
+  }
+
+.active {
+    background-color: var(--button-active);
+}
+
+.hidden {
+    display: none;
+  }
+
+html {
+    visibility: visible;
+    opacity: 1;
+}
