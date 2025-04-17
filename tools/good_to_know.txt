@@ -1,0 +1,9 @@
+if vscode git not allowing you to push even when logged in:
+sign out
+ $ git credential-osxkeychain erase ⏎
+ host=github.com  ⏎
+ protocol=https   ⏎
+ ⏎
+ ⏎
+sign back in
+
