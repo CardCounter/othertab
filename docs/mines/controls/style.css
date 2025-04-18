@@ -1,0 +1,39 @@
+* {
+    font-family: "Times New Roman", Times, serif;
+}
+
+body {
+    background-color: white;
+    color: black;
+}
+
+.dark-mode {
+    background-color: black;
+    color: white;
+}
+
+/* links */
+a {
+    color: blue;
+    text-decoration-color: blue;
+    text-underline-offset: 2px;
+}
+
+a:active {
+    color: red;
+    text-decoration-color: red;
+    text-underline-offset: 2px;
+}
+
+.dark-mode a {
+    color: red;
+    text-decoration-color: red;
+    text-underline-offset: 2px;
+}
+
+.dark-mode a:active {
+    color: blue;
+    text-decoration-color: blue;
+    text-underline-offset: 2px;
+}
+

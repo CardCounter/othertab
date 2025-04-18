@@ -128,7 +128,7 @@ class Minesweeper {
             }
                 
             // reset game, e, r   
-            if (e.code === 'KeyR' || e.code === 'KeyE') {
+            if (e.code === 'KeyR' || e.code === 'KeyE' || e.code === 'KeyW') {
                 this.resetGame();
             }
 

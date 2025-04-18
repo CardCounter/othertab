@@ -19,7 +19,7 @@
 <body>
     <header>
         <button id="dark-toggle" class="page-button">dark mode</button>
-        <a href="../index.html">
+        <a href="../">
             <button id="home-button" class="page-button">o_t</button>
         </a>
         <h1 class="title-box">MINES</h1>
@@ -51,8 +51,10 @@
             <label for="auto-restart-mode">auto-restart</label>
         </span>
     </div>
-    
-    <p style="text-align: center;">left-click to reveal | right-click to flag | middle-click or both buttons to chord | space to flag or chord | press 'r' or 'e' to reset</p>
+
+    <footer>
+        <a href="controls/" style="text-align: center;">controls</a>
+    </footer>
 
     <script src="mines.js"></script>
 </body>
@@ -60,6 +62,5 @@
 
 <!-- todo 
 if chord multiple mines, all show up as '!' instead of just the first one
-add something that says not to copy it? neal doesnt have one?
 move player movements eventListeners from renderGrid to outside the constructor
 -->

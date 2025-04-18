@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="these are the controls to mines :)">
+    <link rel="icon" href="/docs/images/help.png" type="image/png">
+    <title>maybe a little intuition would help</title>
+    <style>
+        html.js-loading {
+          visibility: hidden;
+          opacity: 0;
+        }
+    </style>
+    <script>document.documentElement.classList.add('js-loading');</script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <p>
+    left click to dig
+    right click to flag
+    middle click or left and right click to chord 
+    space to flag or chord 
+    w or e or r to reset 
+    </p>
+    <a href="javascript:window.history.back()">go back</a>
+</body>
+<script>
+    // Check for saved preference when page loads
+    document.addEventListener('DOMContentLoaded', () => {
+        const savedDarkMode = localStorage.getItem('darkMode');
+        
+        if (savedDarkMode === 'true') {
+            document.body.classList.add('dark-mode');
+        }
+
+        // prevents fouc, hide style as loading html
+        document.documentElement.classList.remove('js-loading');
+    });
+</script>
+</html>
