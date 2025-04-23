@@ -41,7 +41,10 @@
         <div id="grid" class="grid"></div>
 
         <!-- hidden popup called when game win -->
-        <div id="win-popup" class="win-popup hidden"></div>
+        <div id="win-popup" class="win-popup hidden">
+            <div id="win-text" class="win-text"></div>
+            <button id="copy-button" class="copy-button">share</button>
+        </div>
     </div>
       
     <div class="controls">
@@ -64,5 +67,5 @@
 <!-- todo 
 if chord multiple mines, all show up as '!' instead of just the first one
 move player movements eventListeners from renderGrid to outside the constructor
-add share button for win paste
+clean up code, comments 
 -->

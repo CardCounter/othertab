@@ -274,8 +274,8 @@ class Minesweeper {
     
     clearAreaAroundFirstClick(row, col) {
         // make island
-        for (let r = Math.max(0, row - 2); r <= Math.min(this.rows - 1, row + 2); r++) {
-            for (let c = Math.max(0, col - 2); c <= Math.min(this.cols - 1, col + 2); c++) {
+        for (let r = Math.max(0, row - 1); r <= Math.min(this.rows - 1, row + 1); r++) {
+            for (let c = Math.max(0, col - 1); c <= Math.min(this.cols - 1, col + 1); c++) {
                 this.grid[r][c].isSafe = true;
             }
         }
@@ -528,10 +528,9 @@ class Minesweeper {
         this.gameContainer.classList.add('lose-border');
     }
 
-    // Inside your Minesweeper class, when win condition is met:
     showWinPopup(){
-        // Get the popup element
         const popup = document.getElementById('win-popup');
+        const text = document.getElementById('win-text');
         let timerValue;
         let goodTime = '';
 
@@ -559,18 +558,39 @@ class Minesweeper {
             timerValue = finalTime.join('')
         }
         
-        popup.innerHTML = `
-        <p>
+        text.innerHTML = `
+        <p style="text-align: center;">
         MINES<br>
         ${this.difficulty.toUpperCase()}<br>
         ${timerValue}${goodTime}<br>
         o_t
         </p>
             `;
+
+        // looks aweful, dont want to change it
+        const plainText = `MINES
+${this.difficulty.toUpperCase()}
+${timerValue}${goodTime}
+o_t`;
+
+        const shareButton = document.getElementById('copy-button');
+
+        shareButton.addEventListener('click', () => {
+            navigator.clipboard.writeText(plainText);
+        });
             
         // display popup by adding hidden class, removing active
         popup.classList.remove('hidden');
         // popup.classList.add('active');
+    }
+
+    copyWinPopup(){
+        const rawText = document.querySelector('#win-text p');
+        const text = rawText.innerText;
+
+        navigator.clipboard.writeText(text);
+        // .then(() => alert("Copied:\n" + text))
+        // .catch(err => alert("Copy failed: " + err));
     }
     
     resetGame() {
