@@ -567,7 +567,7 @@ class Minesweeper {
         </p>
             `;
 
-        // looks aweful, dont want to change it
+        // looks awful, dont want to change it
         const plainText = `MINES
 ${this.difficulty.toUpperCase()}
 ${timerValue}${goodTime}
