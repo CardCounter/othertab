@@ -55,21 +55,8 @@ main {
 }
 
 header {
-    /* padding: 0.01rem; */
     text-align: center;
 }
-
-/* .title-box {
-    background-color: var(--title-box-bg-color);
-    color: var(--title-box-text-color);
-    padding: 1rem 2rem;
-    display: inline-block;
-} */
-
-/* .dark-mode .title-box {
-    background-color: var(--title-box-bg-color);
-    color: var(--title-box-text-color);
-} */
 
 .page-button {
     padding: 0.5rem 1rem;
