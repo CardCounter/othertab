@@ -7,6 +7,13 @@ body {
     background-color: white;
     color: black;
     text-align: center;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+main {
+    flex: 1;
 }
 
 .dark-mode {
@@ -41,21 +48,7 @@ a:active {
 
 /* header and title box */
 header {
-    padding: 0.5rem;
-    position: relative;
     text-align: center;
-}
-
-.title-box {
-    background-color: black;
-    color: white;
-    padding: 1rem 2rem;
-    display: inline-block;
-}
-
-.dark-mode .title-box {
-    background-color: white;
-    color: black;
 }
 
 /* dark mode button */
@@ -117,4 +110,8 @@ header {
 .dark-mode .card {
     background-color: black;
 }
+
+/* footer {
+    margin-top: 550px;
+} */
 

@@ -37,6 +37,7 @@ class Minesweeper {
         this.isWin = false;
         this.isMouseDown = false;
         this.isAutoResetOn = false;
+        this.shareButtonClickCount = 0;
         
         this.initializeGrid();
         this.renderGrid();
@@ -404,7 +405,7 @@ class Minesweeper {
         if (cellData.isRevealed) {
             cell.classList.add('revealed');
             
-            if (cellData.isMine && !cellData.isFlagged) { /////////////////////////// here to add red X for missed flags, 
+            if (cellData.isMine && !cellData.isFlagged) {
                 cell.classList.add('mine');
                 cell.textContent = 'M';
                 cell.classList.add('mine-symbol');
@@ -415,17 +416,6 @@ class Minesweeper {
         } else if (cellData.isFlagged) {
             cell.classList.add('flag');
             cell.textContent = 'F';
-            // if (this.gameOver && !(cellData.isMine)){
-            //     cell.classList.remove('flag');
-            //     cell.classList.add('false-flag');
-            //     cell.textContent = 'X';
-            // }
-            
-            // // change flagged cells to dollar signs when winning
-            // if (this.isWin) {
-            //     cell.textContent = '$';
-            //     cell.classList.add('win-symbol');
-            // }
         } else {
             cell.textContent = '';
         }
@@ -464,7 +454,7 @@ class Minesweeper {
         }
     }
 
-    revealAllMines(cell) { /// and false flags
+    revealAllMines(cell) { // and false flags
         for (let row = 0; row < this.rows; row++) {
             for (let col = 0; col < this.cols; col++) {
                 if (!this.grid[row][col].isMine && this.grid[row][col].isFlagged){
@@ -479,17 +469,6 @@ class Minesweeper {
                         this.grid[row][col].isRevealed = true;
                         this.updateClickedMine(row, col);
                     }
-                }
-            }
-        }
-    }
-    
-    convertFlagsToWinSymbols() { //////// modify this for flag X
-        // update all flagged cells to show dollar signs
-        for (let row = 0; row < this.rows; row++) {
-            for (let col = 0; col < this.cols; col++) {
-                if (this.grid[row][col].isFlagged) {
-                    this.updateCell(row, col);
                 }
             }
         }
@@ -563,7 +542,6 @@ class Minesweeper {
         MINES<br>
         ${this.difficulty.toUpperCase()}<br>
         ${timerValue}${goodTime}<br>
-        o_t
         </p>
             `;
 
@@ -576,21 +554,43 @@ o_t`;
         const shareButton = document.getElementById('copy-button');
 
         shareButton.addEventListener('click', () => {
+            this.shareButtonClickCount++;
             navigator.clipboard.writeText(plainText);
+
+            if(this.shareButtonClickCount >= 1 && this.shareButtonClickCount <= 20){
+                shareButton.textContent = 'copied';
+            }
+            else if(this.shareButtonClickCount <= 40){
+                shareButton.textContent = 'already copied';
+            }
+            else if(this.shareButtonClickCount <= 60){
+                shareButton.textContent = 'chill';
+            }
+            else if(this.shareButtonClickCount <= 80){
+                shareButton.textContent = 'calm down';
+            }
+            else if(this.shareButtonClickCount <= 100){
+                shareButton.textContent = 'seriously';
+            }
+            else if(this.shareButtonClickCount <= 120){
+                shareButton.textContent = '...';
+            }
+            else if(this.shareButtonClickCount <= 140){
+                shareButton.textContent = '..';
+            }
+            else if(this.shareButtonClickCount <= 160){
+                shareButton.textContent = '.';
+            }
+            else if(this.shareButtonClickCount <= 300){
+                shareButton.textContent = '';
+            }
+            else {
+                shareButton.textContent = 'freak';
+            }
         });
             
         // display popup by adding hidden class, removing active
         popup.classList.remove('hidden');
-        // popup.classList.add('active');
-    }
-
-    copyWinPopup(){
-        const rawText = document.querySelector('#win-text p');
-        const text = rawText.innerText;
-
-        navigator.clipboard.writeText(text);
-        // .then(() => alert("Copied:\n" + text))
-        // .catch(err => alert("Copy failed: " + err));
     }
     
     resetGame() {
@@ -602,9 +602,13 @@ o_t`;
         this.flagCount = 0;
         this.timer = 0;
         this.isWin = false;
+        this.shareButtonClickCount = 0;
         
         // reset timer display
         document.getElementById('timer').textContent = this.timer;
+
+        // reset share button
+        document.getElementById('copy-button').textContent = 'share';
         
         // remove win/lose border indicators
         this.gameContainer.classList.remove('win-border');

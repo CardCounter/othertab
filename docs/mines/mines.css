@@ -46,24 +46,30 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
+    /* text-align: center; */
+    min-height: 100vh;
+}
+
+main {
+    flex: 1;
 }
 
 header {
-    padding: 0.01rem;
+    /* padding: 0.01rem; */
     text-align: center;
 }
 
-.title-box {
+/* .title-box {
     background-color: var(--title-box-bg-color);
     color: var(--title-box-text-color);
     padding: 1rem 2rem;
     display: inline-block;
-}
+} */
 
-.dark-mode .title-box {
+/* .dark-mode .title-box {
     background-color: var(--title-box-bg-color);
     color: var(--title-box-text-color);
-}
+} */
 
 .page-button {
     padding: 0.5rem 1rem;
@@ -99,10 +105,11 @@ header {
 button {
     padding: 0.5rem 1rem;
     cursor: pointer;
-    margin-left: 5px;
+    /* margin-left: 5px;
     margin-right: 5px;
     margin-top: 5px;
-    margin-bottom: 5px;
+    margin-bottom: 5px; */
+    margin: 0.5rem 0.5rem;
     font-size: 16px;
     background-color: var(--bg-color);
     color: var(--text-color);
@@ -122,14 +129,21 @@ button:hover {
     display: flex;
     align-items: center;
     justify-content: space-evenly;
-    width: 100%;
-    max-width: 500px;
-    margin: 0.8rem 0;
+    gap: 2rem;
+    margin: 0.2rem 0;
     font-size: 18px;
 }
 
+.top-bar {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 0.5rem;
+}
+
 .game-container {
-    border: 5px solid var(--bg-color);
+    /* border: 5px solid var(--bg-color); */
     position: relative;
     display: flex;
     justify-content: center;
@@ -269,8 +283,4 @@ a:active {
     color: blue;
     text-decoration-color: blue;
     text-underline-offset: 2px;
-}
-
-footer{
-    margin-bottom: 5px;
 }
