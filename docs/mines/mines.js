@@ -548,8 +548,7 @@ class Minesweeper {
         // looks awful, dont want to change it
         const plainText = `MINES
 ${this.difficulty.toUpperCase()}
-${timerValue}${goodTime}
-o_t`;
+${timerValue}${goodTime}`;
 
         const shareButton = document.getElementById('copy-button');
 
