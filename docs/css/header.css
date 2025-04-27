@@ -1,0 +1,35 @@
+header {
+    text-align: center;
+}
+
+.page-button {
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    background-color: white;
+    color: black;
+    border: none;
+    font-size: 16px;
+}
+
+.dark-mode .page-button {
+    background-color: black;
+    color: white;
+}
+
+.page-button:hover {
+    background-color: grey;
+}
+
+#home-button {
+    position: absolute;
+    top: 1rem;
+    left: 1rem;
+    margin: 0px;
+}
+
+#dark-toggle {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    margin: 0px;
+}

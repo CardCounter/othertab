@@ -1,92 +1,34 @@
-* {
-    font-family: "Times New Roman", Times, serif;
-}
-
-html {
-    visibility: visible;
-    opacity: 1;
-}
-
 :root {
     --bg-color: white;
     --text-color: black;
 
-    --title-box-bg-color: black;
-    --title-box-text-color: white;
-
     --cell-bg: #c0c0c0;
     --cell-revealed-bg: #d0d0d0;
     
-    --button-bg: #d3d3d3;
     --button-hover: grey;
     --button-active: #c0c0c0;
-    --button-text: black;
 }
 
 .dark-mode {
     --bg-color: black;
     --text-color: white;
 
-    --title-box-bg-color: white;
-    --title-box-text-color: black;
-
     --cell-bg: #2a2a2a;
     --cell-revealed-bg: #1c1c1c;
 
-    --button-bg: black;
     --button-hover: gray;
     --button-active: #2a2a2a;
-    --button-text: white;
 }
 
 body {
     margin: 0;
-    background-color: var(--bg-color);
-    color: var(--text-color);
+    background-color: white;
+    color: black;
+    text-align: center;
     display: flex;
     flex-direction: column;
     align-items: center;
-    /* text-align: center; */
     min-height: 100vh;
-}
-
-main {
-    flex: 1;
-}
-
-header {
-    text-align: center;
-}
-
-.page-button {
-    padding: 0.5rem 1rem;
-    cursor: pointer;
-    background-color: var(--bg-color);
-    color: var(--text-color);
-    font-size: 16px;
-}  
-
-.dark-mode .page-button {
-    background-color: var(--bg-color);
-    color: var(--text-color);
-}
-
-.page-button:hover {
-    background-color: var(--button-hover);
-}
-
-#dark-toggle {
-    position: absolute;
-    top: 1rem;
-    right: 1rem;
-    margin: 0px;
-}
-
-#home-button {
-    position: absolute;
-    top: 1rem;
-    left: 1rem;
-    margin: 0px;
 }
 
 button {
@@ -130,7 +72,7 @@ button:hover {
 }
 
 .game-container {
-    /* border: 5px solid var(--bg-color); */
+    border: 5px solid var(--bg-color);
     position: relative;
     display: flex;
     justify-content: center;
@@ -246,28 +188,4 @@ button:hover {
 
 .hidden {
     display: none;
-  }
-
-a {
-    color: blue;
-    text-decoration-color: blue;
-    text-underline-offset: 2px;
-}
-
-a:active {
-    color: red;
-    text-decoration-color: red;
-    text-underline-offset: 2px;
-}
-
-.dark-mode a {
-    color: red;
-    text-decoration-color: red;
-    text-underline-offset: 2px;
-}
-
-.dark-mode a:active {
-    color: blue;
-    text-decoration-color: blue;
-    text-underline-offset: 2px;
 }

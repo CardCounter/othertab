@@ -1,0 +1,41 @@
+* {
+    font-family: "Times New Roman", Times, serif;
+}
+
+/* used for fouc in combination with:
+
+<style>
+html.js-loading {
+  visibility: hidden;
+  opacity: 0;
+}
+</style>
+<script>document.documentElement.classList.add('js-loading');</script>
+
+and 
+
+document.documentElement.classList.remove('js-loading');
+
+might break pages that dont use it, but most/all pages should use it*/
+html {
+    visibility: visible;
+    opacity: 1;
+}
+
+body {
+    background-color: white;
+    color: black;
+}
+
+.dark-mode {
+    background-color: black;
+    color: white;
+}
+
+main {
+    flex: 1;
+}
+
+footer {
+    text-align: center;
+}

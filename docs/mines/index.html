@@ -14,6 +14,9 @@
         }
     </style>
     <script>document.documentElement.classList.add('js-loading');</script>
+    <link rel="stylesheet" href="../css/global.css">
+    <link rel="stylesheet" href="../css/header.css">
+    <link rel="stylesheet" href="../css/link.css">
     <link rel="stylesheet" href="mines.css">
 </head>
 <body>
@@ -41,7 +44,7 @@
         </div>
 
         <div id="game-container" class="game-container">
-            <div id="grid" class="grid"></div>
+                <div id="grid" class="grid"></div>
 
             <!-- hidden popup called when game win -->
             <div id="win-popup" class="win-popup hidden">
@@ -60,8 +63,9 @@
     </main>
 
     <footer>
-        <a href="controls/" style="text-align: center;">controls</a>
-        <p style="text-align: center;">o_m</p>
+        <a href="controls/" target="_blank">controls</a>
+        <a href="../privacy/">privacy</a>
+        <p>o_m</p>
     </footer>
 
     <script src="mines.js"></script>
@@ -72,5 +76,4 @@
 if chord multiple mines, all show up as '!' instead of just the first one
 move player movements eventListeners from renderGrid to outside the constructor
 clean up code, comments 
-add copy note to share button
 -->

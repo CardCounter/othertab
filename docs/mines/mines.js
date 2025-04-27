@@ -513,17 +513,11 @@ class Minesweeper {
         let timerValue;
         let goodTime = '';
 
-        if (this.difficulty == 'easy' && this.timer <= 6){
-            goodTime = '!';
-        }
-        else if (this.difficulty == 'medium' && this.timer <= 60){
-            goodTime = '!';
-        }
-        else if (this.difficulty == 'hard' && this.timer <= 100){
+        if ((this.difficulty == 'easy' && this.timer <= 6) || (this.difficulty == 'medium' && this.timer <= 50) || (this.difficulty == 'hard' && this.timer <= 100)){
             goodTime = '!';
         }
 
-        if (this.timer <= 21){
+        if (this.timer <= 20){
             timerValue = this.timeNumbers[this.timer];
         }
         else {
