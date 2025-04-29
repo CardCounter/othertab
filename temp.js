@@ -1,83 +1,8 @@
-// dark mode toggle
-const darkToggleButton = document.getElementById('dark-toggle');
-
-darkToggleButton.addEventListener('click', () => {
-    document.body.classList.toggle('dark-mode');
-    const isDark = document.body.classList.contains('dark-mode');
-    darkToggleButton.textContent = isDark ? 'light mode' : 'dark mode';
-    
-    // store dark mode in local storage        
-    localStorage.setItem('darkMode', isDark ? 'true' : 'false');
-});
-
-// check for dark mode settings on load
-document.addEventListener('DOMContentLoaded', () => {
-    const savedDarkMode = localStorage.getItem('darkMode');
-    
-    if (savedDarkMode === 'true') {
-        document.body.classList.add('dark-mode');
-        darkToggleButton.textContent = 'light mode';
-    }
-});
-
 class Minesweeper {
     constructor() {
-        this.difficulty = 'hard'; // default starting difficulty
-        document.getElementById(this.difficulty).classList.add('active');
-        this.setDifficultySettings(this.difficulty);
-        
         this.grid = [];
-        this.revealed = 0;
-        this.gameOver = false;
-        this.firstClick = true;
-        this.flagCount = 0;
-        this.timer = 0;
-        this.timerInterval = null;
         this.gameContainer = document.getElementById('game-container');
-        this.isWin = false;
         this.isMouseDown = false;
-        this.isAutoResetOn = false;
-        this.shareButtonClickCount = 0;
-        
-        this.initializeGrid();
-        this.renderGrid();
-        this.updateStats();
-
-        this.timeNumbers = {
-            0:'⓪',
-            1:'①',
-            2:'②',
-            3:'③',
-            4:'④',
-            5:'⑤',
-            6:'⑥',
-            7:'⑦',
-            8:'⑧',
-            9:'⑨',
-            10:'⑩',
-            11:'⑪',
-            12:'⑫',
-            13:'⑬',
-            14:'⑭',
-            15:'⑮',
-            16:'⑯',
-            17:'⑰',
-            18:'⑱',
-            19:'⑲',
-            20:'⑳',
-        };
-        this.timeDigits = {
-            0:'⓪',
-            1:'①',
-            2:'②',
-            3:'③',
-            4:'④',
-            5:'⑤',
-            6:'⑥',
-            7:'⑦',
-            8:'⑧',
-            9:'⑨',
-        };
 
         // difficulty buttons
         const difficultyButtons = document.querySelectorAll('.difficulty');
@@ -540,9 +465,9 @@ class Minesweeper {
             `;
 
         // looks awful, dont want to change it
-        const plainText = `\u200BMINES\u200B
-\u200B${this.difficulty.toUpperCase()}\u200B
-\u200B${timerValue}${goodTime}\u200B`;
+        const plainText = `MINES
+${this.difficulty.toUpperCase()}
+${timerValue}${goodTime}`;
 
         const shareButton = document.getElementById('copy-button');
 
@@ -622,3 +547,6 @@ window.addEventListener('DOMContentLoaded', () => {
     document.documentElement.classList.remove('js-loading');
     const game = new Minesweeper();
 });
+
+
+

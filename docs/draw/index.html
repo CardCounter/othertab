@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="dawing :)">
+    <link rel="icon" href="images/mines.png" type="image/png">
+    <title>draw</title>
+    <!-- <style>
+        html.js-loading {
+          visibility: hidden;
+          opacity: 0;
+        }
+    </style>
+    <script>document.documentElement.classList.add('js-loading');</script> -->
+    <link rel="stylesheet" href="../css/global.css">
+    <link rel="stylesheet" href="../css/header.css">
+    <link rel="stylesheet" href="../css/link.css">
+    <link rel="stylesheet" href="draw.css">
+</head>
+<body>
+    <header>
+        <button id="dark-toggle" class="page-button">dark mode</button>
+        <a href="../">
+            <button id="home-button" class="page-button">o_t</button>
+        </a>
+        <h2>DRAW</h2>
+    </header>
+
+    <main>
+        <div id="top-bar" class="top-bar">
+            <div id="file-load" class="file-load"></div> 
+            <div id="file-save" class="file-save"></div> 
+        </div>
+
+        <div id="working-space" class="working-space">
+            <div id="tool-bar" class="tool">
+                <div id="tools" class="tools"></div>
+                <div id="tool-adjustment" class="tool-adjustment"></div>
+                <div id="color-switcher" class="color-switcher"></div>
+            </div>
+            <div id="canvas-container" class="canvas-container">
+                <div id="canvas" class="canvas"></div> 
+            </div>
+            <div id="overview-bar" class="overview-bar">
+                <div id="colors" class="colors"></div> 
+                <div id="canvas-view" class="canvas-view"></div> 
+                <div id="layers" class="layers"></div> 
+            </div> 
+        </div>
+    </main>
+
+    <footer>
+        <p>
+            o_d
+            <a href="controls/" target="_blank">controls</a>
+            <a href="../privacy/">privacy</a>
+        </p>
+    </footer>
+
+    <script src="draw.js"></script>
+</body>
+</html>
+
+<!-- todo 
+if chord multiple mines, all show up as '!' instead of just the first one
+move player movements eventListeners from renderGrid to outside the constructor
+clean up code, comments 
+-->
