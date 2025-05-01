@@ -66,6 +66,7 @@ class Minesweeper {
             19:'⑲',
             20:'⑳',
         };
+
         this.timeDigits = {
             0:'⓪',
             1:'①',
@@ -539,10 +540,25 @@ class Minesweeper {
         </p>
             `;
 
+        const gameState = [
+            this.difficulty,
+            this.grid,
+            this.flagCount,
+            this.timer,
+            this.gameContainer,
+            this.isAutoResetOn,
+            timerValue,
+            goodTime
+        ];
+
+        const [titleValue, difficultyValue, timeValue] = this.getSecuredWinPopupPaste(gameState);
+
         // looks awful, dont want to change it
-        const plainText = `\u200BMINES\u200B
-\u200B${this.difficulty.toUpperCase()}\u200B
-\u200B${timerValue}${goodTime}\u200B`;
+//         const plainText = `${titleValue}
+// ${difficultyValue}
+// ${timeValue}`;
+
+        const plainText = `${titleValue}\n${difficultyValue}\n${timeValue}`;
 
         const shareButton = document.getElementById('copy-button');
 
@@ -584,6 +600,161 @@ class Minesweeper {
             
         // display popup by adding hidden class, removing active
         popup.classList.remove('hidden');
+    }
+
+    getSecuredWinPopupPaste(gameState) {
+        const difficulty = gameState[0];
+        const timer = gameState[3];
+        const timerValue = gameState[6];
+        const goodTime = gameState[7];
+
+        console.log("dif " + difficulty);
+        console.log("timer " + timer);
+        console.log("timervalue " + timerValue);
+        console.log("goodtime " + goodTime);
+
+        // score security, !!!! in the future can prob do something with prime factors of timer
+        const securityDifficultyDict = {
+            easy: 555,
+            medium: 777,
+            hard: 999,
+        };
+
+        const securityCodeMines = {
+            0: 'MINES',
+            1: 'MIN\u200BES',
+            2: 'MI\u200BNES',
+            3: 'MI\u200BN\u200BES',
+            4: 'M\u200BINES',
+            5: 'M\u200BIN\u200BES',
+            6: 'M\u200BI\u200BNES',
+            7: 'M\u200BI\u200BN\u200BES',
+            8: '\u200BMINES',
+            9: '\u200BMIN\u200BES',
+        }
+
+        const securityCodeEasy = {
+            0: 'EASY',
+            1: 'EAS\u200BY',
+            2: 'EA\u200BSY',
+            3: 'EA\u200BS\u200BY',
+            4: 'E\u200BASY',
+            5: 'E\u200BAS\u200BY',
+            6: 'E\u200BA\u200BSY',
+            7: 'E\u200BA\u200BS\u200BY',
+            8: '\u200BEASY',
+            9: '\u200BEAS\u200BY',
+        }
+
+        const securityCodeMedium = {
+            0: 'MEDIUM',
+            1: 'MED\u200BIUM',
+            2: 'ME\u200BDIUM',
+            3: 'ME\u200BD\u200BIUM',
+            4: 'M\u200BEDIUM',
+            5: 'M\u200BED\u200BIUM',
+            6: 'M\u200BE\u200BDIUM',
+            7: 'M\u200BE\u200BD\u200BIUM',
+            8: '\u200BMEDIUM',
+            9: '\u200BMED\u200BIUM',
+        }
+
+        const securityCodeHard = {
+            0: 'HARD',
+            1: 'HAR\u200BD',
+            2: 'HA\u200BRD',
+            3: 'HA\u200BR\u200BD',
+            4: 'H\u200BARD',
+            5: 'H\u200BAR\u200BD',
+            6: 'H\u200BA\u200BRD',
+            7: 'H\u200BA\u200BR\u200BD',
+            8: '\u200BHARD',
+            9: '\u200BHAR\u200BD',
+        }
+
+        const securityCodeTimeFunctionNormal = (timerValue) => ({
+            0: timerValue,
+            1: timerValue + '\u200B',
+            2: '\u200B' + timerValue,
+            3: '\u200B' + timerValue + '\u200B'
+        });
+
+        const securityCodeTimeFunctionGoodTime = (timerValue) => ({
+            0: timerValue + '!',
+            1: timerValue + '\u200B' + '!',
+            2: '\u200B' + timerValue + '!',
+            3: '\u200B' + timerValue + '\u200B' + '!'
+        });
+
+        const pseudoSalt = [
+            44543, 37046, 59565, 33240, 61607,
+            87252, 69176, 67945, 77292, 12558,
+            91918, 77009, 19217, 80068, 96935,
+            55483, 91826, 62935, 40004, 96288,
+            33797, 84552, 93229, 45102, 54682,
+            64385, 62469, 41605, 83822, 10193
+        ];
+          
+        const rngIdx = Math.floor(Math.random() * pseudoSalt.length); // random gives [0,1)
+        const salt = pseudoSalt[rngIdx];
+        
+        // security logic
+        let rawNum = timer * securityDifficultyDict[difficulty] + salt;
+        console.log("first num: " + rawNum);
+
+        let fullNum = rawNum;
+        let sum = 0;
+        while(fullNum > 0){
+            let digit = fullNum % 10;
+            sum += digit;
+            fullNum = Math.floor(fullNum / 10);
+        }
+
+        rawNum += sum;
+        console.log("num raw after sum: " + rawNum);
+        
+        if(goodTime == '!') rawNum += 111;
+
+        let finalNum = rawNum % 1000;
+        console.log("finalNum: " + finalNum);
+        let firstTwo = Math.floor(finalNum / 10);
+
+        let hundredsDigit = Math.floor(firstTwo / 10);
+        let tensDigit = firstTwo % 10;
+        let onesDigit = (finalNum % 10) % 4; // 0 1 2 3
+
+        console.log("huns: " + hundredsDigit);
+        console.log("tens: " + tensDigit);
+        console.log("ones: " + onesDigit);
+
+        // get text with hidden
+        let titleValue = securityCodeMines[hundredsDigit];
+        console.log("titlevalue: " + titleValue);
+        let difficultyValue;
+        switch (this.difficulty) {
+            case 'easy':
+                difficultyValue = securityCodeEasy[tensDigit];
+                break;
+            case 'medium':
+                difficultyValue = securityCodeMedium[tensDigit];
+                break;
+            case 'hard':
+            default:
+                difficultyValue = securityCodeHard[tensDigit];
+                break;
+        }
+        console.log("diff: " + difficultyValue);
+        let securityCodeTime;
+        if(goodTime == '!'){
+            securityCodeTime = securityCodeTimeFunctionGoodTime(timerValue);
+        }
+        else{
+            securityCodeTime = securityCodeTimeFunctionNormal(timerValue);
+        }
+        let timeValue = securityCodeTime[onesDigit]; // note this is different than `timerValue`
+        console.log("timer: " + timeValue);
+
+        return [titleValue, difficultyValue, timeValue];
     }
     
     resetGame() {

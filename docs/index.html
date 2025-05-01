@@ -85,6 +85,48 @@
 </html>
 
 <!-- todo 
- turn dark mode check into script, easier to call-->
+ turn dark mode check into script, easier to call
+ create dailys, 
+
+ function getDailySeed() {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), 0, 0);
+    const diff = now - start;
+    const oneDay = 1000 * 60 * 60 * 24;
+    const dayOfYear = Math.floor(diff / oneDay);
+    return now.getFullYear() * 1000 + dayOfYear; // e.g., 2025130
+}
+
+const seed = getDailySeed();
+
+//reset at 12am
+function refreshAtMidnightEST() {
+    const now = new Date();
+
+    // Midnight EST = 05:00 UTC (standard time) or 04:00 UTC (daylight saving)
+    // We'll assume Eastern **Time**, so adjust by UTC-5 or UTC-4 as needed
+
+    const offsetHours = now.getTimezoneOffset() === 240 ? 5 : 4; // crude DST check
+    const nextMidnightEST = new Date(Date.UTC(
+        now.getUTCFullYear(),
+        now.getUTCMonth(),
+        now.getUTCDate(),
+        offsetHours, 0, 0
+    ));
+
+    if (now.getTime() >= nextMidnightEST.getTime()) {
+        nextMidnightEST.setUTCDate(nextMidnightEST.getUTCDate() + 1);
+    }
+
+    const msUntilRefresh = nextMidnightEST.getTime() - now.getTime();
+
+    setTimeout(() => {
+        location.reload();
+    }, msUntilRefresh);
+}
+
+refreshAtMidnightEST();
+
+ -->
 
 
