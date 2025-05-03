@@ -44,28 +44,58 @@ class Minesweeper {
         this.updateStats();
 
         this.timeNumbers = {
-            0:'⓪',
-            1:'①',
-            2:'②',
-            3:'③',
-            4:'④',
-            5:'⑤',
-            6:'⑥',
-            7:'⑦',
-            8:'⑧',
-            9:'⑨',
-            10:'⑩',
-            11:'⑪',
-            12:'⑫',
-            13:'⑬',
-            14:'⑭',
-            15:'⑮',
-            16:'⑯',
-            17:'⑰',
-            18:'⑱',
-            19:'⑲',
-            20:'⑳',
-        };
+            0: '⓪',
+            1: '①',
+            2: '②',
+            3: '③',
+            4: '④',
+            5: '⑤',
+            6: '⑥',
+            7: '⑦',
+            8: '⑧',
+            9: '⑨',
+            10: '⑩',
+            11: '⑪',
+            12: '⑫',
+            13: '⑬',
+            14: '⑭',
+            15: '⑮',
+            16: '⑯',
+            17: '⑰',
+            18: '⑱',
+            19: '⑲',
+            20: '⑳',
+            21: '㉑',
+            22: '㉒',
+            23: '㉓',
+            24: '㉔',
+            25: '㉕',
+            26: '㉖',
+            27: '㉗',
+            28: '㉘',
+            29: '㉙',
+            30: '㉚',
+            31: '㉛',
+            32: '㉜',
+            33: '㉝',
+            34: '㉞',
+            35: '㉟',
+            36: '㊱',
+            37: '㊲',
+            38: '㊳',
+            39: '㊴',
+            40: '㊵',
+            41: '㊶',
+            42: '㊷',
+            43: '㊸',
+            44: '㊹',
+            45: '㊺',
+            46: '㊻',
+            47: '㊼',
+            48: '㊽',
+            49: '㊾',
+            50: '㊿'
+        };        
 
         this.timeDigits = {
             0:'⓪',
@@ -518,7 +548,7 @@ class Minesweeper {
             goodTime = '!';
         }
 
-        if (this.timer <= 20){
+        if (this.timer <= 50 && this.timer >= 0){
             timerValue = this.timeNumbers[this.timer];
         }
         else {
@@ -613,7 +643,6 @@ class Minesweeper {
         console.log("timervalue " + timerValue);
         console.log("goodtime " + goodTime);
 
-        // score security, !!!! in the future can prob do something with prime factors of timer
         const securityDifficultyDict = {
             easy: 555,
             medium: 777,
@@ -686,15 +715,23 @@ class Minesweeper {
             3: '\u200B' + timerValue + '\u200B' + '!'
         });
 
+        // const pseudoSalt = [
+        //     44543, 37046, 59565, 33240, 61607,
+        //     87252, 69176, 67945, 77292, 12558,
+        //     91918, 77009, 19217, 80068, 96935,
+        //     55483, 91826, 62935, 40004, 96288,
+        //     33797, 84552, 93229, 45102, 54682,
+        //     64385, 62469, 41605, 83822, 10193
+        // ];
+
         const pseudoSalt = [
-            44543, 37046, 59565, 33240, 61607,
-            87252, 69176, 67945, 77292, 12558,
-            91918, 77009, 19217, 80068, 96935,
-            55483, 91826, 62935, 40004, 96288,
-            33797, 84552, 93229, 45102, 54682,
-            64385, 62469, 41605, 83822, 10193
+            10861, 66482, 50712, 44081, 23507, 16375, 68410, 70232, 52054, 79049,
+            17234, 99439, 82906, 70320, 85891, 67992, 58433, 99675, 80658, 83976,
+            27699, 68507, 81637, 56950, 44649, 54462, 18001, 11329, 53534, 21517,
+            13378, 89247, 85984, 61201, 77964, 32183, 87666, 49309, 65172, 90370,
+            16297, 50670, 68375, 24100, 81122, 37622, 91750, 35446, 78145, 17889
         ];
-          
+        
         const rngIdx = Math.floor(Math.random() * pseudoSalt.length); // random gives [0,1)
         const salt = pseudoSalt[rngIdx];
         
@@ -710,6 +747,7 @@ class Minesweeper {
             fullNum = Math.floor(fullNum / 10);
         }
 
+        sum = ((rawNum ^ 0xa5a5a5) * 31) % 997;
         rawNum += sum;
         console.log("num raw after sum: " + rawNum);
         
@@ -721,7 +759,7 @@ class Minesweeper {
 
         let hundredsDigit = Math.floor(firstTwo / 10);
         let tensDigit = firstTwo % 10;
-        let onesDigit = (finalNum % 10) % 4; // 0 1 2 3
+        let onesDigit = finalNum % 4; // 0 1 2 3
 
         console.log("huns: " + hundredsDigit);
         console.log("tens: " + tensDigit);
