@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="o_t">
+    <link rel="icon" href="images/o_t_big_white_40px_text.png" type="image/png">
+    <title>credits</title>
+    <!-- prevents fouc, hide style as loading html -->
+    <style>
+        html.js-loading {
+          visibility: hidden;
+          opacity: 0;
+        }
+    </style>
+    <script>document.documentElement.classList.add('js-loading');</script>
+    <link rel="stylesheet" href="css/global.css">
+    <link rel="stylesheet" href="css/header.css">
+    <link rel="stylesheet" href="css/link.css">
+    <link rel="stylesheet" href="credits.css">
+</head>
+<body>
+    <header>
+        <button id="dark-toggle" class="page-button">dark mode</button>
+        <h2>CREDITS</h2>
+    </header>
+
+    <main>
+        <div class="card-grid">
+            <div class="card">
+                <a href="mines/" title="theres gold in that them hills">mines</a><br/>
+                try your best to find them
+            </div>
+            <!-- <div class="card">
+                <a href="">something else</a><br />
+                im not sure just yet
+            </div>
+            <div class="card">
+                <a href="">something else</a><br />
+                im not sure just yet. theres a lot of things still do be done, so im not sure when this will be finished
+            </div>
+            <div class="card">
+                <a href="cards/mines/reference mines.html">mines</a><br />
+                same but better
+            </div> -->
+        </div>
+    </main>
+
+    <footer>
+        <!-- <p>some copy stuff &copy; 2025 maybe</p> -->
+        <a href="privacy/">privacy</a>
+        <p>o_t</p>
+        <!-- <p style="text-align: center;">&copy;an do</p> -->
+        <!-- <p style="text-align: center;">privacy policy</p> -->
+    </footer>
+
+    <script>
+        const darkToggleButton = document.getElementById('dark-toggle');
+
+        darkToggleButton.addEventListener('click', () => {
+            document.body.classList.toggle('dark-mode');
+            const isDark = document.body.classList.contains('dark-mode');
+            darkToggleButton.textContent = isDark ? 'light mode' : 'dark mode';
+            
+            // Store user preference in localStorage
+            localStorage.setItem('darkMode', isDark ? 'true' : 'false');
+        });
+
+        // Check for saved preference when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedDarkMode = localStorage.getItem('darkMode');
+            
+            if (savedDarkMode === 'true') {
+                document.body.classList.add('dark-mode');
+                darkToggleButton.textContent = 'light mode';
+            }
+        });
+
+        // prevents fouc, hide style as loading html
+        window.addEventListener('DOMContentLoaded', () => {
+            document.documentElement.classList.remove('js-loading');
+        });
+    </script>
+</body>
+</html>
+
+<!-- todo 
+ turn dark mode check into script, easier to call-->
+
+
