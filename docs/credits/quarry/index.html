@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="just dont click on the red ones">
+    <link rel="icon" href="images/mines.png" type="image/png">
+    <title>mines</title>
+    <!-- prevents fouc, hide style as loading html -->
+    <style>
+        html.js-loading {
+          visibility: hidden;
+          opacity: 0;
+        }
+    </style>
+    <script>document.documentElement.classList.add('js-loading');</script>
+    <link rel="stylesheet" href="../../css/global.css">
+    <link rel="stylesheet" href="../../css/header.css">
+    <link rel="stylesheet" href="../../css/link.css">
+    <link rel="stylesheet" href="quarry.css">
+</head>
+<body>
+    <header>
+        <button id="dark-toggle" class="page-button">dark mode</button>
+        <a href="../">
+            <button id="home-button" class="page-button">o_Ʉ</button>
+        </a>
+        <h2>QUARRY</h2>
+    </header>
+
+    <div id="credit-counter" class="credit-counter">
+        <div id="credits" class="credits"></div>
+    </div>  
+
+    <main>  
+        <div id="game-wrapper" class="game-wrapper">
+            <div id="rock-wrapper"class="rock-wrapper">
+                <div id="rock" class="rock"></div>
+                <div class="status-text" id="status-text">click the rock to mine</div>
+            </div>
+
+            <div id="mines-shop"class="mines-shop">
+                <a href="#" id="open-mines" style="text-align: center;">go deeper into the mines (coal: <span id="coal-value">0</span>)</a>
+                <a href="#" id="open-shop" style="text-align: center;">shop</a>
+            </div>
+        </div>
+    </main>
+    
+    <footer>
+        <a href="../../privacy/" style="user-select: none;">privacy</a>
+        <p style="user-select: none;">Ʉ_Q</p>
+    </footer>
+
+    <!-- shop page -->
+    <div id="shop" class="shop">
+        <div id="shop-header" class="shop-header">
+            <button id="dark-toggle" class="page-button">dark mode</button>
+            <button id="close-shop" class="page-button">Ʉ_Q</button>
+            <h2>SHOP</h2>
+        </div>
+
+        <div id="credit-counter-shop" class="credit-counter">
+            <div id="credits" class="credits"></div>
+        </div> 
+        
+        <div class="shop-items">
+            <div class="shop-item" id="item-1">
+              <div class="item-title">MULTI 1 (Ʉ 10)</div>
+              <div class="item-desc">Doubles credit gain</div>
+              <div class="item-level">Power: <span id="level-1">0</span></div>
+            </div>
+
+            <div class="shop-item" id="item-2">
+              <div class="item-title">MULTI 2 (Ʉ 20)</div>
+              <div class="item-desc">Triples credit gain</div>
+              <div class="item-level">Power: <span id="level-2">0</span></div>
+            </div>
+            
+            <div class="shop-item" id="item-3">
+              <div class="item-title">MULTI 3 (Ʉ 50)</div>
+              <div class="item-desc">Quadruples credit gain</div>
+              <div class="item-level">Power: <span id="level-3">0</span></div>
+            </div>
+          </div>          
+    </div>
+
+    <!-- <script src="mines.js"></script> -->
+    <script src="../../scripts/darkmode.js"></script>
+    <script src="../../scripts/fouc.js"></script>
+    <script src="quarry.js"></script>
+    <script>
+
+        const creditCounter = document.getElementById('credit-counter');
+        creditCounter.textContent = `Ʉ ${localStorage.getItem('credits')}`;
+
+        const creditCounterShop = document.getElementById('credit-counter-shop');
+        creditCounterShop.textContent = `Ʉ ${localStorage.getItem('credits')}`;
+    </script>
+</body>
+</html>
