@@ -55,12 +55,14 @@ button:hover {
 }
 
 .stats {
-    display: flex;
-    align-items: center;
-    justify-content: space-evenly;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
     gap: 2rem;
-    margin: 0.2rem 0;
-    font-size: 18px;
+    width: 100%;
+    max-width: 400px;
+    margin: 0.2rem auto 0 auto;
+    font-size: 16px;
+    text-align: center;
 }
 
 .top-bar {
