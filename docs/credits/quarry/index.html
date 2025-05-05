@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="just dont click on the red ones">
+    <meta name="description" content="i yern">
     <link rel="icon" href="images/mines.png" type="image/png">
-    <title>mines</title>
+    <title>coal mine</title>
     <!-- prevents fouc, hide style as loading html -->
     <style>
         html.js-loading {
@@ -18,6 +18,8 @@
     <link rel="stylesheet" href="../../css/header.css">
     <link rel="stylesheet" href="../../css/link.css">
     <link rel="stylesheet" href="quarry.css">
+    <link rel="stylesheet" href="shop.css">
+    <link rel="stylesheet" href="gems.css">
 </head>
 <body>
     <header>
@@ -25,7 +27,7 @@
         <a href="../">
             <button id="home-button" class="page-button">o_Ʉ</button>
         </a>
-        <h2>QUARRY</h2>
+        <h2>COAL MINES</h2>
     </header>
 
     <div id="credit-counter" class="credit-counter">
@@ -40,7 +42,7 @@
             </div>
 
             <div id="mines-shop"class="mines-shop">
-                <a href="#" id="open-mines" style="text-align: center;">go deeper into the mines (coal: <span id="coal-value">0</span>)</a>
+                <a href="#" id="open-mines" style="text-align: center;">enter gem cave (coal: <span id="coal-value">0</span>)</a>
                 <a href="#" id="open-shop" style="text-align: center;">shop</a>
             </div>
         </div>
@@ -64,30 +66,66 @@
         </div> 
         
         <div class="shop-items">
-            <div class="shop-item" id="item-1">
-              <div class="item-title">MULTI 1 (Ʉ 10)</div>
-              <div class="item-desc">Doubles credit gain</div>
-              <div class="item-level">Power: <span id="level-1">0</span></div>
+            <div class="shop-item" id="item-sharpen-pick">
+              <button id="item-sharpen-pick-button">sharpen pick</button>
+              <div>Ʉ <span id="item-sharpen-pick-price">10</span></div>
+              <p>increase Ʉ earned on click</p>
+              <div >level: <span id="item-sharpen-pick-level">20</span></div>
             </div>
 
-            <div class="shop-item" id="item-2">
-              <div class="item-title">MULTI 2 (Ʉ 20)</div>
-              <div class="item-desc">Triples credit gain</div>
-              <div class="item-level">Power: <span id="level-2">0</span></div>
+            <div class="shop-item" id="item-coal-vein">
+                <button id="item-coal-vein-button">coal vein</button>
+                <div>Ʉ <span id="item-coal-vein-price">100</span></div>
+                <p>increase coal gained on click</p>
+                <div >level: <span id="item-coal-vein-level">256</span></div>
             </div>
             
-            <div class="shop-item" id="item-3">
-              <div class="item-title">MULTI 3 (Ʉ 50)</div>
-              <div class="item-desc">Quadruples credit gain</div>
-              <div class="item-level">Power: <span id="level-3">0</span></div>
+            <div class="shop-item" id="item-flawless-gems">
+                <button id="item-flawless-gems-button">flawless gems</button>
+                <div>Ʉ <span id="item-flawless-gems-price">15</span></div>
+                <p>increases Ʉ gained from gems</p>
+                <div >level: <span id="item-flawless-gems-level">9</span></div>
             </div>
           </div>          
+    </div>
+
+    <!-- gem finder -->
+    <div id="mines" class="mines">
+        <div id="mines-header" class="mines-header">
+          <button id="dark-toggle" class="page-button">dark mode</button>
+          <button id="close-mines" class="page-button">Ʉ_Q</button>
+          <h2>MINES</h2>
+        </div>
+      
+        <!-- stats bar -->
+        <div class="top-bar">
+          <div class="stats">
+            <div>coal left: <span id="coal-counter"></span></div>
+            <div>gems found: <span id="gem-counter"></span>/<span id="gem-total"></span></div>
+            <div>clicks: <span id="click-counter"></span></div>
+          </div>
+        </div>
+      
+        <!-- game area -->
+        <main>
+          <div id="game-container" class="game-container">
+            <div id="grid" class="grid"></div>
+            <p id="status-text" class="status-text"></p>
+          </div>
+      
+          <div class="controls">
+            <button id="new-game" hidden>new board</button>
+            <a id="return-home" class="page-button" href="../" hidden>return home</a>
+          </div>
+        </main>
     </div>
 
     <!-- <script src="mines.js"></script> -->
     <script src="../../scripts/darkmode.js"></script>
     <script src="../../scripts/fouc.js"></script>
     <script src="quarry.js"></script>
+    <script src="shop.js"></script>
+    <script src="gems.js"></script>
     <script>
 
         const creditCounter = document.getElementById('credit-counter');

@@ -49,16 +49,6 @@
     <script src="../scripts/darkmode.js"></script>
     <script src="../scripts/fouc.js"></script>
     <script>
-        // // first time visiting, give Ʉ10
-        // if (!localStorage.getItem('firstTimeCredits')) {
-        //     // First-time logic here
-        //     localStorage.setItem('firstTimeCredits', 'true');
-        // }
-        // if(localStorage.getItem('firstTimeCredits')){
-        //     localStorage.setItem('credits', 10);
-        //     localStorage.setItem('firstTimeCredits', 'false');
-        // }
-
         function updateCreditsDisplay() {
             const creditCounter = document.getElementById('credit-counter');
             creditCounter.textContent = `Ʉ ${localStorage.getItem('credits') || 0}`;

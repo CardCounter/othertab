@@ -1,0 +1,132 @@
+/* -------- overlay frame (mirrors .shop) ------------------------------ */
+.mines {
+    position:fixed;
+    inset:0;                       /* top 0 right 0 bottom 0 left 0        */
+    width:100vw; height:100vh;
+    background:var(--bg-color, #fff);
+    transform:translateY(100%);
+    transition:transform .35s ease;
+    overflow:auto;
+    z-index:1001;                  /* above .shop (1000)                   */
+  }
+  .mines.active { transform:translateY(0); }
+  
+  /* header strip inside the overlay ------------------------------------ */
+  .mines-header {
+    display:flex; align-items:center; gap:.5rem;
+    padding:.5rem 1rem;
+    border-bottom:1px solid #aaa;
+  }
+  .mines-header h2 { margin-left:auto; margin-right:auto; }
+  
+  /* the rest (grid, numbers, controls …) come from mines.css ----------- */
+  
+
+/* ------------ colour palette (CSS variables) ------------------------- */
+:root {
+    /* light mode */
+    --cell-edge:        #555;
+    --cell-blank:       #cfcfcf;
+    --cell-revealed:    #e9e9e9;
+    --cell-hover:       #999;
+    --cell-gem:         #19b71b;
+    --cell-coal:        #3a2d16;
+    --grid-border:      #000;
+    --win-border:       #2ecc40;
+    --lose-border:      #ff4136;
+  
+    /* Minesweeper‑style number colours                                  */
+    --n1:#0074d9; --n2:#2ecc40;  --n3:#ff4136;
+    --n4:#870cfa; --n5:#ff851b;  --n6:#39cccc;
+    --n7:#b10dc9; --n8:#aaaaaa;
+  }
+  
+  body.dark-mode {
+    --cell-blank:    #3b3b3b;
+    --cell-revealed: #666;
+    --cell-hover:    #555;
+    --grid-border:   #fff;
+  }
+  
+  /* ------------ overall layout ---------------------------------------- */
+  .top-bar .stats {
+    display:flex; gap:2rem; margin:1rem 0;
+    font-size:1rem;
+  }
+  
+  .status-text {
+    text-align:center; margin:0.5rem 0 0;
+  }
+  
+  /* ------------ grid container ---------------------------------------- */
+  .game-container {
+    border:20px solid var(--grid-border);
+    display:inline-block;
+  }
+  
+  /* green or red border cues (still here in case you re‑enable them) */
+  .game-container.win-border  { border-color:var(--win-border);  }
+  .game-container.lose-border { border-color:var(--lose-border); }
+  
+  /* ------------ CSS grid for cells ------------------------------------ */
+  .grid {
+    display:grid;
+    gap:1px;                     /* spacing between cells = grid lines   */
+    background:var(--cell-edge);
+    user-select:none;
+  }
+  
+  .cell {
+    width:30px; height:30px;
+    background:var(--cell-blank);
+    font-size:18px;
+    line-height:30px;
+    text-align:center;
+    cursor:pointer;
+  }
+  
+  /* hover effect for unrevealed cells */
+  .cell:not(.revealed):hover {
+    background:var(--cell-hover);
+  }
+  
+  /* revealed generic appearance */
+  .cell.revealed {
+    background:var(--cell-revealed);
+    cursor:default;
+  }
+  
+  /* gem & coal cells */
+  .cell.gem       { color:var(--cell-gem);  font-weight:bold; }
+  .cell.coal-cell { color:var(--cell-coal); font-weight:bold; }
+  
+  /* number colouring (classic Minesweeper) */
+  .color-1 { color:var(--n1); } .color-2 { color:var(--n2); }
+  .color-3 { color:var(--n3); } .color-4 { color:var(--n4); }
+  .color-5 { color:var(--n5); } .color-6 { color:var(--n6); }
+  .color-7 { color:var(--n7); } .color-8 { color:var(--n8); }
+  
+  /* ------------ controls ---------------------------------------------- */
+  .controls {
+    margin:1rem 0; display:flex; gap:1rem; justify-content:center;
+  }
+  
+  .controls button,
+  .controls a.page-button {
+    padding:0.4rem 1.2rem;
+    border:none;
+    border-radius:4px;
+    background:#444;
+    color:#fff;
+    cursor:pointer;
+    text-decoration:none;
+  }
+  
+  .controls button:hover,
+  .controls a.page-button:hover {
+    background:#555;
+  }
+  
+  .controls button[hidden],
+  .controls a[hidden] { display:none; }
+  

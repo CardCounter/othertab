@@ -30,7 +30,7 @@ function clickRock() {
         credits += 1;
         localStorage.setItem('credits', credits);
         updateCreditsDisplay();
-        statusText.textContent = 'gained 1 credit';
+        statusText.textContent = 'earned 1 credit'; ///// should really be ${sharpen pick level} pay
     } else if (rand < 0.3) {
         if(data.coal < 998){
             // 10% chance: gain 2–10 coal
@@ -41,7 +41,7 @@ function clickRock() {
             }
             localStorage.setItem('quarry-items', JSON.stringify(data));
             updateCoalDisplay();
-            statusText.textContent = `gained ${coalGain} coal`;
+            statusText.textContent = `mined ${coalGain} coal`;
         }
         else{
             // data.coal = 999;
@@ -60,18 +60,3 @@ function clickRock() {
 rock.addEventListener('click', () => {
         clickRock();
 });
-
-
-
-// open/close shop, shop
-document.getElementById('open-shop').addEventListener('click', (e) => {
-    e.preventDefault();
-    document.body.classList.add('shop-open');
-    document.getElementById('shop').classList.add('active');
-});
-
-document.getElementById('close-shop').addEventListener('click', () => {
-    document.body.classList.remove('shop-open');
-    document.getElementById('shop').classList.remove('active');
-});
-  
