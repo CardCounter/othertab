@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="how to type">
+    <link rel="icon" href="../../images/help.png" type="image/png">
+    <title>some things to make it easier</title>
+    <style>
+        html.js-loading {
+          visibility: hidden;
+          opacity: 0;
+        }
+    </style>
+    <script>document.documentElement.classList.add('js-loading');</script>
+    <link rel="stylesheet" href="../../css/global.css">
+    <link rel="stylesheet" href="../../css/header.css">
+    <link rel="stylesheet" href="../../css/link.css">
+</head>
+<body>
+    <p>hold ` to quick reset</p>
+    <p>punctuation: none => none, some => don't, it's, etc, a lot => Something like this?</p>
+    <a href="../">go back</a>
+</body>
+<script>
+    // Check for saved preference when page loads
+    document.addEventListener('DOMContentLoaded', () => {
+        const savedDarkMode = localStorage.getItem('darkMode');
+        
+        if (savedDarkMode === 'true') {
+            document.body.classList.add('dark-mode');
+        }
+
+        // prevents fouc, hide style as loading html
+        document.documentElement.classList.remove('js-loading');
+    });
+</script>
+</html>

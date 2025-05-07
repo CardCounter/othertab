@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>TYPING</title>
+	<style>
+		body {
+			text-align: center;
+			margin: 0;
+			padding: 0;
+			background: white;
+			color: black;
+		}
+
+		header {
+			display: flex;
+			justify-content: space-between;
+			padding: 0.5rem 1rem;
+			font-weight: bold;
+		}
+
+		#title {
+			text-align: center;
+			font-size: 1.5rem;
+		}
+
+		.settings {
+			display: flex;
+			justify-content: center;
+			align-items: center;
+			gap: 2rem;
+			margin-top: 1rem;
+			margin-bottom: 0.5rem;
+		}
+
+		button.option {
+			padding: 0.4rem 1rem;
+			margin: 0 0.3rem;
+			cursor: pointer;
+			border: 1px solid black;
+			background: none;
+		}
+
+		button.option.active {
+			background: #ccc;
+		}
+
+		.dropdown {
+			position: relative;
+			display: inline-block;
+		}
+
+		.dropdown-content {
+			display: none;
+			position: absolute;
+			background-color: #f9f9f9;
+			min-width: 100px;
+			box-shadow: 0px 8px 16px rgba(0,0,0,0.2);
+			z-index: 1;
+			text-align: left;
+		}
+
+		.dropdown-content div {
+			padding: 0.5rem;
+			cursor: pointer;
+		}
+
+		.dropdown:hover .dropdown-content {
+			display: block;
+		}
+
+		#typing-box {
+			border: 4px solid black;
+			width: 80%;
+			height: 250px;
+			margin: 1rem auto;
+			font-size: 1.5rem;
+			white-space: pre-wrap;
+			padding: 1rem;
+			background-color: #fff;
+			overflow-y: auto;
+			text-align: left;
+		}
+
+		#typing-box span {
+			display: inline-block;
+		}
+
+		.correct {
+			color: black;
+		}
+
+		.incorrect {
+			color: red;
+		}
+
+		.overtyped {
+			color: #f88;
+		}
+
+		.locked-wrong {
+			text-decoration: underline;
+			text-decoration-color: red;
+			text-decoration-thickness: 2px;
+		}
+
+		.cursor {
+			display: inline-block;
+			width: 1ch;
+			animation: blink 1s step-start infinite;
+		}
+
+		@keyframes blink {
+			50% { background: black; color: white; }
+		}
+
+		#results {
+			margin-top: 1rem;
+			font-size: 1rem;
+		}
+	</style>
+</head>
+<body>
+	<header>
+		<div>o_t</div>
+		<div id="title">TYPING</div>
+		<div>dark mode</div>
+	</header>
+
+	<div class="settings">
+		<div class="dropdown">
+			<span>PUNCTUATION</span>
+			<div class="dropdown-content">
+				<div data-punc="none">none</div>
+				<div data-punc="some">some</div>
+				<div data-punc="lot">a lot</div>
+			</div>
+		</div>
+		<div>
+			<button class="option" data-time="30">30</button>
+			<button class="option" data-time="60">60</button>
+			<button class="option" data-mode="s">S</button>
+			<button class="option" data-mode="w">W</button>
+		</div>
+	</div>
+
+	<div id="typing-box">
+		<!-- Typing text will be inserted here -->
+	</div>
+
+	<div id="results">
+		<!-- Results will appear here -->
+	</div>
+
+	<script>
+		let targetText = "this is a sample text to test the typing game";
+		let currentInput = "";
+		let currentIndex = 0;
+		let typingBox = document.getElementById("typing-box");
+		
+		function renderText() {
+			let html = "";
+			const words = targetText.split(" ");
+			const typedWords = currentInput.trim().split(" ");
+			let charIndex = 0;
+
+			words.forEach((word, wIdx) => {
+				let typedWord = typedWords[wIdx] || "";
+				let display = "";
+				for (let i = 0; i < Math.max(word.length, typedWord.length); i++) {
+					let cls = "correct";
+					if (i >= word.length) cls = "overtyped";
+					else if (i >= typedWord.length) cls = "";
+					else if (typedWord[i] !== word[i]) cls = "incorrect";
+					display += `<span class="${cls}">${typedWord[i] || word[i] || " "}</span>`;
+				}
+				if (typedWord !== word && typedWord !== "") {
+					display = `<span class="locked-wrong">${display}</span>`;
+				}
+				html += display + " ";
+			});
+			// Add blinking cursor
+			html += '<span class="cursor">|</span>';
+			typingBox.innerHTML = html;
+		}
+
+		document.addEventListener("keydown", (e) => {
+			if (e.key === "`") {
+				currentInput = "";
+				renderText();
+				return;
+			}
+			if (e.key === "Backspace") {
+				let parts = currentInput.trimEnd().split(" ");
+				if (parts.length === targetText.split(" ").length) return;
+				currentInput = currentInput.slice(0, -1);
+				renderText();
+				return;
+			}
+			if (e.key.length === 1 || e.key === " ") {
+				currentInput += e.key;
+				renderText();
+			}
+		});
+
+		renderText();
+	</script>
+</body>
+</html>

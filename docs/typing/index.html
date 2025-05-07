@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="winstons per minute">
+    <link rel="icon" href="images/mines.png" type="image/png">
+    <title>typing</title>
+    <!-- prevents fouc, hide style as loading html -->
+    <style>
+        html.js-loading {
+          visibility: hidden;
+          opacity: 0;
+        }
+    </style>
+    <script>document.documentElement.classList.add('js-loading');</script>
+    <link rel="stylesheet" href="../css/global.css">
+    <link rel="stylesheet" href="../css/header.css">
+    <link rel="stylesheet" href="../css/link.css">
+    <link rel="stylesheet" href="typing.css">
+</head>
+<body>
+    <header>
+        <button id="dark-toggle" class="page-button">dark mode</button>
+        <a href="../">
+            <button id="home-button" class="page-button">o_t</button>
+        </a>
+        <h2>TYPING</h2>
+    </header>
+
+    <main>
+        <div class="top-bar">
+            <div class="punctuation-dropdown">
+                <button class="dropdown-button">punctuation</button>
+                <div class="dropdown-content">
+                    <div class="option">none</div>
+                    <div class="option">some</div>
+                    <div class="option">a lot</div>
+                </div>
+            </div>
+
+            <div class="modes">
+                <button data-time="30">30</button>
+                <button data-time="60">60</button>
+                <button data-mode="s">s</button>
+                <button data-mode="w">w</button>
+            </div>
+        </div>
+
+        <div id="game-container" class="game-container">
+            <div class="typing-wrapper">
+                <div class="text-overlay" id="text-display">
+                    <span class="placeholder hidden">what did you just say about me what did you just say about me what did you just say about me what did you just say about me what did you just say about me what did you just say about me what did you just say about mewhat did you just say about mewhat did you just say about me what did you just say about me what did you just say about me </span>
+                    <span class="typed-text" id="typed-text"></span>
+                </div>
+                <textarea id="real-input"     
+                spellcheck="false"
+                autocomplete="off"
+                autocorrect="off"
+                autocapitalize="off"></textarea>
+            </div>
+            
+            <!-- <div id="grid" class="grid"></div> -->
+
+            <div id="stats-popup" class="stats-popup hidden">
+                <div id="stats-text" class="stats-text"></div>
+                <button id="copy-button" class="copy-button">share</button>
+            </div>
+        </div> 
+    </main>
+
+    <footer>
+        <a href="controls/">controls</a>
+        <a href="../privacy/">privacy</a>
+        <p>o_T</p>
+    </footer>
+
+    <script src="../scripts/darkmode.js"></script>
+    <script src="../scripts/fouc.js"></script>
+    <script src="typing.js"></script>
+</body>
+</html>
