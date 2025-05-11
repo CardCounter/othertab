@@ -123,6 +123,7 @@ class Typing {
                     if (/^[a-zA-Z0-9 !"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~]$/.test(e.key)) {
                         if (this.firstKey === false){
                             this.firstKey = true; /// start timer here
+                            this.setTypingTitle(true);
                             this.startTimer();
                             // console.log(`start timer: ${this.timer}`)
                         }
@@ -147,6 +148,8 @@ class Typing {
                             this.typingDone = true;
                             this.canType = false;
                             // console.log(`game finish`)
+
+                            this.setTypingTitle(false);
 
                             // add tombstone to end
                             const typedText = document.getElementById('typed-text');
@@ -236,6 +239,7 @@ class Typing {
         this.canType = true;
 
         this.initializeBoard(numWords);
+        this.setTypingTitle(false);
 
         document.getElementById('copy-button').textContent = 'share';
 
@@ -279,7 +283,7 @@ class Typing {
 
     checkCharacterStyle(masterArray, userTyped, currentIndex, characterArray){
         if (currentIndex === -1) return; // no letters
-        else if (userTyped.length - 1 < currentIndex) { // too small, messed up somewhere?, safety
+        else if (userTyped.length - 1 < currentIndex) { // too small => messed up somewhere?, keep for safety
             characterArray[currentIndex].classList.remove('correct');
             characterArray[currentIndex].classList.remove('wrong');
         }
@@ -348,6 +352,10 @@ class Typing {
             clearInterval(this.timerInterval);
             this.timerInterval = null;
         }
+    }
+
+    setTypingTitle(isTyping) {
+        document.title = isTyping ? 'typing...' : 'typing';
     }
 
     getWPM() {
