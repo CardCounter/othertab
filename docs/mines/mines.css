@@ -31,8 +31,9 @@ body {
     min-height: 100vh;
 }
 
+
 button {
-    padding: 0.5rem 1rem;
+    padding: 0.1rem 0.25rem;
     cursor: pointer;
     /* margin-left: 5px;
     margin-right: 5px;
@@ -53,6 +54,15 @@ button:hover {
     display: flex;
     justify-content: space-evenly;
 }
+
+.difficulty-buttons button.active:hover {
+    background-color: blue;
+}
+
+.dark-mode .difficulty-buttons button.active:hover {
+    background-color: red;
+}
+
 
 .stats {
     display: flex;
@@ -182,8 +192,18 @@ button:hover {
     max-width: 90vw;
   }
 
-.active {
+/* .active {
     background-color: var(--button-active);
+} */
+
+.active {
+    background-color: blue;
+    color: blue;
+}
+
+.dark-mode .active {
+    background-color: red;
+    color: red;
 }
 
 .hidden {

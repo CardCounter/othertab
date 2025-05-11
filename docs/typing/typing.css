@@ -1,0 +1,237 @@
+:root {
+    font-size: 16px;
+    --typing-font-size: 2.5rem;
+}
+
+body {
+    margin: 0;
+    background-color: white;
+    color: black;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+}
+
+button {
+    /* padding: 1rem 0; */
+    cursor: pointer;
+    /* margin-left: 5px;
+    margin-right: 5px;
+    margin-top: 5px;
+    margin-bottom: 5px; */
+    margin: 1rem 0;
+    font-size: 16px;
+    /* call --bg from global */
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    border: none;
+}
+
+button:hover {
+    background-color: grey;
+}
+
+button:focus { 
+    outline: none;
+    box-shadow: none;
+}
+
+.top-bar{
+    display: flex;
+    flex-direction: row;
+    margin: 1rem 0;
+    align-content: center;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.wpm-paste{
+    display: flex;
+    flex-direction: row;
+    /* margin: 1rem 0; */
+    align-items: center;
+}
+
+.copy-button{
+    cursor: pointer;
+    margin: 0 0.3rem;
+    padding: 0 0; /* change this for vertical bars on mode buttons */
+    font-size: 16px;
+    background-color: var(--bg-color); /* call --bg from global */
+    color: var(--text-color);
+    border: none; 
+}
+
+.mode-button{
+    cursor: pointer;
+    margin: 0;
+    padding: 0 0; /* change this for vertical bars on mode buttons */
+    font-size: 16px;
+    background-color: var(--bg-color); /* call --bg from global */
+    color: var(--text-color);
+    border: none; 
+}
+
+.mode-button.active{
+    background-color: blue;
+    color: blue;
+}
+
+.dark-mode .mode-button.active{
+    background-color: red;
+    color: red;
+}
+
+.punctuation-dropdown {
+	position: relative;
+	display: inline-block;
+}
+
+.dropdown-button {
+    border: none;
+    background-color: white;
+    color: black;
+	font-size: 1rem;
+	cursor: pointer;
+}
+
+.dark-mode .dropdown-button{
+    background-color: black;
+    color: white;
+}
+
+.dropdown-content {
+	display: none;
+	position: absolute;
+	background-color: white;
+	border: 1px solid black;
+	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+	z-index: 1;
+	padding: 0.5rem;
+	min-width: 100px;
+}
+
+.dropdown:hover .dropdown-content {
+	display: block;
+}
+
+.option {
+	padding: 0.25rem 0;
+	cursor: pointer;
+}
+
+.option:hover {
+	background-color: #eee;
+}
+
+.user-input{
+    color: grey;
+}
+
+.output{
+    color: black;
+}
+
+
+.hidden {
+    display: none;
+}
+
+.typing-wrapper {
+    /* display: flex; focus on this later, want it so that when user zooms in the block stays good */
+    text-align: left;
+    position: relative;
+    /* width: 1000px; */
+    width: 100%;
+    max-width: 1000px;
+    height: 200px;
+    font-size: 24px;
+
+    /* height: calc(1.2em * 3); */
+    height: auto;
+    line-height: 1.2;
+}
+
+.typed-text {
+    position: relative;
+    /* position: absolute; */
+    top: 0;
+    left: 0;
+    width: 100%;
+    /* height: 200px; */
+    height: auto;
+    pointer-events: none;
+
+    white-space: pre-wrap;
+    overflow-wrap: pre-wrap;
+    word-break: normal;
+
+    font-size: var(--typing-font-size);
+    line-height: 1.2;
+    color: grey;
+    padding: 0;
+    margin: 0;
+    border: none;
+    resize: none;
+    outline: none;
+
+    letter-spacing: 0.05rem; 
+} 
+
+.dark-mode .typed-text {
+    color: grey;
+}
+
+.caret{
+    /* display: inline-block; */
+    position: absolute;
+    width: 0.2rem;
+    height: var(--typing-font-size);
+    margin-left: 0;
+    background: blue;
+    vertical-align: text-top;
+    animation: blink 1s step-end infinite;
+
+    transition: opacity 0s ease-out, left 0.12s ease-out, top 0.12s ease-out;
+}
+
+@keyframes blink {
+    50% {
+        opacity: 0;
+    }
+} 
+
+.dark-mode .caret{
+    background: red;
+}
+
+.correct{
+    background: transparent;
+    color: black;
+}
+
+.dark-mode .correct{
+    background: transparent;
+    color: white;
+}
+
+.wrong{
+    background-color: red;
+    color: black;
+}
+
+.dark-mode .wrong{
+    background: blue;
+    color: white;
+}
+
+.tombstone{
+    color: black;
+}
+
+.dark-mode .tombstone{
+    color: white;
+}
+

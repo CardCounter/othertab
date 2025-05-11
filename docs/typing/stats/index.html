@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="look at your stats">
+    <link rel="icon" href="images/statslogo.png" type="image/png">
+    <title>are you a good person?</title>
+    <style>
+        html.js-loading {
+          visibility: hidden;
+          opacity: 0;
+        }
+        #bestStatsTable th,
+        #bestStatsTable td {
+            padding: 12px 16px;
+            text-align: center;
+            vertical-align: middle;
+        }
+    </style>
+    <script>document.documentElement.classList.add('js-loading');</script>
+    <link rel="stylesheet" href="../../css/global.css">
+    <link rel="stylesheet" href="../../css/header.css">
+    <link rel="stylesheet" href="../../css/link.css">
+</head>
+
+<body>
+    <h3 style="margin-bottom: 0px; margin-top: 1px;">rolling avg of last 100 tests</h3>
+
+    <p style="margin-top: 1px;" id="avgStats">avg wpm NA avg acc NA%</p>
+
+    <h3 style="margin-bottom: 0px;">your best</h3>
+
+    <table border="1" style="margin-top: 8px; margin-bottom: 18.72px;" id="bestStatsTable">
+        <thead>
+            <tr>
+                <th></th>
+                <th>10</th>
+                <th>25</th>
+                <th>50</th>
+                <th>100</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <th>wpm</th>
+                <td id="wpm-10">NA</td>
+                <td id="wpm-25">NA</td>
+                <td id="wpm-50">NA</td>
+                <td id="wpm-100">NA</td>
+            </tr>
+            <tr>
+                <th>acc</th>
+                <td id="acc-10">NA</td>
+                <td id="acc-25">NA</td>
+                <td id="acc-50">NA</td>
+                <td id="acc-100">NA</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <a href="javascript:history.back()">go back</a>
+</body>
+
+<script src="../../scripts/darkmode-check.js"></script>
+<script src="../../scripts/fouc.js"></script>
+<script src="stats.js"></script>
+</html>
