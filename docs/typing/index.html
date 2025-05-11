@@ -46,8 +46,8 @@
                 <button id="mode-100" class="mode-button" data-time="100">100</button>
             </div>
 
-            <div class="wpm-paste">
-                <div id="wpm-text" class="wpm-text">wpm 86 accuracy 99%</div>
+            <div id="wpm-paste" class="wpm-paste hidden">
+                <div id="wpm-text" class="wpm-text"></div>
                 <button id="copy-button" class="copy-button">share</button>
             </div>
         </div>
@@ -69,10 +69,10 @@
             
             <!-- <div id="grid" class="grid"></div> -->
 
-            <div id="stats-popup" class="stats-popup hidden">
+            <!-- <div id="stats-popup" class="stats-popup hidden">
                 <div id="stats-text" class="stats-text"></div>
                 <button id="copy-button" class="copy-button">share</button>
-            </div>
+            </div> -->
         </div> 
     </main>
 
@@ -90,5 +90,21 @@
 
 
 <!-- notes
-make enter reset 
+make caret not blink while typing 
+add timer, accuracy
+add complete paste
+make window scale/work with multiple dimentions/wrap without overlapping with footer
+add qed block to end when finished test
+make it so that if too many words, pushes footer down
+make it so that have max 10 lines, if more will push up when top line is complete, come back if backspace last line
+add stats page, save last 100. 100 length array, check lenght, if > 100 push or whatever head, then append next to back. avg = sum / len
+    have stats for each mode, only none
+
+caret can wrap around if word is right at the edge, fix this, maybe hide caret if its on last index, etc. hiding will work
+
+controls dont have to be their own page, can do the thing you did for mines. might be harder
+
+add link from ot
+
+OTHER change mines describtion, repeat over and over
 -->

@@ -52,7 +52,7 @@ button:focus {
 .wpm-paste{
     display: flex;
     flex-direction: row;
-    margin: 1rem 0;
+    /* margin: 1rem 0; */
     align-items: center;
 }
 
@@ -63,7 +63,7 @@ button:focus {
     margin-right: 5px;
     margin-top: 5px;
     margin-bottom: 5px; */
-    margin: 0 0.4rem;
+    margin: 0 0.3rem;
     padding: 0 0; /* change this for vertical bars on mode buttons */
     /* margin: 1rem 0; */
     font-size: 16px;
@@ -320,6 +320,14 @@ button:focus {
 
 .dark-mode .wrong{
     background: blue;
+    color: white;
+}
+
+.tombstone{
+    color: black;
+}
+
+.dark-mode .tombstone{
     color: white;
 }
 
