@@ -1,38 +1,59 @@
-// // const input = document.getElementById('real-input');
-// const typedText = document.getElementById('typed-text');
-// const placeholder = document.getElementById('placeholder');
-// // placeholder.textContent = 
-
-// const words = placeholder.textContent.trim().split(' ');
-// const lastWord = words.pop();
-// const frontWords = words.map(word => `<span class="wrap-word">${word} </span>`).join('');
-// const fullWords = frontWords + `<span class="wrap-word">${lastWord}</span>`;
-
-// placeholder.innerHTML = fullWords;
-
-// const spans = Array.from(placeholder.querySelectorAll('.wrap-word'));
-
-// for (const span of spans) console.log(span, span.getBoundingClientRect());
-
-
-// const userTyped = [];
-
-
-
-
-
-// const spans = Array.from(placeholder.querySelectorAll('.wrap-word'));
-// let lines = [];
-// let currentLineTop = null;
-// let currentLine = [];
-
-// for (const span of spans) {
-//     const rect = span.getBoundingClientRect();
-
 import { words_none } from './words/1k.js';
+
+// like a queue but no popping. keep moving and writing at head. once reach end, go back to begining (oldest) and just
+// write over it. first in first out.
+class CircularQueue {
+    constructor(size, key) {
+        this.size = size;
+        this.key = key; // to find in localstorage, use TYPING-rolling-avg-100
+
+        const data = this.load();
+        this.buffer = data?.buffer || new Array(size).fill(null); // buffer is queue full of data, check if buffer exists if not
+                                                                  // make new
+        this.head = data?.head || 0;
+        this.length = data?.length || 0;
+    }
+
+    enqueue(value) {
+        this.buffer[this.head] = value; // possible write over old data, or fresh spot
+        this.head = (this.head + 1) % this.size; // using this.size
+        if (this.length < this.size) {
+            this.length++; // used for getall, just so if queue not filled not reading null
+        }
+        this.save();
+    }
+
+    getAll() {
+        const out = []; // returns array of data elements, for each entry call data.wpm, data.acc
+        const start = (this.head - this.length + this.size) % this.size; // this.head is the next available space, not the 
+                                                                         // oldest data point, this fixes that
+        for (let i = 0; i < this.length; i++) {
+            const index = (start + i) % this.size; // start at next available empty or oldest, loop around.
+            const item = this.buffer[index];
+            if (item) out.push(item);
+        }
+        return out;
+    }
+
+    save() { // used in enqueue
+        const data = {
+            buffer: this.buffer,
+            head: this.head,
+            length: this.length
+        };
+        localStorage.setItem(this.key, JSON.stringify(data));
+    }
+
+    load() { // used in constructor
+        const raw = localStorage.getItem(this.key);
+        return raw ? JSON.parse(raw) : null;
+    }
+}
 
 class Typing {
     constructor(){
+        this.typingResults = new CircularQueue(100, 'TYPING-rolling-avg-100');
+
         // constants
         this.words = words_none; 
         this.wordsLength = this.words.length - 1;
@@ -50,6 +71,7 @@ class Typing {
         this.timerInterval = null;
         this.numMistakes = 0;
         this.numCharMasterString = 0;
+        this.numWordsMasterString = 0;
         this.wpm = 0;
         this.acc = 0;
 
@@ -58,7 +80,14 @@ class Typing {
         this.typingDone = false;
         this.canType = true;
 
-        this.currentWordMode = 'mode-50'
+
+        if (localStorage.getItem('TYPING-currentWordMode')){
+            this.currentWordMode = localStorage.getItem('TYPING-currentWordMode');
+        }
+        else{
+            this.currentWordMode = 'mode-50';
+        }
+        
         document.getElementById(this.currentWordMode).classList.add('active');
         this.numWords = document.getElementById(this.currentWordMode).dataset.time;
 
@@ -77,12 +106,13 @@ class Typing {
                 
                 // set difficulty and reset game
                 this.currentWordMode = button.id;
+                localStorage.setItem('TYPING-currentWordMode', button.id);
                 this.numWords = document.getElementById(this.currentWordMode).dataset.time;
                 this.resetBoard(this.numWords);
             });
         });
 
-        document.addEventListener('keydown', (e) => { // need to ad option backspace for pop until space, cmd backspace for pop until new line marker
+        document.addEventListener('keydown', (e) => {
             this.stopBlinking();
             if (e.code === 'Space' && document.activeElement.tagName === 'BUTTON') {
                 e.preventDefault();
@@ -94,6 +124,7 @@ class Typing {
                         if (this.firstKey === false){
                             this.firstKey = true; /// start timer here
                             this.startTimer();
+                            // console.log(`start timer: ${this.timer}`)
                         }
     
                         this.userTyped.push(e.key);
@@ -115,18 +146,20 @@ class Typing {
                         if (this.boardAllCorrect){
                             this.typingDone = true;
                             this.canType = false;
-                            console.log(`game finish`)
+                            // console.log(`game finish`)
 
                             // add tombstone to end
                             const typedText = document.getElementById('typed-text');
                             typedText.innerHTML = typedText.innerHTML + `<span class="tombstone">∎</span>`;
 
                             this.stopTimer();
+                            // console.log(`stopped timer: ${this.timer}`)
 
                             // get wpm, acc
                             this.wpm = this.getWPM();
                             this.acc = this.getAcc();
                             this.showWPMPopup();
+                            this.saveStats(this.wpm, this.acc, this.currentWordMode);
                         }
                     }
                 }
@@ -153,7 +186,7 @@ class Typing {
     initializeBoard(numWords){
         const typedText = document.getElementById('typed-text');
 
-        this.masterString = this.chooseRandomWords(numWords); /////////////////////////////////////////
+        this.masterString = this.chooseRandomWords(numWords);
         this.numCharMasterString = this.masterString.length;
         // const wordCountArray = this.masterString.split(' ');
         this.numWordsMasterString = this.masterString.split(' ').length
@@ -179,6 +212,8 @@ class Typing {
     }
 
     resetBoard(numWords){
+        this.stopTimer();
+
         this.masterString = '';
         this.masterArray = [];
         this.masterArrayLength = 0;
@@ -201,6 +236,8 @@ class Typing {
         this.canType = true;
 
         this.initializeBoard(numWords);
+
+        document.getElementById('copy-button').textContent = 'share';
 
         const popup = document.getElementById('wpm-paste');
         if (popup) popup.classList.add('hidden'); ///// keep this in mind if things go wrong
@@ -237,7 +274,7 @@ class Typing {
         
         blinkTimeout = setTimeout(() => {
             caret.style.animation = 'blink 1s step-end infinite';
-        }, 300);
+        }, 1000);
     }
 
     checkCharacterStyle(masterArray, userTyped, currentIndex, characterArray){
@@ -285,20 +322,8 @@ class Typing {
             caret.style.top = (targetLocation.top - textContainerLocation.top) + 'px';
         }
         else{ // moves it off the screen. i guess its ok, if last letter is wrong can backspace and caret will still be there.
-            // const typedText = document.getElementById('typed-text');
-
-            // const target = typedText.querySelectorAll('.character')[index];
-            // const caret = document.getElementById('caret');
-    
-            // const textContainerLocation = typedText.getBoundingClientRect();
-            // const targetLocation = target.getBoundingClientRect();
-    
-            // caret.style.left = (targetLocation.right - textContainerLocation.right) + 'px';
-            // caret.style.top = (targetLocation.top - textContainerLocation.top) + 'px';
             const caret = document.getElementById('caret');
-            caret.classList.add('hidden');
-
-            
+            caret.classList.add('hidden'); 
         }
     }
 
@@ -314,6 +339,7 @@ class Typing {
                 clearInterval(this.timerInterval);
                 this.timer = -1; /////// if -1 add NA to wpm
             }   
+            // console.log(`${this.timer}`);
         }, 1000);
     }
     
@@ -325,52 +351,25 @@ class Typing {
     }
 
     getWPM() {
-        console.log(`${this.numWordsMasterString} ${this.timer}`)
-        console.log(`${(this.numWordsMasterString * 60) / this.timer}`)
-        console.log(`${Math.floor((this.numWordsMasterString * 60) / this.timer)}`)
-        console.log(`-----------`)
-        return Math.floor((this.numWordsMasterString * 60) / this.timer);
+        // console.log(`${this.timer}`)
+        if (this.timer === -1) return 0; // if too slow, return 0. dont want to return -1 since will look like it broke
+        let avgNumWords = this.numCharMasterString / 5;
+        let normTime = this.timer / 60;
+        return Math.round(avgNumWords / normTime);
     }
 
     getAcc() {
-        console.log(`${this.numMistakes} ${this.numCharMasterString}`)
-        console.log(`${(this.numMistakes / this.numCharMasterString) * 100}`)
-        console.log(`${Math.floor((this.numMistakes / this.numCharMasterString) * 100)}`)
-        if (this.numMistakes >= this.numCharMasterString) return 0;
-        return Math.floor((1 - (this.numMistakes / this.numCharMasterString)) * 100);
+        if (this.numMistakes >= this.numCharMasterString) return 0; // if too many mistakes
+        return Math.round((1 - (this.numMistakes / this.numCharMasterString)) * 100);
     }
 
     showWPMPopup(){
         const popup = document.getElementById('wpm-paste');
         const text = document.getElementById('wpm-text');
-        // let timerValue;
 
-        // if (this.timer <= 20){
-        //     timerValue = this.timeNumbers[this.timer];
-        // }
-        // else {
-        //     let currentNum = this.timer;
-        //     const finalTime = [];
-        //     while(currentNum > 0){
-        //         let digit = currentNum % 10;
-        //         finalTime.unshift(this.timeDigits[digit]);
-        //         currentNum = Math.floor(currentNum / 10);
-        //     }
-        //     timerValue = finalTime.join('')
-        // }
-        
         text.innerHTML = `wpm ${this.wpm} acc ${this.acc}%`;
-        // <p style="text-align: center;">
-        // TYPING<br>
-        // ${this.numWords}<br>
-        // ${this.wpm} wpm<br>
-        // ${this.acc}% acc<br>
-        // </p>
-        //     `;
 
-        // looks awful, dont want to change it
-        const plainText = `TYPING
-${this.numWords}
+        const plainText = `TYPING ${this.numWords}
 ${this.wpm} wpm
 ${this.acc}% acc`;
 
@@ -383,6 +382,45 @@ ${this.acc}% acc`;
             
         // display popup by adding hidden class, removing active
         popup.classList.remove('hidden');
+    }
+
+    saveStats(wpm, acc, currentWordMode){
+        // add to queue
+        this.typingResults.enqueue({
+            wpm: wpm,
+            acc: acc,
+        });
+
+        this.updateAvg();
+
+        // checks best for mode
+        const bestCurrentModeKey = `TYPING-best-${currentWordMode}`;
+        const bestCurrentModeRaw = localStorage.getItem(bestCurrentModeKey);
+        const bestCurrentMode = bestCurrentModeRaw ? JSON.parse(bestCurrentModeRaw) : null;
+
+        if (!bestCurrentMode || wpm > bestCurrentMode.wpm){
+            const bestData = {
+                wpm: wpm,
+                acc: acc
+            }
+
+            localStorage.setItem(bestCurrentModeKey, JSON.stringify(bestData));
+        }
+    }
+
+    updateAvg(){
+        const data = this.typingResults.getAll();
+        const totalWPM = data.reduce((sum, data) => sum + data.wpm, 0);
+        const totalACC = data.reduce((sum, data) => sum + data.acc, 0);
+        const avgWPM = data.length ? Math.round(totalWPM / data.length) : 0;
+        const avgACC = data.length ? Math.round(totalACC / data.length) : 0;
+
+        const avgData = {
+            wpm: avgWPM,
+            acc: avgACC
+        };
+
+        localStorage.setItem('TYPING-avg', JSON.stringify(avgData));
     }
 
 }

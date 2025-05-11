@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="winstons per minute">
-    <link rel="icon" href="images/mines.png" type="image/png">
+    <meta name="description" content="typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing typing">
+    <link rel="icon" href="images/typing-logo.png" type="image/png">
     <title>typing</title>
     <!-- prevents fouc, hide style as loading html -->
     <style>
@@ -40,7 +40,7 @@
             </div> -->
 
             <div class="modes">
-                <button id="mode-15" class="mode-button" data-time="15">15</button>
+                <button id="mode-10" class="mode-button" data-time="10">10</button>
                 <button id="mode-25" class="mode-button" data-time="25">25</button>
                 <button id="mode-50" class="mode-button" data-time="50">50</button>
                 <button id="mode-100" class="mode-button" data-time="100">100</button>
@@ -54,30 +54,15 @@
 
         <div id="game-container" class="game-container">
             <div class="typing-wrapper">
-                <!-- <div class="text-overlay" id="text-display"> -->
-                    <!-- <span class="placeholder" id="placeholder"></span> -->
                 <span class="typed-text" id="typed-text"></span>
-                <!-- </div> -->
-                <!-- <textarea id="real-input" 
-                class="real-input"    
-                spellcheck="false"
-                autocomplete="off"
-                autocorrect="off"
-                autocapitalize="off"></textarea> -->
                 <span class="caret" id="caret"></span>
             </div>
-            
-            <!-- <div id="grid" class="grid"></div> -->
-
-            <!-- <div id="stats-popup" class="stats-popup hidden">
-                <div id="stats-text" class="stats-text"></div>
-                <button id="copy-button" class="copy-button">share</button>
-            </div> -->
         </div> 
     </main>
 
     <footer>
         <a href="controls/">controls</a>
+        <a href="stats/">stats</a>
         <a href="../privacy/">privacy</a>
         <p>o_T</p>
     </footer>
@@ -90,21 +75,17 @@
 
 
 <!-- notes
-make caret not blink while typing 
-add timer, accuracy
-add complete paste
 make window scale/work with multiple dimentions/wrap without overlapping with footer
-add qed block to end when finished test
 make it so that if too many words, pushes footer down
 make it so that have max 10 lines, if more will push up when top line is complete, come back if backspace last line
 add stats page, save last 100. 100 length array, check lenght, if > 100 push or whatever head, then append next to back. avg = sum / len
     have stats for each mode, only none
 
-caret can wrap around if word is right at the edge, fix this, maybe hide caret if its on last index, etc. hiding will work
-
-controls dont have to be their own page, can do the thing you did for mines. might be harder
-
 add link from ot
 
 OTHER change mines describtion, repeat over and over
+
+make it so that mouse is invisable if hover over board if firstkey is true
+
+known issue: if weird window size st have to scroll to see rest, when typing space will scroll
 -->
