@@ -9,6 +9,12 @@
     --button-active: #c0c0c0;
 }
 
+main {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
 .dark-mode {
     --bg-color: black;
     --text-color: white;
@@ -77,13 +83,13 @@ button:hover {
     font-size: 18px;
 }
 
-.top-bar {
+/* .top-bar {
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 0.5rem;
     margin-bottom: 0.5rem;
-}
+} */
 
 .game-container {
     border: 5px solid var(--bg-color);
@@ -198,4 +204,39 @@ button:hover {
 
 .hidden {
     display: none;
+}
+
+footer {
+    display: flex;
+    flex-direction: row;
+    /* margin: 1rem 0; */
+    align-content: center;
+    align-items: center;
+    justify-content: space-between; 
+    gap: 0.6rem;
+}
+
+.top-bar {
+    align-self: stretch;
+    display: flex;
+    flex-direction: row;
+    align-content: center;
+    align-items: center;
+    justify-content: space-between; 
+    min-width: 32vw;
+}
+
+.stats{
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    font-size: 16px;
+    gap: 0.8rem;
+    margin-right: 0.5rem;
+}
+
+.difficulty-buttons{
+    display: flex;
+    flex-direction: row;
+    align-items: center;
 }

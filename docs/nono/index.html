@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n">
+    <link rel="icon" href="images/nono.png" type="image/png">
+    <title>nono</title>
+    <!-- prevents fouc, hide style as loading html -->
+    <style>
+        html.js-loading {
+          visibility: hidden;
+          opacity: 0;
+        }
+    </style>
+    <script>document.documentElement.classList.add('js-loading');</script>
+    <link rel="stylesheet" href="../css/global.css">
+    <link rel="stylesheet" href="../css/header.css">
+    <link rel="stylesheet" href="../css/link.css">
+    <link rel="stylesheet" href="nono.css">
+</head>
+<body>
+    <header>
+        <button id="dark-toggle" class="page-button">dark mode</button>
+        <a href="../">
+            <button id="home-button" class="page-button">o_t</button>
+        </a>
+        <h2>NONO</h2>
+    </header>
+
+    <main>
+        <!-- <div class="top-bar">
+            <div class="settings-dropdown">
+                <button id="5" class="difficulty">5</button>
+                <button id="10" class="difficulty">10</button>
+                <button id="15" class="difficulty">15</button>
+                <button id="20" class="difficulty">20</button>
+                <button id="25" class="difficulty">25</button>
+                <button id="30" class="difficulty">30</button>
+                <button id="reset" class="difficulty">reset</button>
+            </div>
+
+            <div id="win-popup" class="win-popup hidden">
+                <div id="win-text" class="win-text"></div>
+                <button id="copy-button" class="copy-button">share</button>
+            </div>
+        </div> -->
+
+        <div id="game-container" class="game-container">
+            <!-- <div class="corner">
+                <button id="on-button" class="on-button"></button>
+                <button id="off-button" class="off-button"></button>
+                <button id="mark-button" class="mark-button">X</button>
+            </div> -->
+
+            <!-- <div class="top-num">
+                <div class="col-nums"></div>
+            </div>
+
+            <div class="side-num">
+                <div class="row-nums"></div>
+            </div> -->
+
+            <div id="grid" class="grid"></div>
+        </div>
+    </main>
+
+    <footer>
+        <a href="controls/">controls</a>
+        <a href="../privacy/">privacy</a>
+        <p>o_n</p>
+    </footer>
+
+    <script src="../scripts/darkmode.js"></script>
+    <script src="../scripts/fouc.js"></script>
+    <script src="nono.js"></script>
+</body>
+</html>
+
+<!-- todo
+nonograms, want 5x5 up to 30x30
+left click is blue, right is white, middle is pencil
+
+no live validation, checks to see if number of coloured squares is the same as n, at that point start checking board
+at and after each action
+
+share with size and time => make timer on first click
+
+if row is filled according to the row col number, can click row col to auto fill the rest of the squares with blanks
+
+generate seed for board, goes over all possible, way to load from seed
+
+after create way for you to make your own puzzle, basically just finds the hash for it
+
+
+-->
