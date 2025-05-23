@@ -2,6 +2,7 @@
     --bg-color: white;
     --color: black;
     --grid-size: 11; /* 5 + 1 */
+    user-select: none;
 }
 
 .dark-mode {
@@ -38,14 +39,15 @@ main {
 }
 
 .game-container {
-    min-width: 80vmin;
-    min-height: 80vmin;
+    min-width: 84vmin;
+    min-height: 84vmin;
     /* table-layout: fixed; */
     border-collapse: collapse;
     background-color: var(--bg-color);
     color: var(--color);
     margin: 0;
     padding: 0;
+    /* border: none; */
 }
 
 /* td {
@@ -77,7 +79,8 @@ table tr:last-child td {
 .top {
     vertical-align: bottom;
     font-weight: bold;
-    min-width: 1rem; 
+    min-width: 1rem;
+    /* font-size: 10px;  */
 }
 
 .top.wrong {
@@ -92,6 +95,7 @@ table tr:last-child td {
     text-align: right; 
     font-weight: bold;
     min-height: 1rem;
+    /* font-size: 10px; */
 }
 
 .clicked {
@@ -108,4 +112,34 @@ table tr:last-child td {
 
 .dark-mode .greyed{
     background-color: #2a2a2a;
+}
+
+.marked {
+    position: relative;
+}
+
+.marked::after {
+    content: 'X';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 12px;
+    color: black;
+    pointer-events: none;
+}
+
+.dark-mode .marked {
+    position: relative;
+}
+
+.dark-mode .marked::after {
+    content: 'X';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 12px;
+    color: white;
+    pointer-events: none;
 }
