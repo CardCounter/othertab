@@ -111,7 +111,7 @@ table tr:last-child td {
 }
 
 .dark-mode .greyed{
-    background-color: #2a2a2a;
+    background-color: #454545;
 }
 
 .marked {
@@ -143,3 +143,80 @@ table tr:last-child td {
     color: white;
     pointer-events: none;
 }
+
+.highlight {
+    position: relative;
+}
+
+.highlight::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 12px;
+    color: black;
+    pointer-events: none;
+}
+
+.top.highlight{
+    background-color: black;
+    color: white;
+}
+
+.top.highlight::after {
+    content: none;
+}
+
+.side.highlight{
+    background-color: black;
+    color: white;
+}
+
+.side.highlight::after {
+    content: none;
+}
+
+.dark-mode .highlight {
+    position: relative;
+}
+
+.dark-mode .highlight::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 12px;
+    color: white;
+    pointer-events: none;
+}
+
+.dark-mode .top.highlight{
+    background-color: white;
+    color: black;
+}
+
+.dark-mode .top.highlight::after {
+    content: none;
+}
+
+.dark-mode .side.highlight{
+    background-color: white;
+    color: black;
+}
+
+.dark-mode .side.highlight::after {
+    content: none;
+}
+
+/* .top .highlight{
+    background-color: black;
+    color: white;
+
+}
+
+.dark-mode .highlight {
+    background-color: purple;
+} */
+
