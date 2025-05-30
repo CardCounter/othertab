@@ -1,7 +1,7 @@
 :root {
     --bg-color: white;
     --color: black;
-    --grid-size: 11; /* 5 + 1 */
+    --num-font-size: '16px';
     user-select: none;
 }
 
@@ -39,8 +39,8 @@ main {
 }
 
 .game-container {
-    min-width: 84vmin;
-    min-height: 84vmin;
+    min-width: 85vmin;
+    min-height: 85vmin;
     /* table-layout: fixed; */
     border-collapse: collapse;
     background-color: var(--bg-color);
@@ -79,8 +79,11 @@ table tr:last-child td {
 .top {
     vertical-align: bottom;
     font-weight: bold;
-    min-width: 1rem;
-    /* font-size: 10px;  */
+    /* min-width: 1rem; */
+    /* max-width: 1rem; */
+    width: 1rem;
+    font-size: var(--num-font-size);
+    line-height: 0.9; 
 }
 
 .top.wrong {
@@ -94,8 +97,10 @@ table tr:last-child td {
 .side {
     text-align: right; 
     font-weight: bold;
-    min-height: 1rem;
-    /* font-size: 10px; */
+    height: 1rem;
+    /* min-height: 1rem; */
+    font-size: var(--num-font-size);
+    line-height: 0.9; 
 }
 
 .clicked {
@@ -210,6 +215,76 @@ table tr:last-child td {
     content: none;
 }
 
+.settings-panel {
+    position: absolute;
+    margin-left: 0.2rem;
+    flex: 1;
+    padding: 1rem;
+    background-color: var(--bg-color);
+    left: 0;
+    font-size: 1rem;
+    max-width: 90vw;
+}
+
+.difficulty-buttons-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+}
+
+.difficulty-button{
+    cursor: pointer;
+    margin: 0;
+    padding: 0 0; /* change this for vertical bars on mode buttons */
+    font-size: 16px;
+    background-color: var(--bg-color); /* call --bg from global */
+    color: var(--text-color);
+    border: none; 
+}
+
+.difficulty-button.active{
+    background-color: blue;
+    color: blue;
+}
+
+.dark-mode .difficulty-button.active{
+    background-color: red;
+    color: red;
+}
+
+.difficulty-button.active:hover{
+    background-color: blue;
+    color: blue;
+}
+
+.dark-mode .difficulty-button.active:hover{
+    background-color: red;
+    color: red;
+}
+
+.difficulty-button:hover {
+    background-color: grey;
+}
+
+button {
+    cursor: pointer;
+    margin: 0;
+    padding: 0 0; /* change this for vertical bars on mode buttons */
+    font-size: 16px;
+    background-color: var(--bg-color); /* call --bg from global */
+    color: var(--text-color);
+    border: none; 
+}
+
+button:hover {
+    background-color: grey;
+}
+
+.settings-button {
+    position: absolute;
+    left: calc(1rem + 4px);
+}
+
 /* .top .highlight{
     background-color: black;
     color: white;
@@ -220,3 +295,7 @@ table tr:last-child td {
     background-color: purple;
 } */
 
+
+.hidden {
+    display: none;
+}
