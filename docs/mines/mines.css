@@ -4,7 +4,7 @@
 
     --cell-bg: #c0c0c0;
     --cell-revealed-bg: #d0d0d0;
-    
+
     --button-hover: grey;
     --button-active: #c0c0c0;
 }
@@ -31,14 +31,9 @@ body {
     min-height: 100vh;
 }
 
-
 button {
     padding: 0.1rem 0.25rem;
     cursor: pointer;
-    /* margin-left: 5px;
-    margin-right: 5px;
-    margin-top: 5px;
-    margin-bottom: 5px; */
     margin: 0.5rem 0.5rem;
     font-size: 16px;
     background-color: var(--bg-color);
@@ -48,6 +43,16 @@ button {
 
 button:hover {
     background-color: grey;
+}
+
+.active {
+    background-color: blue;
+    color: blue;
+}
+
+.dark-mode .active {
+    background-color: red;
+    color: red;
 }
 
 .difficulty-buttons {
@@ -62,7 +67,6 @@ button:hover {
 .dark-mode .difficulty-buttons button.active:hover {
     background-color: red;
 }
-
 
 .stats {
     display: flex;
@@ -190,20 +194,6 @@ button:hover {
     font-size: 1rem;
     user-select: text;
     max-width: 90vw;
-  }
-
-/* .active {
-    background-color: var(--button-active);
-} */
-
-.active {
-    background-color: blue;
-    color: blue;
-}
-
-.dark-mode .active {
-    background-color: red;
-    color: red;
 }
 
 .hidden {
