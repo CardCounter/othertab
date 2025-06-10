@@ -7,8 +7,6 @@
 
     --button-hover: grey;
     --button-active: #c0c0c0;
-
-    user-select: none;
 }
 
 main {
@@ -185,7 +183,7 @@ button:hover {
     display: inline-flex;
     justify-content: center;
     align-items: center;
-    /* margin: 20px; */
+    margin: 20px;
 }
 
 .dark-mode .checkbox-wrapper {
@@ -200,6 +198,7 @@ button:hover {
     background-color: var(--bg-color);
     left: calc(100% + 20px);
     font-size: 1rem;
+    user-select: text;
     max-width: 90vw;
 }
 

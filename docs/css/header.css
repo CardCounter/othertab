@@ -1,11 +1,9 @@
-/* header */
-
 header {
     text-align: center;
 }
 
 .page-button {
-    padding: 0.1rem 0.25rem;
+    padding: 0.5rem 1rem;
     cursor: pointer;
     background-color: white;
     color: black;
@@ -34,15 +32,4 @@ header {
     top: 1rem;
     right: 1rem;
     margin: 0px;
-}
-
-/* footer */
-
-footer {
-    display: flex;
-    flex-direction: row;
-    align-content: center;
-    align-items: center;
-    justify-content: space-between; 
-    gap: 0.6rem;
 }
