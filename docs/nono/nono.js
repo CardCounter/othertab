@@ -17,58 +17,10 @@ class Nono {
         // document.querySelectorAll('[class^="cell-"]').forEach(cell => {
         document.querySelectorAll('.cell').forEach(cell => {
             cell.addEventListener('mouseenter', () => {
-                if (this.hoveredCell === cell) return;
                 this.hoveredCell = cell;
-
-                const row = cell.dataset.row;
-                const col = cell.dataset.col;
-
-                document.querySelectorAll('.cell').forEach(innerCell => {
-                    if (
-                        (innerCell.dataset.row === row) !== (innerCell.dataset.col === col) && // XOR, so doesnt highlight the target cell
-                        innerCell.classList.length === 1 &&
-                        innerCell.classList.contains('cell')
-                    ) {
-                        innerCell.classList.add('highlight');
-                    }
-                });
-
-                document.querySelectorAll('.top').forEach(topCell => {
-                    if (topCell.dataset.col === col) {
-                        topCell.classList.add('highlight');
-                    }
-                });
-
-                document.querySelectorAll('.side').forEach(sideCell => {
-                    if (sideCell.dataset.row === row) {
-                        sideCell.classList.add('highlight');
-                    }
-                });
             });
-
             cell.addEventListener('mouseleave', () => {
                 this.hoveredCell = null;
-
-                const row = cell.dataset.row;
-                const col = cell.dataset.col;
-
-                document.querySelectorAll('.cell').forEach(innerCell => {
-                    if (innerCell.dataset.row === row || innerCell.dataset.col === col) {
-                        innerCell.classList.remove('highlight');
-                    }
-                });
-
-                document.querySelectorAll('.top').forEach(topCell => {
-                    if (topCell.dataset.col === col) {
-                        topCell.classList.remove('highlight');
-                    }
-                });
-
-                document.querySelectorAll('.side').forEach(sideCell => {
-                    if (sideCell.dataset.row === row) {
-                        sideCell.classList.remove('highlight');
-                    }
-                });
             });
 
             cell.addEventListener('mousedown', (e) => {
@@ -81,24 +33,20 @@ class Nono {
         });
 
         document.addEventListener('keydown', (e) => {
-            if ((e.code === 'KeyW' || e.code === 'KeyS' || e.code === 'KeyX') && this.hoveredCell) {
+            if ((e.code === 'KeyQ' || e.code === 'KeyA' || e.code === 'KeyZ') && this.hoveredCell) {
                 e.preventDefault();
                 this.hoveredCell.classList.remove('marked');
                 this.hoveredCell.classList.remove('greyed');
                 this.hoveredCell.classList.toggle('clicked');
             }
-            else if ((e.code === 'KeyE' || e.code === 'KeyD' || e.code === 'KeC') && this.hoveredCell) {
+            else if ((e.code === 'KeyW' || e.code === 'KeyS' || e.code === 'KeyX') && this.hoveredCell) {
                 e.preventDefault();
-                this.hoveredCell.classList.remove('highlight');
-
                 this.hoveredCell.classList.remove('marked');
                 this.hoveredCell.classList.toggle('greyed');
                 this.hoveredCell.classList.remove('clicked');
             }
-            else if ((e.code === 'KeyR' || e.code === 'KeyF' || e.code === 'KeyV') && this.hoveredCell) {
+            else if ((e.code === 'KeyE' || e.code === 'KeyD' || e.code === 'KeyC') && this.hoveredCell) {
                 e.preventDefault();
-                this.hoveredCell.classList.remove('highlight');
-
                 this.hoveredCell.classList.toggle('marked');
                 this.hoveredCell.classList.remove('greyed');
                 this.hoveredCell.classList.remove('clicked');
@@ -198,7 +146,7 @@ class Nono {
         html += '<tr><td class="corner" id="corner"></td>';
         for (let col = 0; col < cols - 1; col++) { // -1 bc added corner
             let topNumValue = this.topNumToString(topNums[col]);
-            html += `<td class="top" data-col="${col}">${topNumValue}</td>`; // added col for highlight
+            html += `<td class="top">${topNumValue}</td>`;
         }
         html += '</tr>';
 
@@ -208,7 +156,7 @@ class Nono {
             for (let col = 0; col < cols; col++) {
                 if (col === 0) {
                     let sideNumValue = this.sideNumToString(sideNums[row]);
-                    html += `<td class="side" data-row="${row}">${sideNumValue}</td>`; // added row for highlight
+                    html += `<td class="side">${sideNumValue}</td>`;
                 }
                 else {
                     html += `<td class="cell" data-row="${row}" data-col="${col - 1}"></td>`; // -1 side offset
@@ -235,26 +183,20 @@ class Nono {
 
     handleClick(e, cell) {
         if (e.button === 0) {
-            cell.classList.remove('highlight');
-
             cell.classList.remove('marked');
             cell.classList.remove('greyed');
             cell.classList.toggle('clicked');
         } else if (e.button === 2) {
-            cell.classList.remove('highlight');
-
             cell.classList.remove('marked');
             cell.classList.toggle('greyed');
             cell.classList.remove('clicked');
         } else if (e.button === 1) {
-            cell.classList.remove('highlight');
-
             cell.classList.toggle('marked');
             cell.classList.remove('greyed');
             cell.classList.remove('clicked');
         }
     }
-// when remove toggle, will be blank background instead of highlight
+
 
 
 
