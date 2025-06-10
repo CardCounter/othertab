@@ -113,7 +113,11 @@ class Nono {
         this.timer = 0;
         this.timerInterval = null;
 
-        document.getElementById('copy-button').textContent = 'share';
+        const shareButton = document.getElementById('copy-button');
+        if (shareButton) {
+            shareButton.textContent = 'share';
+            shareButton.onclick = null;
+        }
 
         const popup = document.getElementById('win-paste');
         if (popup) popup.classList.add('hidden');
