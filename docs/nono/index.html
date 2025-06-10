@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n o_n">
+    <link rel="icon" href="images/nono.png?v=2" type="image/png" media="(prefers-color-scheme: light)">
+    <link rel="icon" href="images/nono-dark.png?v=2" type="image/png" media="(prefers-color-scheme: dark)">
+    <title>nono</title>
+    <!-- prevents fouc, hide style as loading html -->
+    <style>
+        html.js-loading {
+          visibility: hidden;
+          opacity: 0;
+        }
+    </style>
+    <script>document.documentElement.classList.add('js-loading');</script>
+    <link rel="stylesheet" href="../css/global.css">
+    <link rel="stylesheet" href="../css/header.css">
+    <link rel="stylesheet" href="../css/link.css">
+    <link rel="stylesheet" href="nono.css">
+</head>
+<body>
+    <header>
+        <a href="../"><button id="home-button" class="page-button">o_t</button></a>
+        <h2>NONO</h2>
+        <button id="dark-toggle" class="page-button">dark mode</button>
+    </header>
+
+    <main>
+        <table border="1" id="game-container" class="game-container"></table>
+
+        <div id="settings-panel" class="settings-panel hidden">
+            <div id="difficulty-buttons-grid" class="difficulty-buttons-grid">
+                <button class="difficulty-button" id="difficulty-5" data-size="5" data-font="16px">5</button>
+                <button class="difficulty-button" id="difficulty-10" data-size="10" data-font="16px">10</button>
+                <button class="difficulty-button" id="difficulty-15" data-size="15" data-font="16px">15</button>
+                <button class="difficulty-button" id="difficulty-20" data-size="20" data-font="16px">20</button>
+                <button class="difficulty-button" id="difficulty-25" data-size="25" data-font="16px">25</button>
+                <button class="difficulty-button" id="difficulty-30" data-size="30" data-font="16px">30</button>
+            </div>
+        </div>
+
+    </main>
+
+    <footer>
+        <button class="settings-button" id="settings-button">size</button>
+        <p>o_n</p>
+        <a href="controls/">controls</a>
+        <a href="../privacy/">privacy</a>
+        <div id="win-paste" class="win-paste hidden">
+            <div id="win-text" class="win-text"></div>
+            <button id="copy-button" class="copy-button">share</button>
+        </div>
+    </footer>
+
+    <!-- mathjs -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjs@14.5.0/lib/browser/math.min.js"></script>
+
+    <script src="../scripts/darkmode.js"></script>
+    <script src="../scripts/fouc.js"></script>
+    <script src="nono.js"></script>
+</body>
+</html>
+
+<!-- todo
+nonograms, want 5x5 up to 30x30
+left click is blue, right is white, middle is pencil
+
+no live validation, checks to see if number of coloured squares is the same as n, at that point start checking board
+at and after each action
+
+share with size and time => make timer on first click
+
+if row is filled according to the row col number, can click row col to auto fill the rest of the squares with blanks
+
+generate seed for board, goes over all possible, way to load from seed
+
+after create way for you to make your own puzzle, basically just finds the hash for it
+
+
+
+
+
+ 
+when done row, grey out text
+-->

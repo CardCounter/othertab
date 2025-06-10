@@ -7,6 +7,14 @@
 
     --button-hover: grey;
     --button-active: #c0c0c0;
+
+    user-select: none;
+}
+
+main {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
 
 .dark-mode {
@@ -32,7 +40,7 @@ body {
 }
 
 button {
-    padding: 0.1rem 0.25rem;
+    padding: 0 0;
     cursor: pointer;
     margin: 0.5rem 0.5rem;
     font-size: 16px;
@@ -77,13 +85,13 @@ button:hover {
     font-size: 18px;
 }
 
-.top-bar {
+/* .top-bar {
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 0.5rem;
     margin-bottom: 0.5rem;
-}
+} */
 
 .game-container {
     border: 5px solid var(--bg-color);
@@ -177,7 +185,7 @@ button:hover {
     display: inline-flex;
     justify-content: center;
     align-items: center;
-    margin: 20px;
+    /* margin: 20px; */
 }
 
 .dark-mode .checkbox-wrapper {
@@ -192,10 +200,44 @@ button:hover {
     background-color: var(--bg-color);
     left: calc(100% + 20px);
     font-size: 1rem;
-    user-select: text;
     max-width: 90vw;
 }
 
 .hidden {
     display: none;
+}
+
+footer {
+    display: flex;
+    flex-direction: row;
+    /* margin: 1rem 0; */
+    align-content: center;
+    align-items: center;
+    justify-content: space-between; 
+    gap: 0.6rem;
+}
+
+.top-bar {
+    align-self: stretch;
+    display: flex;
+    flex-direction: row;
+    align-content: center;
+    align-items: center;
+    justify-content: space-between; 
+    min-width: 32vw;
+}
+
+.stats{
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    font-size: 16px;
+    gap: 0.8rem;
+    margin-right: 0.5rem;
+}
+
+.difficulty-buttons{
+    display: flex;
+    flex-direction: row;
+    align-items: center;
 }

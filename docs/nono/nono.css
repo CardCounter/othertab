@@ -1,0 +1,331 @@
+:root {
+    --bg-color: white;
+    --color: black;
+    --num-font-size: '16px';
+    user-select: none;
+}
+
+.dark-mode {
+    --bg-color: black;
+    --color: white;
+}
+
+body {
+    margin: 0;
+    background-color: var(--bg-color);
+    color: var(--color);
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+}
+
+.top-bar{
+    display: flex;
+    flex-direction: row;
+    margin: 1rem 0;
+    align-content: center;
+    align-items: center;
+    justify-content: space-between;
+}
+
+main {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.game-container {
+    min-width: 85vmin;
+    min-height: 85vmin;
+    /* table-layout: fixed; */
+    border-collapse: collapse;
+    background-color: var(--bg-color);
+    color: var(--color);
+    margin: 0;
+    padding: 0;
+    border-color: var(--color);
+}
+
+/* td {
+    border: 1px solid var(--color);
+    padding: 0 !important;
+} */
+
+tr td:not(:first-child):nth-child(5n + 2) {
+    border-left: 3px solid var(--color);
+}
+
+tr td:last-child {
+    border-right: 3px solid var(--color);
+}
+
+table tr:nth-child(5n + 2) td {
+    border-top: 3px solid var(--color);
+}
+
+table tr:last-child td {
+    border-bottom: 3px solid var(--color);
+}
+
+.corner {
+    width: 1px;
+    height: 1px;
+}
+
+.top {
+    vertical-align: bottom;
+    font-weight: bold;
+    /* min-width: 1rem; */
+    /* max-width: 1rem; */
+    width: 1rem;
+    font-size: var(--num-font-size);
+    line-height: 0.9; 
+}
+
+.top.wrong {
+    background-color: red;
+}
+
+.dark-mode .top.wrong {
+    background-color: blue;
+}
+
+.side {
+    text-align: right; 
+    font-weight: bold;
+    height: 1rem;
+    /* min-height: 1rem; */
+    font-size: var(--num-font-size);
+    line-height: 0.9; 
+}
+
+.clicked {
+    background-color: blue;
+}
+
+.dark-mode .clicked {
+    background-color: red;
+}
+
+.greyed {
+    background-color: #C0C0C0;
+}
+
+.dark-mode .greyed{
+    background-color: #454545;
+}
+
+.marked {
+    position: relative;
+}
+
+.marked::after {
+    content: 'X';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 12px;
+    color: black;
+    pointer-events: none;
+}
+
+.dark-mode .marked {
+    position: relative;
+}
+
+.dark-mode .marked::after {
+    content: 'X';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 12px;
+    color: white;
+    pointer-events: none;
+}
+
+.highlight {
+    position: relative;
+}
+
+.highlight::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 12px;
+    color: black;
+    pointer-events: none;
+}
+
+.top.highlight{
+    background-color: black;
+    color: white;
+}
+
+.top.highlight::after {
+    content: none;
+}
+
+.side.highlight{
+    background-color: black;
+    color: white;
+}
+
+.side.highlight::after {
+    content: none;
+}
+
+.top.highlight.complete,
+.side.highlight.complete {
+    background-color: black;
+    color: blue;
+}
+
+.dark-mode .top.highlight.complete,
+.dark-mode .side.highlight.complete {
+    background-color: white;
+    color: red;
+}
+
+.dark-mode .highlight {
+    position: relative;
+}
+
+.dark-mode .highlight::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 12px;
+    color: white;
+    pointer-events: none;
+}
+
+.dark-mode .top.highlight{
+    background-color: white;
+    color: black;
+}
+
+.dark-mode .top.highlight::after {
+    content: none;
+}
+
+.dark-mode .side.highlight{
+    background-color: white;
+    color: black;
+}
+
+.dark-mode .side.highlight::after {
+    content: none;
+}
+
+.settings-panel {
+    position: absolute;
+    margin-left: 0.2rem;
+    flex: 1;
+    padding: 1rem;
+    background-color: var(--bg-color);
+    left: 0;
+    font-size: 1rem;
+    max-width: 90vw;
+}
+
+.difficulty-buttons-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+}
+
+.difficulty-button{
+    cursor: pointer;
+    margin: 0;
+    padding: 0 0; /* change this for vertical bars on mode buttons */
+    font-size: 16px;
+    background-color: var(--bg-color); /* call --bg from global */
+    color: var(--text-color);
+    border: none; 
+}
+
+.difficulty-button.active{
+    background-color: blue;
+    color: blue;
+}
+
+.dark-mode .difficulty-button.active{
+    background-color: red;
+    color: red;
+}
+
+.difficulty-button.active:hover{
+    background-color: blue;
+    color: blue;
+}
+
+.dark-mode .difficulty-button.active:hover{
+    background-color: red;
+    color: red;
+}
+
+.difficulty-button:hover {
+    background-color: grey;
+}
+
+button {
+    cursor: pointer;
+    margin: 0;
+    padding: 0 0; /* change this for vertical bars on mode buttons */
+    font-size: 16px;
+    background-color: var(--bg-color); /* call --bg from global */
+    color: var(--text-color);
+    border: none; 
+}
+
+button:hover {
+    background-color: grey;
+}
+
+.settings-button {
+    position: absolute;
+    left: calc(1rem + 4px);
+}
+
+.win-paste {
+    display: flex;
+    flex-direction: row;
+    gap: 0.5rem;
+    position: absolute;
+    right: calc(1rem + 4px);
+}
+
+/* .top .highlight{
+    background-color: black;
+    color: white;
+
+}
+
+.dark-mode .highlight {
+    background-color: purple;
+} */
+
+
+.hidden {
+    display: none;
+}
+
+.complete {
+    background-color: blue;
+    /* color: blue; */
+}
+
+.dark-mode .complete {
+    background-color: red;
+    /* color: red; */
+}
