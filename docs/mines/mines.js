@@ -198,7 +198,7 @@ class Minesweeper {
                         }
                     }
 
-                    // middle click or left right, note button vs buttons
+                    // middle click or left right
                     if ((e.button === 1 || (e.buttons === 3)) && !this.gameOver && this.grid[row][col].isRevealed) {
                         this.chord(row, col);
                     } 
