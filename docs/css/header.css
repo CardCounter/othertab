@@ -4,10 +4,6 @@ header {
     text-align: center;
 }
 
-h2 {
-    margin: 1rem 0;
-}
-
 .page-button {
     padding: 0 0;
     cursor: pointer;
@@ -26,21 +22,19 @@ h2 {
     background-color: grey;
 }
 
-/* doing this manually, 1rem + (difference between size 16px vs 24px when centered vertically) = 1rem + 4px */
-#home-button { 
+#home-button {
     position: absolute;
-    top: calc(1rem + 4px);
-    left: calc(1rem + 4px);
-    margin: 0;
+    top: 1rem;
+    left: 1rem;
+    margin: 0px;
 }
 
 #dark-toggle {
     position: absolute;
-    top: calc(1rem + 4px);
-    right: calc(1rem + 4px);
-    margin: 0;
+    top: 1rem;
+    right: 1rem;
+    margin: 0px;
 }
-
 
 /* footer */
 

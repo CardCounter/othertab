@@ -1,64 +1,11 @@
-// settings panel 
-document.addEventListener('DOMContentLoaded', () => {
-    const settingsButton = document.getElementById('settings-button');
-    const settingsPanel = document.getElementById('settings-panel');
-
-    settingsButton.addEventListener('click', (e) => {
-        settingsPanel.classList.toggle('hidden');
-        e.stopPropagation(); 
-    });
-
-    document.addEventListener('click', (e) => {
-        if (!settingsPanel.contains(e.target) && e.target !== settingsButton) {
-            settingsPanel.classList.add('hidden');
-        }
-    });
-
-    settingsPanel.addEventListener('click', (e) => {
-        e.stopPropagation();
-    });
-
-});
-
 class Nono {
     constructor() {
+        this.grid = [];
+        this.size = 15;
 
-        // get size
-        if (localStorage.getItem('NONO-currentSize')){
-            this.sizeMode = localStorage.getItem('NONO-currentSize');
-        }
-        else{
-            this.sizeMode = 'difficulty-15';
-        }
-        
-        document.getElementById(this.sizeMode).classList.add('active');
-        this.size = Number(document.getElementById(this.sizeMode).dataset.size);
-        document.documentElement.style.setProperty('--num-font-size', document.getElementById(this.sizeMode).dataset.font);
 
-        // console.log(this.size)
 
-        const sizeButtons = document.querySelectorAll('.difficulty-button');
-        sizeButtons.forEach(button => {
-            button.addEventListener('click', () => {
-                // reset all to active state
-                sizeButtons.forEach(btn => btn.classList.remove('active'));
-                
-                // add active state for chosen button
-                button.classList.add('active');
-                
-                // set difficulty and reset game
-                this.sizeMode = button.id;
-                localStorage.setItem('NONO-currentSize', button.id);
-                this.size = Number(document.getElementById(this.sizeMode).dataset.size);
-                document.documentElement.style.setProperty('--num-font-size', document.getElementById(this.sizeMode).dataset.font);
-
-                // console.log(this.size)
-
-                this.reset();
-            });
-        });
-
-        this.possibleLayout = this.getLayout(this.size);
+        this.possibleLayout = this.getLayout(this.size, this.size);
         [this.topNums, this.sideNums] = this.getNums();
 
         this.initializeTable();
@@ -66,43 +13,8 @@ class Nono {
         // this.renderGrid();
 
         this.hoveredCell = null;
-        this.isActionDown = false;
-        this.lastAction = null;
 
-        this.mainGameActions();
-        this.mainKeyActions();
-    }
-
-    reset() {
-        // console.log('in reset')
-        // console.log(`size: ${typeof(this.size)}`)
-        this.possibleLayout = this.getLayout(this.size);
-        // console.log(`layout ${typeof(this.possibleLayout)}`)
-        // console.log(`data type for top side: ${typeof(this.topNums)},${this.topNums} ${typeof(this.sideNums)},${this.sideNums}`)
-        
-        let t1;
-        let t2
-        [t1, t2] = this.getNums();
-        // console.log(`t ${t1}, ${t2}`)
-        this.topNums = t1;
-        this.sideNums = t2;
-        // [this.topNums, this.sideNums] = this.getNums();
-
-        // console.log(`top ${this.topNums}`)
-        // console.log(`side ${this.sideNums}`)
-
-        this.initializeTable();
-        this.syncTableSizes(); /// add this and everything on reset()
-        // this.renderGrid();
-
-        this.hoveredCell = null;
-        this.isActionDown = false;
-        this.lastAction = null;
-
-        this.mainGameActions();
-    }
-
-    mainGameActions(){
+        // document.querySelectorAll('[class^="cell-"]').forEach(cell => {
         document.querySelectorAll('.cell').forEach(cell => {
             cell.addEventListener('mouseenter', () => {
                 if (this.hoveredCell === cell) return;
@@ -110,6 +22,16 @@ class Nono {
 
                 const row = cell.dataset.row;
                 const col = cell.dataset.col;
+
+                document.querySelectorAll('.cell').forEach(innerCell => {
+                    if (
+                        (innerCell.dataset.row === row) !== (innerCell.dataset.col === col) && // XOR, so doesnt highlight the target cell
+                        innerCell.classList.length === 1 &&
+                        innerCell.classList.contains('cell')
+                    ) {
+                        innerCell.classList.add('highlight');
+                    }
+                });
 
                 document.querySelectorAll('.top').forEach(topCell => {
                     if (topCell.dataset.col === col) {
@@ -122,10 +44,6 @@ class Nono {
                         sideCell.classList.add('highlight');
                     }
                 });
-
-                // drag option across here
-                if (this.isActionDown) this.applyLastAction(cell);
-
             });
 
             cell.addEventListener('mouseleave', () => {
@@ -133,6 +51,12 @@ class Nono {
 
                 const row = cell.dataset.row;
                 const col = cell.dataset.col;
+
+                document.querySelectorAll('.cell').forEach(innerCell => {
+                    if (innerCell.dataset.row === row || innerCell.dataset.col === col) {
+                        innerCell.classList.remove('highlight');
+                    }
+                });
 
                 document.querySelectorAll('.top').forEach(topCell => {
                     if (topCell.dataset.col === col) {
@@ -148,13 +72,7 @@ class Nono {
             });
 
             cell.addEventListener('mousedown', (e) => {
-                this.isActionDown = true;
                 this.handleClick(e, cell);
-            });
-
-            cell.addEventListener('mouseup', (e) => {
-                this.isActionDown = false;
-                this.lastAction = null;
             });
 
             cell.addEventListener('contextmenu', (e) => {
@@ -162,151 +80,60 @@ class Nono {
             });
         });
 
-        const gameContainer = document.getElementById('game-container');
-
-        gameContainer.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
-        });
-
-        // end click and drag when leaving main container
-        gameContainer.addEventListener('mouseleave', () => {
-            this.isActionDown = false;
-            this.lastAction = null;
-        });
-
-        document.querySelectorAll('.top').forEach(top => {
-            top.addEventListener('mouseenter', () => {
-               this.isActionDown = false;
-                this.lastAction = null; 
-            });
-        });
-
-        document.querySelectorAll('.side').forEach(side => {
-            side.addEventListener('mouseenter', () => {
-               this.isActionDown = false;
-                this.lastAction = null; 
-            });
-        });
-
-    }
-
-    // separated per cell logic and key logic becaues when reseting using the enter key, reset would call 
-    // main key action, which would create a new keydown listener, so when reseting again it would call double the 
-    // number of listeners each time. so now mainKeyActions is only called once in the constructor, while mainGameActions
-    // can be called everytime in reset()
-    mainKeyActions(){
         document.addEventListener('keydown', (e) => {
-            if (e.repeat) return;  // prevent repeats when holding down
-
-            if (e.code === 'Enter') this.reset();
-
-            if ((['KeyW', 'KeyS', 'KeyX'].includes(e.code)) && this.hoveredCell) {
+            if ((e.code === 'KeyW' || e.code === 'KeyS' || e.code === 'KeyX') && this.hoveredCell) {
                 e.preventDefault();
-                this.isActionDown = true;
-                this.lastAction = 'clicked';
-
-                this.hoveredCell.classList.remove('marked', 'greyed');
+                this.hoveredCell.classList.remove('marked');
+                this.hoveredCell.classList.remove('greyed');
                 this.hoveredCell.classList.toggle('clicked');
             }
-            else if ((['KeyE', 'KeyD', 'KeyC'].includes(e.code)) && this.hoveredCell) {
+            else if ((e.code === 'KeyE' || e.code === 'KeyD' || e.code === 'KeC') && this.hoveredCell) {
                 e.preventDefault();
-                this.isActionDown = true;
-                this.lastAction = 'greyed';
+                this.hoveredCell.classList.remove('highlight');
 
-                this.hoveredCell.classList.remove('marked', 'clicked');
+                this.hoveredCell.classList.remove('marked');
                 this.hoveredCell.classList.toggle('greyed');
+                this.hoveredCell.classList.remove('clicked');
             }
-            else if ((['KeyR', 'KeyF', 'KeyV'].includes(e.code)) && this.hoveredCell) {
+            else if ((e.code === 'KeyR' || e.code === 'KeyF' || e.code === 'KeyV') && this.hoveredCell) {
                 e.preventDefault();
-                this.isActionDown = true;
-                this.lastAction = 'marked';
+                this.hoveredCell.classList.remove('highlight');
 
-                this.hoveredCell.classList.remove('greyed', 'clicked');
                 this.hoveredCell.classList.toggle('marked');
+                this.hoveredCell.classList.remove('greyed');
+                this.hoveredCell.classList.remove('clicked');
             }
         });
 
-        document.addEventListener('keyup', (e) => {
-            if (e.code === 'KeyW' || e.code === 'KeyS' || e.code === 'KeyX' ||
-                e.code === 'KeyE' || e.code === 'KeyD' || e.code === 'KeC' ||
-                e.code === 'KeyR' || e.code === 'KeyF' || e.code === 'KeyV'
-            ) {
-                e.preventDefault();
-                this.isActionDown = false;
-                this.lastAction = null;
-            }
-        });
     }
 
-    applyLastAction(cell) {
-        switch (this.lastAction) {
-            case 'clicked':
-                cell.classList.remove('marked', 'greyed');
-                cell.classList.toggle('clicked');
-                break;
-            case 'greyed':
-                cell.classList.remove('marked', 'clicked');
-                cell.classList.toggle('greyed');
-                break;
-            case 'marked':
-                cell.classList.remove('greyed', 'clicked');
-                cell.classList.toggle('marked');
-                break;
-        }
-    }
-
-    handleClick(e, cell) {
-        if (e.button === 0) {
-            this.lastAction = 'clicked';
-
-            cell.classList.remove('marked', 'greyed');
-            cell.classList.toggle('clicked');
-        } else if (e.button === 2) {
-            this.lastAction = 'greyed';
-
-            cell.classList.remove('marked', 'clicked');
-            cell.classList.toggle('greyed');
-        } else if (e.button === 1) {
-            this.lastAction = 'marked';
-
-            cell.classList.remove('greyed', 'clicked');
-            cell.classList.toggle('marked');
-        }
-    }
-
-    getLayout(size) {
+    getLayout(row, col) {
         const layout = math.matrix(
-            Array.from({ length: size }, () =>
-                Array.from({ length: size }, () =>
+            Array.from({ length: row }, () =>
+                Array.from({ length: col }, () =>
                     math.randomInt(0, 2)
                 )
             )
         );
 
-        // console.log(`this is layout: ${layout}`)
+        console.log(`this is layout: ${layout}`)
 
         return layout;
     }
 
     getNums() {
         const layout = this.possibleLayout;
-        // console.log(`layout in getNums ${this.possibleLayout}`)
 
-        // console.log(`this is layout going into getNums: ${layout}`);
+        console.log(`this is layout going into getNums: ${layout}`);
 
         const rows = layout.toArray();
-        // console.log(`rows ${rows}`)
 
         const cols = Array.from({ length: rows[0].length }, (_, c) =>
             rows.map(row => row[c])
         );
 
-        // console.log(`cols ${cols}`)
-
         const topNums = this.getNumsSum(cols);
         const sideNums = this.getNumsSum(rows);
-
-        // console.log(`returning topNums: ${topNums}`)
 
         // console.log(`top nums: ${topNums}`);
         // console.log(`row nums: ${sideNums}`);
@@ -318,13 +145,12 @@ class Nono {
         const finalList = [];
 
         for (let list of array) {
-            // console.log(`sending list: ${list}`)
+            console.log(`sending list: ${list}`)
             finalList.push(this.getRuns(list));
-            // console.log(`got: ${JSON.stringify(this.getRuns(list))}`)
+            console.log(`got: ${JSON.stringify(this.getRuns(list))}`)
         }
 
-        // console.log(`final: ${JSON.stringify(finalList)}`)
-        // console.log(`returning finallist ${finalList}`)
+        console.log(`final: ${JSON.stringify(finalList)}`)
         return finalList;
     }
 
@@ -401,18 +227,33 @@ class Nono {
         const height = corner.offsetHeight;
         const width = corner.offsetWidth;
 
-        // console.log(`width ${width} height: ${height}`)
-
         const bestSize = Math.max(height, width);
-
-        // console.log(`best ${bestSize}`)
 
         corner.style.height = bestSize + 'px';
         corner.style.width = bestSize + 'px';
-
-        // console.log(`offsetheight: ${corner.offsetHeight} width ${corner.offsetWidth}`)
     }
 
+    handleClick(e, cell) {
+        if (e.button === 0) {
+            cell.classList.remove('highlight');
+
+            cell.classList.remove('marked');
+            cell.classList.remove('greyed');
+            cell.classList.toggle('clicked');
+        } else if (e.button === 2) {
+            cell.classList.remove('highlight');
+
+            cell.classList.remove('marked');
+            cell.classList.toggle('greyed');
+            cell.classList.remove('clicked');
+        } else if (e.button === 1) {
+            cell.classList.remove('highlight');
+
+            cell.classList.toggle('marked');
+            cell.classList.remove('greyed');
+            cell.classList.remove('clicked');
+        }
+    }
 // when remove toggle, will be blank background instead of highlight
 
 
