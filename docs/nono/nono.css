@@ -47,7 +47,7 @@ main {
     color: var(--color);
     margin: 0;
     padding: 0;
-    border-color: var(--color);
+    /* border: none; */
 }
 
 /* td {
@@ -298,14 +298,4 @@ button:hover {
 
 .hidden {
     display: none;
-}
-
-.complete {
-    background-color: blue;
-    /* color: blue; */
-}
-
-.dark-mode .complete {
-    background-color: red;
-    /* color: red; */
 }

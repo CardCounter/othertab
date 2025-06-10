@@ -22,6 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 class Nono {
     constructor() {
+
         // get size
         if (localStorage.getItem('NONO-currentSize')){
             this.sizeMode = localStorage.getItem('NONO-currentSize');
@@ -58,11 +59,7 @@ class Nono {
         });
 
         this.possibleLayout = this.getLayout(this.size);
-        this.numActivatedCellsMaster = this.getNumActivatedCells(this.possibleLayout);
-        this.numActivatedCells = 0;
         [this.topNums, this.sideNums] = this.getNums();
-
-        // console.log(`top: ${JSON.stringify(this.topNums)}, side: ${JSON.stringify(this.sideNums)}`)
 
         this.initializeTable();
         this.syncTableSizes(); /// add this and everything on reset()
@@ -71,10 +68,6 @@ class Nono {
         this.hoveredCell = null;
         this.isActionDown = false;
         this.lastAction = null;
-        this.colCompleteFlags = new Array(this.size).fill(false);
-        this.rowCompleteFlags = new Array(this.size).fill(false);
-
-        this.isGameOver = false;
 
         this.mainGameActions();
         this.mainKeyActions();
@@ -84,8 +77,6 @@ class Nono {
         // console.log('in reset')
         // console.log(`size: ${typeof(this.size)}`)
         this.possibleLayout = this.getLayout(this.size);
-        this.numActivatedCellsMaster = this.getNumActivatedCells(this.possibleLayout);
-        this.numActivatedCells = 0;
         // console.log(`layout ${typeof(this.possibleLayout)}`)
         // console.log(`data type for top side: ${typeof(this.topNums)},${this.topNums} ${typeof(this.sideNums)},${this.sideNums}`)
         
@@ -107,10 +98,6 @@ class Nono {
         this.hoveredCell = null;
         this.isActionDown = false;
         this.lastAction = null;
-        this.colCompleteFlags = new Array(this.size).fill(false);
-        this.rowCompleteFlags = new Array(this.size).fill(false);
-
-        this.isGameOver = false;
 
         this.mainGameActions();
     }
@@ -161,21 +148,18 @@ class Nono {
             });
 
             cell.addEventListener('mousedown', (e) => {
-                this.handleClick(e); // dont pass in cell, use this.hoverCell and check for null in handle
+                this.isActionDown = true;
+                this.handleClick(e, cell);
             });
 
             cell.addEventListener('mouseup', (e) => {
                 this.isActionDown = false;
                 this.lastAction = null;
-
-                this.updateCell();
-                this.checkGameEnd();
             });
 
             cell.addEventListener('contextmenu', (e) => {
                 e.preventDefault();
             });
-
         });
 
         const gameContainer = document.getElementById('game-container');
@@ -216,26 +200,30 @@ class Nono {
 
             if (e.code === 'Enter') this.reset();
 
-            if ((['KeyE', 'KeyD', 'KeyC'].includes(e.code)) && this.hoveredCell) {
+            if ((['KeyW', 'KeyS', 'KeyX'].includes(e.code)) && this.hoveredCell) {
                 e.preventDefault();
-                // this.isActionDown = true;
-                // this.lastAction = 'clicked';
+                this.isActionDown = true;
+                this.lastAction = 'clicked';
 
-                // this.hoveredCell.classList.remove('marked', 'greyed');
-                // const wasActive = this.hoveredCell.classList.contains('clicked');
-                // this.numActivatedCells += wasActive ? -1 : 1;
-                // this.hoveredCell.classList.toggle('clicked');
-                this.actionClick();
+                this.hoveredCell.classList.remove('marked', 'greyed');
+                this.hoveredCell.classList.toggle('clicked');
             }
-            else if ((['KeyW', 'KeyS', 'KeyX'].includes(e.code)) && this.hoveredCell) {
+            else if ((['KeyE', 'KeyD', 'KeyC'].includes(e.code)) && this.hoveredCell) {
                 e.preventDefault();
-                this.actionGrey();
+                this.isActionDown = true;
+                this.lastAction = 'greyed';
+
+                this.hoveredCell.classList.remove('marked', 'clicked');
+                this.hoveredCell.classList.toggle('greyed');
             }
             else if ((['KeyR', 'KeyF', 'KeyV'].includes(e.code)) && this.hoveredCell) {
                 e.preventDefault();
-                this.actionMark();
-            }
+                this.isActionDown = true;
+                this.lastAction = 'marked';
 
+                this.hoveredCell.classList.remove('greyed', 'clicked');
+                this.hoveredCell.classList.toggle('marked');
+            }
         });
 
         document.addEventListener('keyup', (e) => {
@@ -246,9 +234,6 @@ class Nono {
                 e.preventDefault();
                 this.isActionDown = false;
                 this.lastAction = null;
-
-                this.updateCell();
-                this.checkGameEnd();
             }
         });
     }
@@ -257,8 +242,6 @@ class Nono {
         switch (this.lastAction) {
             case 'clicked':
                 cell.classList.remove('marked', 'greyed');
-                const wasActive = cell.classList.contains('clicked');
-                this.numActivatedCells += wasActive ? -1 : 1;
                 cell.classList.toggle('clicked');
                 break;
             case 'greyed':
@@ -272,55 +255,23 @@ class Nono {
         }
     }
 
-    handleClick(e) {
+    handleClick(e, cell) {
         if (e.button === 0) {
-            // this.lastAction = 'clicked';
+            this.lastAction = 'clicked';
 
-            // cell.classList.remove('marked', 'greyed');
-            // const wasActive = cell.classList.contains('clicked');
-            // this.numActivatedCells += wasActive ? -1 : 1;
-            // cell.classList.toggle('clicked');
-            this.actionClick();
+            cell.classList.remove('marked', 'greyed');
+            cell.classList.toggle('clicked');
         } else if (e.button === 2) {
-            this.actionGrey();
+            this.lastAction = 'greyed';
+
+            cell.classList.remove('marked', 'clicked');
+            cell.classList.toggle('greyed');
         } else if (e.button === 1) {
-            this.actionMark();
+            this.lastAction = 'marked';
+
+            cell.classList.remove('greyed', 'clicked');
+            cell.classList.toggle('marked');
         }
-    }
-
-    actionClick() {
-        this.isActionDown = true;
-        this.lastAction = 'clicked';
-
-        this.hoveredCell.classList.remove('marked', 'greyed');
-        // const wasActive = this.hoveredCell.classList.contains('clicked');
-        // this.numActivatedCells += wasActive ? -1 : 1;
-        this.hoveredCell.classList.toggle('clicked');
-
-        this.updateCell();
-        this.checkGameEnd();
-    }
-
-    actionGrey() {
-        this.isActionDown = true;
-        this.lastAction = 'greyed';
-
-        this.hoveredCell.classList.remove('marked', 'clicked');
-        this.hoveredCell.classList.toggle('greyed');
-
-        this.updateCell();
-        this.checkGameEnd();
-    }
-
-    actionMark() {  
-        this.isActionDown = true;
-        this.lastAction = 'marked';
-
-        this.hoveredCell.classList.remove('greyed', 'clicked');
-        this.hoveredCell.classList.toggle('marked');
-
-        this.updateCell();
-        this.checkGameEnd();
     }
 
     getLayout(size) {
@@ -335,10 +286,6 @@ class Nono {
         // console.log(`this is layout: ${layout}`)
 
         return layout;
-    }
-
-    getNumActivatedCells(possibleLayout) {
-        return math.sum(possibleLayout);
     }
 
     getNums() {
@@ -425,7 +372,7 @@ class Nono {
         html += '<tr><td class="corner" id="corner"></td>';
         for (let col = 0; col < cols - 1; col++) { // -1 bc added corner
             let topNumValue = this.topNumToString(topNums[col]);
-            html += `<td class="top" id="top-${col}" data-col="${col}">${topNumValue}</td>`; // added col for highlight
+            html += `<td class="top" data-col="${col}">${topNumValue}</td>`; // added col for highlight
         }
         html += '</tr>';
 
@@ -435,10 +382,10 @@ class Nono {
             for (let col = 0; col < cols; col++) {
                 if (col === 0) {
                     let sideNumValue = this.sideNumToString(sideNums[row]);
-                    html += `<td class="side" id="side-${row}" data-row="${row}">${sideNumValue}</td>`; // added row for highlight
+                    html += `<td class="side" data-row="${row}">${sideNumValue}</td>`; // added row for highlight
                 }
                 else {
-                    html += `<td class="cell" id="cell-${row}-${col - 1}" data-row="${row}" data-col="${col - 1}"></td>`; // -1 side offset
+                    html += `<td class="cell" data-row="${row}" data-col="${col - 1}"></td>`; // -1 side offset
                 }
             }
 
@@ -466,132 +413,127 @@ class Nono {
         // console.log(`offsetheight: ${corner.offsetHeight} width ${corner.offsetWidth}`)
     }
 
-    updateCell(){
-        const row = this.hoveredCell.dataset.row;
-        const col = this.hoveredCell.dataset.col;
+// when remove toggle, will be blank background instead of highlight
 
-        this.updateTop(col);
-        this.updateSide(row);  
+
+
+
+
+    // initializeTable() {
+    //     this.grid = Array(this.rows).fill().map(() => 
+    //         Array(this.cols).fill().map(() => ({
+    //             isOn: false,
+    //             isOff: false,
+    //             isMarked: false
+    //         }))
+    //     );
+    // }
+
+    // renderGrid() {
+    //     const gridElement = document.getElementById('grid');
+    //     gridElement.innerHTML = '';
+    //     gridElement.style.gridTemplateColumns = `repeat(${this.cols}, 30px)`; // change cell size here
+    //     gridElement.style.gridTemplateRows = `repeat(${this.rows}, 30px)`;
         
-        console.log(`top flags: ${this.colCompleteFlags}`)
-        console.log(`side flags: ${this.rowCompleteFlags}`)
+    //     for (let row = 0; row < this.rows; row++) {
+    //         for (let col = 0; col < this.cols; col++) {
+    //             const cell = document.createElement('div');
+    //             cell.className = 'cell';
+    //             cell.dataset.row = row;
+    //             cell.dataset.col = col;
 
-    }
+    //             // middle click or both buttons for chord
+    //             cell.addEventListener('mousedown', (e) => { // change these to css styles, blank, on, off, marked
+    //                 this.isMouseDown = true;
+    //                 if (e.button == 0){
+    //                     if (cell.style.backgroundColor === 'blue') cell.style.backgroundColor = 'white';
+    //                     else {cell.style.backgroundColor = 'blue';}
+    //                 }
+    //                 if (e.button == 1){
+    //                     if (cell.style.backgroundColor === 'black') cell.style.backgroundColor = 'white';
+    //                     else {cell.style.backgroundColor = 'black';}
+    //                 }
+    //                 if (e.button == 2){
+    //                     if (cell.style.backgroundColor === 'grey') cell.style.backgroundColor = 'white';
+    //                     else {cell.style.backgroundColor = 'grey';}
+    //                 }
+    //             });
+                
+    //             cell.addEventListener('mouseup', (e) => {
+    //                 this.isMouseDown = false;
+    //             });
+                
+    //             cell.addEventListener('contextmenu', (e) => {
+    //                 e.preventDefault();
+    //             });
 
-    updateTop(col) {
-        const id = `top-${col}`
-        const workingCol = document.getElementById(id);
+    //             cell.addEventListener('mouseover', (e) => { 
+    //                 if (this.isMouseDown){
+    //                     if (e.buttons & 1){
+    //                         if (cell.style.backgroundColor === 'blue') cell.style.backgroundColor = 'white';
+    //                         else {cell.style.backgroundColor = 'blue';}
+    //                     }
+    //                     else if (e.buttons & 4){ ////// look up why this works again
+    //                         if (cell.style.backgroundColor === 'black') cell.style.backgroundColor = 'white';
+    //                         else {cell.style.backgroundColor = 'black';}
+    //                     }
+    //                     else if (e.buttons & 2){
+    //                         if (cell.style.backgroundColor === 'grey') cell.style.backgroundColor = 'white';
+    //                         else {cell.style.backgroundColor = 'grey';}
+    //                     }
+    //                 }
 
-        console.log(`iscolcomplete: ${this.isColComplete(col)}`)
+    //             });
+                
+    //             // add fix for when mouse leave grid, reset dont keep drawing if re enter without 
+    //             window.addEventListener('mouseup', () => {
+    //                 this.isMouseDown = false;
+    //             });
 
-        if (this.isColComplete(col)) {
-            console.log(`in true: ${col}`)
-            // set correspoding colflag to true
-            this.colCompleteFlags[col] = true;
-
-            // grey out working row
-            workingCol.classList.add('complete');
-        }
-        else {
-            console.log(`in false: ${col}`)
-            this.colCompleteFlags[col] = false;
-            workingCol.classList.remove('complete');
-        }
-
-    }
-
-    updateSide(row) {
-        const id = `side-${row}`
-        const workingRow = document.getElementById(id);
-
-        const isComp = this.isRowComplete(row);
-
-        if (isComp) {
-            // set correspoding colflag to true
-            this.rowCompleteFlags[row] = true;
-
-            // grey out working row
-            workingRow.classList.add('complete');
-        }
-        else {
-            this.colCompleteFlags[row] = false;
-            workingRow.classList.remove('complete');
-        }
-
-    }
-
-    isEqualSlice(arr1, arr2) {
-        if (arr1.length !== arr2.length) return false;
-
-        for (let i=0; i<arr1.length; i++) {
-            if (arr1[i] !== arr2[i]) return false;
-        }
-
-        return true;
-    }
-
-    isColComplete(col) {
-        const slice = this.getColSlice(col);
-        // console.log(`looking at slice: ${JSON.stringify(slice)}`)
-        const sliceSum = this.getRuns(slice);
-        console.log(`my slice: ${JSON.stringify(sliceSum)}, their slice: ${this.topNums[col]}`)
-
-        // const bool = this.isEqualSlice(sliceSum, this.topNums[col]);
-        // console.log(`is it good? ${bool}, what im checking: ${JSON.stringify(sliceSum[0])}`)
-        return this.isEqualSlice(sliceSum, this.topNums[col]);
-    } 
-
-    isRowComplete(row) {
-        const slice = this.getRowSlice(row);
-        const sliceSum = this.getRuns(slice);
-
-        return this.isEqualSlice(sliceSum, this.sideNums[row]);
-    }
-
-    getColSlice(col) {
-        const COL = col;
-        const slice = new Array(this.size).fill(0)
-        for (let row=0; row<this.size; row++){
-            let id = `cell-${row}-${COL}`;
-            const cell = document.getElementById(id);
-            slice[row] = cell.classList.contains('clicked') ? 1 : 0; // just use row as a incrementor
-        }
-
-        return slice
-    }
-
-    getRowSlice(row) {
-        const ROW = row;
-        const slice = new Array(this.size).fill(0)
-        for (let col=0; col<this.size; col++){
-            let id = `cell-${ROW}-${col}`;
-            const cell = document.getElementById(id);
-            slice[col] = cell.classList.contains('clicked') ? 1 : 0;
-        }
-
-        return slice
-    }
-
-    checkGameEnd() {
-        if (this.rowCompleteFlags.every(Boolean) && this.colCompleteFlags.every(Boolean)) {
-            this.isGameOver = true;
-            console.log(`game finish`);
-        }
-    }
-
+    //             // this.updateCellAppearance(cell, row, col);  
+                
+    //             gridElement.appendChild(cell);
+    //         }
+    //     }
+    // }
 }
+
+
+
+
+// document.querySelectorAll('[class^="cell-"]').forEach(cell => {
+//     cell.addEventListener('click', () => {
+//         cell.classList.remove('greyed');
+//         cell.classList.toggle('clicked');
+//     });
+//     cell.addEventListener('contextmenu', (e) => {
+//         e.preventDefault();
+//         cell.classList.remove('clicked')
+//         cell.classList.toggle('greyed');
+//     });
+//     cell.addEventListener('mousedown', (e) => {
+//         if (!(e.button == 2)){
+//             if (!cell.classList.contains('revealed') && !this.gameOver) {
+//                 cell.style.backgroundColor = '#999999';
+//             }
+//         }
+
+//         // middle click or left right
+//         if ((e.button === 1 || (e.buttons === 3)) && !this.gameOver && this.grid[row][col].isRevealed) {
+//             this.chord(row, col);
+//         } 
+//     })
+
+
+// });
+
+
+
+// makes grid size scale
+
 
 window.addEventListener('DOMContentLoaded', () => {
     const nono = new Nono();
 });
 
 // window.addEventListener('load', this.syncTableSizes());
-
-/*
-prevent hover cell from selecting top and side, or 
-prevent clicking on top and side if not complete
-
-
-
-
-*/
