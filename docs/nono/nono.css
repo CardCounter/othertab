@@ -182,18 +182,6 @@ table tr:last-child td {
     content: none;
 }
 
-.top.highlight.complete,
-.side.highlight.complete {
-    background-color: black;
-    color: blue;
-}
-
-.dark-mode .top.highlight.complete,
-.dark-mode .side.highlight.complete {
-    background-color: white;
-    color: red;
-}
-
 .dark-mode .highlight {
     position: relative;
 }
@@ -295,14 +283,6 @@ button:hover {
 .settings-button {
     position: absolute;
     left: calc(1rem + 4px);
-}
-
-.win-paste {
-    display: flex;
-    flex-direction: row;
-    gap: 0.5rem;
-    position: absolute;
-    right: calc(1rem + 4px);
 }
 
 /* .top .highlight{
