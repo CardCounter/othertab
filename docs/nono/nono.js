@@ -14,6 +14,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    document.addEventListener('contextmenu', (e) => {
+        if (!settingsPanel.contains(e.target) && e.target !== settingsButton) {
+            settingsPanel.classList.add('hidden');
+        }
+    });
+
     settingsPanel.addEventListener('click', (e) => {
         e.stopPropagation();
     });
@@ -21,6 +27,10 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 class Nono {
+    handleIfActive(callback) {
+        if (!this.isGameOver) callback();
+    }
+
     constructor() {
         // get size
         if (localStorage.getItem('NONO-currentSize')){
@@ -33,8 +43,6 @@ class Nono {
         document.getElementById(this.sizeMode).classList.add('active');
         this.size = Number(document.getElementById(this.sizeMode).dataset.size);
         document.documentElement.style.setProperty('--num-font-size', document.getElementById(this.sizeMode).dataset.font);
-
-        // console.log(this.size)
 
         const sizeButtons = document.querySelectorAll('.difficulty-button');
         sizeButtons.forEach(button => {
@@ -51,9 +59,8 @@ class Nono {
                 this.size = Number(document.getElementById(this.sizeMode).dataset.size);
                 document.documentElement.style.setProperty('--num-font-size', document.getElementById(this.sizeMode).dataset.font);
 
-                // console.log(this.size)
-
                 this.reset();
+
             });
         });
 
@@ -62,114 +69,126 @@ class Nono {
         this.numActivatedCells = 0;
         [this.topNums, this.sideNums] = this.getNums();
 
-        // console.log(`top: ${JSON.stringify(this.topNums)}, side: ${JSON.stringify(this.sideNums)}`)
-
-        this.initializeTable();
-        this.syncTableSizes(); /// add this and everything on reset()
-        // this.renderGrid();
-
         this.hoveredCell = null;
         this.isActionDown = false;
         this.lastAction = null;
         this.colCompleteFlags = new Array(this.size).fill(false);
         this.rowCompleteFlags = new Array(this.size).fill(false);
+        this.actionedCols = new Set();
+        this.actionedRows = new Set();
 
+        this.firstKey = true;
         this.isGameOver = false;
+        this.timer = 0;
+        this.timerInterval = null;
 
+        this.initializeTable();
+        this.syncTableSizes();
         this.mainGameActions();
         this.mainKeyActions();
     }
 
     reset() {
-        // console.log('in reset')
-        // console.log(`size: ${typeof(this.size)}`)
+        this.stopTimer();
         this.possibleLayout = this.getLayout(this.size);
         this.numActivatedCellsMaster = this.getNumActivatedCells(this.possibleLayout);
         this.numActivatedCells = 0;
-        // console.log(`layout ${typeof(this.possibleLayout)}`)
-        // console.log(`data type for top side: ${typeof(this.topNums)},${this.topNums} ${typeof(this.sideNums)},${this.sideNums}`)
-        
+
         let t1;
         let t2
         [t1, t2] = this.getNums();
-        // console.log(`t ${t1}, ${t2}`)
         this.topNums = t1;
         this.sideNums = t2;
-        // [this.topNums, this.sideNums] = this.getNums();
-
-        // console.log(`top ${this.topNums}`)
-        // console.log(`side ${this.sideNums}`)
-
-        this.initializeTable();
-        this.syncTableSizes(); /// add this and everything on reset()
-        // this.renderGrid();
 
         this.hoveredCell = null;
         this.isActionDown = false;
         this.lastAction = null;
         this.colCompleteFlags = new Array(this.size).fill(false);
         this.rowCompleteFlags = new Array(this.size).fill(false);
+        this.actionedCols = new Set();
+        this.actionedRows = new Set();
 
+        this.firstKey = true;
         this.isGameOver = false;
+        this.timer = 0;
+        this.timerInterval = null;
 
+        document.getElementById('copy-button').textContent = 'share';
+
+        const popup = document.getElementById('win-paste');
+        if (popup) popup.classList.add('hidden');
+
+        this.initializeTable();
+        this.syncTableSizes();
         this.mainGameActions();
+        
     }
 
     mainGameActions(){
         document.querySelectorAll('.cell').forEach(cell => {
             cell.addEventListener('mouseenter', () => {
-                if (this.hoveredCell === cell) return;
-                this.hoveredCell = cell;
+                this.handleIfActive(() => {
+                    if (this.hoveredCell === cell) return;
+                    this.hoveredCell = cell;
 
-                const row = cell.dataset.row;
-                const col = cell.dataset.col;
+                    const row = cell.dataset.row;
+                    const col = cell.dataset.col;
 
-                document.querySelectorAll('.top').forEach(topCell => {
-                    if (topCell.dataset.col === col) {
-                        topCell.classList.add('highlight');
+                    document.querySelectorAll('.top').forEach(topCell => {
+                        if (topCell.dataset.col === col) {
+                            topCell.classList.add('highlight');
+                        }
+                    });
+
+                    document.querySelectorAll('.side').forEach(sideCell => {
+                        if (sideCell.dataset.row === row) {
+                            sideCell.classList.add('highlight');
+                        }
+                    });
+
+                    // drag option across here
+                    if (this.isActionDown) {
+                        this.applyLastAction();
+                        this.updateCell()
                     }
                 });
-
-                document.querySelectorAll('.side').forEach(sideCell => {
-                    if (sideCell.dataset.row === row) {
-                        sideCell.classList.add('highlight');
-                    }
-                });
-
-                // drag option across here
-                if (this.isActionDown) this.applyLastAction(cell);
-
             });
 
             cell.addEventListener('mouseleave', () => {
-                this.hoveredCell = null;
+                this.handleIfActive(() => {
+                    this.hoveredCell = null;
 
-                const row = cell.dataset.row;
-                const col = cell.dataset.col;
+                    const row = cell.dataset.row;
+                    const col = cell.dataset.col;
 
-                document.querySelectorAll('.top').forEach(topCell => {
-                    if (topCell.dataset.col === col) {
-                        topCell.classList.remove('highlight');
-                    }
-                });
+                    document.querySelectorAll('.top').forEach(topCell => {
+                        if (topCell.dataset.col === col) {
+                            topCell.classList.remove('highlight');
+                        }
+                    });
 
-                document.querySelectorAll('.side').forEach(sideCell => {
-                    if (sideCell.dataset.row === row) {
-                        sideCell.classList.remove('highlight');
-                    }
+                    document.querySelectorAll('.side').forEach(sideCell => {
+                        if (sideCell.dataset.row === row) {
+                            sideCell.classList.remove('highlight');
+                        }
+                    });
                 });
             });
 
             cell.addEventListener('mousedown', (e) => {
-                this.handleClick(e); // dont pass in cell, use this.hoverCell and check for null in handle
+                this.handleIfActive(() => {
+                    this.handleClick(e); // dont pass in cell, use this.hoverCell and check for null in handle
+                });
             });
 
             cell.addEventListener('mouseup', (e) => {
-                this.isActionDown = false;
-                this.lastAction = null;
+                this.handleIfActive(() => {
+                    this.isActionDown = false;
+                    this.lastAction = null;
 
-                this.updateCell();
-                this.checkGameEnd();
+                    this.updateAllCells();
+                    this.checkGameEnd();
+                });
             });
 
             cell.addEventListener('contextmenu', (e) => {
@@ -186,24 +205,77 @@ class Nono {
 
         // end click and drag when leaving main container
         gameContainer.addEventListener('mouseleave', () => {
-            this.isActionDown = false;
-            this.lastAction = null;
+            this.handleIfActive(() => {
+                this.isActionDown = false;
+                this.lastAction = null;
+
+                this.updateAllCells();
+            });
         });
 
         document.querySelectorAll('.top').forEach(top => {
             top.addEventListener('mouseenter', () => {
-               this.isActionDown = false;
-                this.lastAction = null; 
+                this.handleIfActive(() => {
+                    this.isActionDown = false;
+                    this.lastAction = null; 
+                });
             });
         });
 
         document.querySelectorAll('.side').forEach(side => {
             side.addEventListener('mouseenter', () => {
-               this.isActionDown = false;
-                this.lastAction = null; 
+                this.handleIfActive(() => {
+                    this.isActionDown = false;
+                    this.lastAction = null; 
+                });
             });
         });
 
+        document.querySelectorAll('.top').forEach(top => {
+            top.addEventListener('click', () => {
+                this.handleIfActive(() => {
+                    if (this.firstKey) {
+                        this.firstKey = false;
+                        this.startTimer();
+                    }
+                    if (top.classList.contains('complete')) {
+                        const col = top.dataset.col;
+                        for (let row = 0; row < this.size; row++) {
+                            const cell = document.getElementById(`cell-${row}-${col}`);
+                            if (!cell.classList.contains('clicked')) {
+                                cell.classList.remove('marked');
+                                cell.classList.add('greyed');
+                            }
+                        }
+                        this.updateAllCells();
+                        this.checkGameEnd();
+                    }
+                });
+            });
+        });
+
+        document.querySelectorAll('.side').forEach(side => {
+            side.addEventListener('click', () => {
+                this.handleIfActive(() => {
+                    if (this.firstKey) {
+                        this.firstKey = false;
+                        this.startTimer();
+                    }
+                    if (side.classList.contains('complete')) {
+                        const row = side.dataset.row;
+                        for (let col = 0; col < this.size; col++) {
+                            const cell = document.getElementById(`cell-${row}-${col}`);
+                            if (!cell.classList.contains('clicked')) {
+                                cell.classList.remove('marked');
+                                cell.classList.add('greyed');
+                            }
+                        }
+                        this.updateAllCells();
+                        this.checkGameEnd();
+                    }
+                });
+            });
+        });
     }
 
     // separated per cell logic and key logic becaues when reseting using the enter key, reset would call 
@@ -212,48 +284,57 @@ class Nono {
     // can be called everytime in reset()
     mainKeyActions(){
         document.addEventListener('keydown', (e) => {
-            if (e.repeat) return;  // prevent repeats when holding down
-
-            if (e.code === 'Enter') this.reset();
-
-            if ((['KeyE', 'KeyD', 'KeyC'].includes(e.code)) && this.hoveredCell) {
-                e.preventDefault();
-                // this.isActionDown = true;
-                // this.lastAction = 'clicked';
-
-                // this.hoveredCell.classList.remove('marked', 'greyed');
-                // const wasActive = this.hoveredCell.classList.contains('clicked');
-                // this.numActivatedCells += wasActive ? -1 : 1;
-                // this.hoveredCell.classList.toggle('clicked');
-                this.actionClick();
+            if (e.code === 'Enter' && !e.repeat) {
+                this.reset();
+                return;
             }
-            else if ((['KeyW', 'KeyS', 'KeyX'].includes(e.code)) && this.hoveredCell) {
-                e.preventDefault();
-                this.actionGrey();
-            }
-            else if ((['KeyR', 'KeyF', 'KeyV'].includes(e.code)) && this.hoveredCell) {
-                e.preventDefault();
-                this.actionMark();
-            }
+            this.handleIfActive(() => {
+                if (e.repeat) return;  // prevent repeats when holding down
 
+                if ((['KeyE', 'KeyD', 'KeyC'].includes(e.code)) && this.hoveredCell) {
+                    e.preventDefault();
+                    this.actionClick();
+                }
+                else if ((['KeyW', 'KeyS', 'KeyX'].includes(e.code)) && this.hoveredCell) {
+                    e.preventDefault();
+                    this.actionGrey();
+                }
+                else if ((['KeyR', 'KeyF', 'KeyV'].includes(e.code)) && this.hoveredCell) {
+                    e.preventDefault();
+                    this.actionMark();
+                }
+            });
         });
 
         document.addEventListener('keyup', (e) => {
-            if (e.code === 'KeyW' || e.code === 'KeyS' || e.code === 'KeyX' ||
-                e.code === 'KeyE' || e.code === 'KeyD' || e.code === 'KeC' ||
-                e.code === 'KeyR' || e.code === 'KeyF' || e.code === 'KeyV'
-            ) {
-                e.preventDefault();
+            this.handleIfActive(() => {
+                if (e.code === 'KeyW' || e.code === 'KeyS' || e.code === 'KeyX' ||
+                    e.code === 'KeyE' || e.code === 'KeyD' || e.code === 'KeyC' ||
+                    e.code === 'KeyR' || e.code === 'KeyF' || e.code === 'KeyV'
+                ) {
+                    e.preventDefault();
+                    this.isActionDown = false;
+                    this.lastAction = null;
+
+                    this.updateAllCells();
+                    this.checkGameEnd();
+                }
+            });
+        });
+
+        // Add global mouseup event listener
+        document.addEventListener('mouseup', (e) => {
+            this.handleIfActive(() => {
                 this.isActionDown = false;
                 this.lastAction = null;
-
-                this.updateCell();
+                this.updateAllCells();
                 this.checkGameEnd();
-            }
+            });
         });
     }
 
-    applyLastAction(cell) {
+    applyLastAction() {
+        const cell = this.hoveredCell;
         switch (this.lastAction) {
             case 'clicked':
                 cell.classList.remove('marked', 'greyed');
@@ -274,12 +355,6 @@ class Nono {
 
     handleClick(e) {
         if (e.button === 0) {
-            // this.lastAction = 'clicked';
-
-            // cell.classList.remove('marked', 'greyed');
-            // const wasActive = cell.classList.contains('clicked');
-            // this.numActivatedCells += wasActive ? -1 : 1;
-            // cell.classList.toggle('clicked');
             this.actionClick();
         } else if (e.button === 2) {
             this.actionGrey();
@@ -289,12 +364,14 @@ class Nono {
     }
 
     actionClick() {
+        if (this.firstKey) {
+            this.firstKey = false;
+            this.startTimer();
+        }
         this.isActionDown = true;
         this.lastAction = 'clicked';
 
         this.hoveredCell.classList.remove('marked', 'greyed');
-        // const wasActive = this.hoveredCell.classList.contains('clicked');
-        // this.numActivatedCells += wasActive ? -1 : 1;
         this.hoveredCell.classList.toggle('clicked');
 
         this.updateCell();
@@ -302,6 +379,10 @@ class Nono {
     }
 
     actionGrey() {
+        if (this.firstKey) {
+            this.firstKey = false;
+            this.startTimer();
+        }
         this.isActionDown = true;
         this.lastAction = 'greyed';
 
@@ -313,6 +394,10 @@ class Nono {
     }
 
     actionMark() {  
+        if (this.firstKey) {
+            this.firstKey = false;
+            this.startTimer();
+        }
         this.isActionDown = true;
         this.lastAction = 'marked';
 
@@ -332,8 +417,6 @@ class Nono {
             )
         );
 
-        // console.log(`this is layout: ${layout}`)
-
         return layout;
     }
 
@@ -343,26 +426,15 @@ class Nono {
 
     getNums() {
         const layout = this.possibleLayout;
-        // console.log(`layout in getNums ${this.possibleLayout}`)
-
-        // console.log(`this is layout going into getNums: ${layout}`);
 
         const rows = layout.toArray();
-        // console.log(`rows ${rows}`)
 
         const cols = Array.from({ length: rows[0].length }, (_, c) =>
             rows.map(row => row[c])
         );
 
-        // console.log(`cols ${cols}`)
-
         const topNums = this.getNumsSum(cols);
         const sideNums = this.getNumsSum(rows);
-
-        // console.log(`returning topNums: ${topNums}`)
-
-        // console.log(`top nums: ${topNums}`);
-        // console.log(`row nums: ${sideNums}`);
 
         return [topNums, sideNums];
     }
@@ -371,13 +443,9 @@ class Nono {
         const finalList = [];
 
         for (let list of array) {
-            // console.log(`sending list: ${list}`)
             finalList.push(this.getRuns(list));
-            // console.log(`got: ${JSON.stringify(this.getRuns(list))}`)
         }
 
-        // console.log(`final: ${JSON.stringify(finalList)}`)
-        // console.log(`returning finallist ${finalList}`)
         return finalList;
     }
 
@@ -399,7 +467,6 @@ class Nono {
 
         if (finalList.length === 0) finalList.push(0);
 
-        // console.log(`out: ${finalList}`)
         return finalList;
     }
 
@@ -425,7 +492,14 @@ class Nono {
         html += '<tr><td class="corner" id="corner"></td>';
         for (let col = 0; col < cols - 1; col++) { // -1 bc added corner
             let topNumValue = this.topNumToString(topNums[col]);
-            html += `<td class="top" id="top-${col}" data-col="${col}">${topNumValue}</td>`; // added col for highlight
+            let topClass = 'top';
+            if (topNums[col].length === 1 && topNums[col][0] === 0) {
+                topClass = 'top complete';
+                if (this.colCompleteFlags) {
+                    this.colCompleteFlags[col] = true;
+                }
+            }
+            html += `<td class="${topClass}" id="top-${col}" data-col="${col}">${topNumValue}</td>`;
         }
         html += '</tr>';
 
@@ -435,7 +509,12 @@ class Nono {
             for (let col = 0; col < cols; col++) {
                 if (col === 0) {
                     let sideNumValue = this.sideNumToString(sideNums[row]);
-                    html += `<td class="side" id="side-${row}" data-row="${row}">${sideNumValue}</td>`; // added row for highlight
+                    let sideClass = 'side';
+                    if (sideNums[row].length === 1 && sideNums[row][0] === 0) {
+                        sideClass = 'side complete';
+                        if (this.rowCompleteFlags) this.rowCompleteFlags[row] = true;
+                    }
+                    html += `<td class="${sideClass}" id="side-${row}" data-row="${row}">${sideNumValue}</td>`;
                 }
                 else {
                     html += `<td class="cell" id="cell-${row}-${col - 1}" data-row="${row}" data-col="${col - 1}"></td>`; // -1 side offset
@@ -443,7 +522,6 @@ class Nono {
             }
 
             html += '</tr>';
-
         }
 
         gameElement.innerHTML = html;
@@ -454,70 +532,71 @@ class Nono {
         const height = corner.offsetHeight;
         const width = corner.offsetWidth;
 
-        // console.log(`width ${width} height: ${height}`)
-
         const bestSize = Math.max(height, width);
-
-        // console.log(`best ${bestSize}`)
 
         corner.style.height = bestSize + 'px';
         corner.style.width = bestSize + 'px';
 
-        // console.log(`offsetheight: ${corner.offsetHeight} width ${corner.offsetWidth}`)
+    }
+
+    updateAllCells() {
+        const colsToUpdate = new Set(this.actionedCols);
+        const rowsToUpdate = new Set(this.actionedRows);
+
+        for (let col of colsToUpdate) {
+            this.updateTop(col);
+            this.actionedCols.delete(col);
+        }
+
+        for (let row of rowsToUpdate) {
+            this.updateSide(row);
+            this.actionedRows.delete(row); 
+        }
     }
 
     updateCell(){
-        const row = this.hoveredCell.dataset.row;
-        const col = this.hoveredCell.dataset.col;
+        if (this.hoveredCell) {
+            const row = this.hoveredCell.dataset.row;
+            const col = this.hoveredCell.dataset.col;
 
-        this.updateTop(col);
-        this.updateSide(row);  
-        
-        console.log(`top flags: ${this.colCompleteFlags}`)
-        console.log(`side flags: ${this.rowCompleteFlags}`)
-
+            this.actionedCols.add(col);
+            this.actionedRows.add(row);
+        }
     }
 
     updateTop(col) {
         const id = `top-${col}`
         const workingCol = document.getElementById(id);
 
-        console.log(`iscolcomplete: ${this.isColComplete(col)}`)
-
-        if (this.isColComplete(col)) {
-            console.log(`in true: ${col}`)
-            // set correspoding colflag to true
+        if (this.topNums[col].length === 1 && this.topNums[col][0] === 0) {
             this.colCompleteFlags[col] = true;
-
-            // grey out working row
             workingCol.classList.add('complete');
-        }
-        else {
-            console.log(`in false: ${col}`)
+        } else if (this.isColComplete(col)) {
+            this.colCompleteFlags[col] = true;
+            workingCol.classList.add('complete');
+        } else {
             this.colCompleteFlags[col] = false;
             workingCol.classList.remove('complete');
         }
-
     }
 
     updateSide(row) {
-        const id = `side-${row}`
+        const id = `side-${row}`;
         const workingRow = document.getElementById(id);
 
-        const isComp = this.isRowComplete(row);
-
-        if (isComp) {
-            // set correspoding colflag to true
+        // preserve completion for zero rows
+        if (this.sideNums[row].length === 1 && this.sideNums[row][0] === 0) {
             this.rowCompleteFlags[row] = true;
-
+            workingRow.classList.add('complete');
+        } else if (this.isRowComplete(row)) {
+            // set correspoding rowflag to true
+            this.rowCompleteFlags[row] = true;
             // grey out working row
             workingRow.classList.add('complete');
-        }
-        else {
-            this.colCompleteFlags[row] = false;
+        } else {
+            this.rowCompleteFlags[row] = false;
             workingRow.classList.remove('complete');
         }
-
     }
 
     isEqualSlice(arr1, arr2) {
@@ -532,12 +611,8 @@ class Nono {
 
     isColComplete(col) {
         const slice = this.getColSlice(col);
-        // console.log(`looking at slice: ${JSON.stringify(slice)}`)
         const sliceSum = this.getRuns(slice);
-        console.log(`my slice: ${JSON.stringify(sliceSum)}, their slice: ${this.topNums[col]}`)
 
-        // const bool = this.isEqualSlice(sliceSum, this.topNums[col]);
-        // console.log(`is it good? ${bool}, what im checking: ${JSON.stringify(sliceSum[0])}`)
         return this.isEqualSlice(sliceSum, this.topNums[col]);
     } 
 
@@ -573,10 +648,82 @@ class Nono {
     }
 
     checkGameEnd() {
-        if (this.rowCompleteFlags.every(Boolean) && this.colCompleteFlags.every(Boolean)) {
+        const allRowsComplete = this.rowCompleteFlags.every(Boolean);
+        const allColsComplete = this.colCompleteFlags.every(Boolean);
+
+        if (allRowsComplete && allColsComplete) {
             this.isGameOver = true;
-            console.log(`game finish`);
+
+            const corner = document.getElementById('corner');
+            corner.classList.add('complete');
+
+            document.querySelectorAll('.top').forEach(top => {
+                top.classList.remove('complete');
+                top.classList.remove('highlight');
+            });
+
+            document.querySelectorAll('.side').forEach(side => {
+                side.classList.remove('complete');
+                side.classList.remove('highlight');
+            });
+
+
+            this.stopTimer();
+            const timeString = this.formatTime(this.timer);
+            this.showWinPopup(timeString);
         }
+    }
+
+    startTimer() {
+        this.stopTimer();
+        this.timer = 0;
+        
+        this.timerInterval = setInterval(() => {
+            this.timer++;
+
+        }, 1000);
+    }
+    
+    stopTimer() {
+        if (this.timerInterval) {
+            clearInterval(this.timerInterval);
+            this.timerInterval = null;
+        }
+    }
+
+    formatTime(timer) {
+        const hours = Math.floor(timer / 3600);
+        const mins = Math.floor((timer % 3600) / 60);
+        const secs = timer % 60;
+
+        if (hours > 0) {
+            return `${hours}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+        } else {
+            return `${mins}:${String(secs).padStart(2, '0')}`;
+        }
+    }
+
+    showWinPopup(timeString) {
+        const popup = document.getElementById('win-paste');
+        const text = document.getElementById('win-text');
+
+        text.innerHTML = `${timeString}`;
+
+        const plainText = `NONO ${this.size}
+${timeString}`;
+
+// add seed later
+
+        const shareButton = document.getElementById('copy-button');
+
+        // use onclick instead of addEventListener to prevent duplicate listeners
+        shareButton.onclick = () => {
+            navigator.clipboard.writeText(plainText);
+            shareButton.textContent = 'copied';
+        };
+            
+        // display popup by adding hidden class, removing active
+        popup.classList.remove('hidden');
     }
 
 }
@@ -585,13 +732,13 @@ window.addEventListener('DOMContentLoaded', () => {
     const nono = new Nono();
 });
 
-// window.addEventListener('load', this.syncTableSizes());
-
 /*
-prevent hover cell from selecting top and side, or 
-prevent clicking on top and side if not complete
+TODO
 
+add board seed, size-board in binary + some map, or similar
+add this seed to win paste
+add seed copy and load to settings pannel
 
-
+change typing and mines copy button to .onclick to prevent dupe
 
 */
