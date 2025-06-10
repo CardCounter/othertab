@@ -517,34 +517,32 @@ class Minesweeper {
             goodTime = '!';
         }
 
-        // if (this.timer <= 20){
-        //     timerValue = this.timeNumbers[this.timer];
-        // }
-        // else {
-        //     let currentNum = this.timer;
-        //     const finalTime = [];
-        //     while(currentNum > 0){
-        //         let digit = currentNum % 10;
-        //         finalTime.unshift(this.timeDigits[digit]);
-        //         currentNum = Math.floor(currentNum / 10);
-        //     }
-        //     timerValue = finalTime.join('')
-        // }
+        if (this.timer <= 20){
+            timerValue = this.timeNumbers[this.timer];
+        }
+        else {
+            let currentNum = this.timer;
+            const finalTime = [];
+            while(currentNum > 0){
+                let digit = currentNum % 10;
+                finalTime.unshift(this.timeDigits[digit]);
+                currentNum = Math.floor(currentNum / 10);
+            }
+            timerValue = finalTime.join('')
+        }
         
-        timerValue = this.timer;
-
         text.innerHTML = `
         <p style="text-align: center;">
         MINES<br>
         ${this.difficulty.toUpperCase()}<br>
-        ${timerValue}s${goodTime}<br>
+        ${timerValue}${goodTime}<br>
         </p>
             `;
 
         // looks awful, dont want to change it
         const plainText = `MINES
 ${this.difficulty.toUpperCase()}
-${timerValue}s${goodTime}`;
+${timerValue}${goodTime}`;
 
         const shareButton = document.getElementById('copy-button');
 

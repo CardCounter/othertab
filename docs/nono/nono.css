@@ -1,22 +1,10 @@
-:root {
-    --bg-color: white;
-    --color: black;
-    --grid-size: 11; /* 5 + 1 */
-}
-
-.dark-mode {
-    --bg-color: black;
-    --color: white;
-}
-
 body {
     margin: 0;
-    background-color: var(--bg-color);
-    color: var(--color);
+    background-color: white;
+    color: black;
     text-align: center;
     display: flex;
     flex-direction: column;
-    justify-content: center;
     align-items: center;
     min-height: 100vh;
 }
@@ -30,82 +18,30 @@ body {
     justify-content: space-between;
 }
 
-main {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
 .game-container {
-    min-width: 80vmin;
-    min-height: 80vmin;
-    /* table-layout: fixed; */
-    border-collapse: collapse;
-    background-color: var(--bg-color);
-    color: var(--color);
-    margin: 0;
-    padding: 0;
+    border: 5px solid green;
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
-/* td {
-    border: 1px solid var(--color);
-    padding: 0 !important;
-} */
-
-tr td:not(:first-child):nth-child(5n + 2) {
-    border-left: 3px solid var(--color);
+.grid {
+    display: grid;
+    user-select: none;
+    margin: 0 auto;
 }
 
-tr td:last-child {
-    border-right: 3px solid var(--color);
-}
-
-table tr:nth-child(5n + 2) td {
-    border-top: 3px solid var(--color);
-}
-
-table tr:last-child td {
-    border-bottom: 3px solid var(--color);
-}
-
-.corner {
-    width: 1px;
-    height: 1px;
-}
-
-.top {
-    vertical-align: bottom;
+.cell {
+    width: 30px;
+    height: 30px;
+    background-color: white;
+    display: flex;
+    justify-content: center;
+    align-items: center;
     font-weight: bold;
-    min-width: 1rem; 
-}
+    font-size: 25px;
+    user-select: none;
+    border: 1px solid black;
 
-.top.wrong {
-    background-color: red;
-}
-
-.dark-mode .top.wrong {
-    background-color: blue;
-}
-
-.side {
-    text-align: right; 
-    font-weight: bold;
-    min-height: 1rem;
-}
-
-.clicked {
-    background-color: blue;
-}
-
-.dark-mode .clicked {
-    background-color: red;
-}
-
-.greyed {
-    background-color: #C0C0C0;
-}
-
-.dark-mode .greyed{
-    background-color: #2a2a2a;
 }
