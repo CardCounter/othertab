@@ -83,7 +83,8 @@ table tr:last-child td {
     /* max-width: 1rem; */
     width: 1rem;
     font-size: var(--num-font-size);
-    line-height: 0.9; 
+    /* line-height: 0.9;  */
+    line-height: 1.1;
 }
 
 .top.wrong {
