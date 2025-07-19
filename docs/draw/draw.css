@@ -39,4 +39,9 @@ main {
     border: 1px solid var(--text-color);
     background-color: var(--bg-color);
     touch-action: none;
+    width: 80vmin;
+    height: 80vmin;
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
 }
