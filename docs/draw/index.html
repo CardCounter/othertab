@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d">
+    <title>draw</title>
+    <style>
+        html.js-loading {
+          visibility: hidden;
+          opacity: 0;
+        }
+    </style>
+    <script>document.documentElement.classList.add('js-loading');</script>
+    <link rel="stylesheet" href="../css/global.css">
+    <link rel="stylesheet" href="../css/header.css">
+    <link rel="stylesheet" href="../css/link.css">
+    <link rel="stylesheet" href="draw.css">
+</head>
+<body>
+    <header>
+        <button id="dark-toggle" class="page-button">dark mode</button>
+        <a href="../"><button id="home-button" class="page-button">o_t</button></a>
+        <h2>DRAW</h2>
+    </header>
+
+    <main>
+        <div class="controls-bar">
+            <label>color <input type="color" id="color-picker" value="#000000"></label>
+            <label>size <input type="range" id="size-picker" min="1" max="50" value="5"></label>
+            <button id="clear-button">clear</button>
+        </div>
+        <canvas id="canvas" width="800" height="600"></canvas>
+    </main>
+
+    <footer>
+        <p>o_d</p>
+        <a href="controls/">controls</a>
+        <a href="../privacy/">privacy</a>
+    </footer>
+
+    <script src="../scripts/darkmode.js"></script>
+    <script src="../scripts/fouc.js"></script>
+    <script src="draw.js"></script>
+</body>
+</html>

@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="how to draw">
+    <title>drawing controls</title>
+    <style>
+        html.js-loading {
+          visibility: hidden;
+          opacity: 0;
+        }
+    </style>
+    <script>document.documentElement.classList.add('js-loading');</script>
+    <link rel="stylesheet" href="../../css/global.css">
+    <link rel="stylesheet" href="../../css/header.css">
+    <link rel="stylesheet" href="../../css/link.css">
+</head>
+<body>
+    <p>click and drag to draw</p>
+    <p>use the color picker and size slider to change your brush</p>
+    <p>press clear to erase everything</p>
+    <a href="javascript:history.back()">go back</a>
+</body>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const savedDarkMode = localStorage.getItem('darkMode');
+        if (savedDarkMode === 'true') {
+            document.body.classList.add('dark-mode');
+        }
+        document.documentElement.classList.remove('js-loading');
+    });
+</script>
+</html>
