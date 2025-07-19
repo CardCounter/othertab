@@ -16,6 +16,8 @@ window.addEventListener('DOMContentLoaded', () => {
     let currentHistoryIndex = -1; // Track current position in history
     let selectedBrushType = 'square'; // Default brush type
     let isFilling = false; // Flag to prevent multiple fill operations
+    let prevBrushType = null; // Store previous brush when right-click erasing
+    let rightClickErasing = false; // Track right click erase state
 
     function getPos(e) {
         const rect = canvas.getBoundingClientRect();
@@ -38,6 +40,13 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     function start(e) {
+        if (e.button === 2) {
+            rightClickErasing = true;
+            prevBrushType = selectedBrushType;
+            if (selectedBrushType !== 'eraser') {
+                setActiveBrushType('eraser');
+            }
+        }
         drawing = true;
         const pos = getPos(e);
         lastPos = pos;
@@ -497,13 +506,21 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function stop() {
+    function stop(e) {
         if (drawing) {
             // Save canvas state when drawing ends
             saveCanvasState();
         }
         drawing = false;
         lastPos = null;
+
+        // Restore brush type if we were right-click erasing
+        if (rightClickErasing) {
+            rightClickErasing = false;
+            if (prevBrushType) {
+                setActiveBrushType(prevBrushType);
+            }
+        }
     }
 
     function resizeCanvas(size) {
@@ -560,6 +577,7 @@ window.addEventListener('DOMContentLoaded', () => {
     canvas.addEventListener('mousedown', start);
     canvas.addEventListener('mousemove', draw);
     window.addEventListener('mouseup', stop);
+    canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
     canvas.addEventListener('touchstart', (e) => { e.preventDefault(); start(e); });
     canvas.addEventListener('touchmove', (e) => { e.preventDefault(); draw(e); });
@@ -608,15 +626,17 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function setActiveBrushType(type) {
+        document.querySelectorAll('.brush-type').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.type === type);
+        });
+        selectedBrushType = type;
+    }
+
     // Handle brush type selection
     document.querySelectorAll('.brush-type').forEach(button => {
         button.addEventListener('click', () => {
-            // Remove active class from all brush type buttons
-            document.querySelectorAll('.brush-type').forEach(btn => btn.classList.remove('active'));
-            // Add active class to clicked button
-            button.classList.add('active');
-            // Update selected brush type
-            selectedBrushType = button.dataset.type;
+            setActiveBrushType(button.dataset.type);
         });
     });
 
@@ -695,7 +715,6 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 // todo:
-// make right click erase
 // add zoom
 // add select
 // add type
