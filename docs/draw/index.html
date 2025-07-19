@@ -15,6 +15,7 @@
     <link rel="stylesheet" href="../css/global.css">
     <link rel="stylesheet" href="../css/header.css">
     <link rel="stylesheet" href="../css/link.css">
+    <link rel="stylesheet" href="../css/button.css">
     <link rel="stylesheet" href="draw.css">
 </head>
 <body>
@@ -26,20 +27,37 @@
 
     <main>
         <div class="controls-bar">
-            <label>color <input type="color" id="color-picker" value="#000000"></label>
             <label>canvas size <select id="canvas-size">
-                <option value="16">16×16</option>
-                <option value="32">32×32</option>
-                <option value="64">64×64</option>
-                <option value="128">128×128</option>
-                <option value="256">256×256</option>
-                <option value="512">512×512</option>
-                <option value="1024">1024×1024</option>
+                <option value="16">16</option>
+                <option value="32">32</option>
+                <option value="64">64</option>
+                <option value="128">128</option>
+                <option value="256">256</option>
+                <option value="512">512</option>
+                <option value="1024">1024</option>
             </select></label>
-            <label>brush size <input type="range" id="brush-size" min="1" max="50" value="10"></label>
+            <label>brush size <select id="brush-size">
+                <option value="1">S</option>
+                <option value="5">M</option>
+                <option value="10">L</option>
+                <option value="25">XL</option>
+            </select></label>
             <button id="clear-button">clear</button>
         </div>
-        <canvas id="canvas" width="16" height="16"></canvas>
+        <div class="drawing-area">
+            <div class="left-section">
+                <div class="color-palette" id="color-palette"></div>
+                <div class="palette-controls">
+                    <button id="edit-button">edit</button>
+                    <button id="reset-button">reset</button>
+                </div>
+            </div>
+            <div class="center-section">
+                <canvas id="canvas" width="16" height="16"></canvas>
+            </div>
+            <div class="right-section">
+            </div>
+        </div>
     </main>
 
     <footer>

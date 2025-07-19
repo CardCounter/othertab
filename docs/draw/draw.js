@@ -1,15 +1,21 @@
 window.addEventListener('DOMContentLoaded', () => {
     const canvas = document.getElementById('canvas');
-    const ctx = canvas.getContext('2d');
-    const colorPicker = document.getElementById('color-picker');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
     const canvasSizeSelect = document.getElementById('canvas-size');
     const brushSizeInput = document.getElementById('brush-size');
     const clearButton = document.getElementById('clear-button');
+    const colorPalette = document.getElementById('color-palette');
+    const editButton = document.getElementById('edit-button');
+    const resetButton = document.getElementById('reset-button');
 
     let drawing = false;
     let canvasSize = 16; // Default size
-    let brushSizePercent = 10; // Default brush size as percentage (10%)
+    let brushSize = 1; // Default brush size in pixels
     let lastPos = null; // Store the last drawing position
+    let selectedColor = '#000000'; // Default color
+    let editMode = false; // Track edit mode state
+    let canvasHistory = []; // Store canvas states for undo
+    let currentHistoryIndex = -1; // Track current position in history
 
     function getPos(e) {
         const rect = canvas.getBoundingClientRect();
@@ -82,9 +88,6 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     function drawAtPosition(pos) {
-        // Calculate brush size as percentage of canvas, with minimum of 1 pixel
-        const brushSize = Math.max(1, Math.floor(canvasSize * brushSizePercent / 100));
-        
         // Calculate the top-left corner of the brush (center the brush on the cursor)
         const halfBrush = Math.floor(brushSize / 2);
         const startX = pos.x - halfBrush;
@@ -99,12 +102,205 @@ window.addEventListener('DOMContentLoaded', () => {
         const actualHeight = endY - actualStartY;
         
         if (actualWidth > 0 && actualHeight > 0) {
-            ctx.fillStyle = colorPicker.value;
+            ctx.fillStyle = selectedColor;
             ctx.fillRect(actualStartX, actualStartY, actualWidth, actualHeight);
         }
     }
 
+    function createColorPalette() {
+        const fixedColors = [
+            '#000000', '#FFFFFF', '#808080', '#FF0000', 
+            '#0000FF', '#00FF00', '#FFFF00', '#FFA500'
+        ];
+
+        // Create 12 cells (4x3 grid)
+        for (let i = 0; i < 12; i++) {
+            const swatch = document.createElement('div');
+            swatch.className = 'color-swatch';
+            swatch.dataset.index = i;
+            
+            if (i < 8) {
+                // Fixed colors for first 8 cells
+                const color = fixedColors[i];
+                swatch.style.backgroundColor = color;
+                swatch.dataset.color = color;
+                
+                // Select black by default
+                if (color === '#000000') {
+                    swatch.classList.add('selected');
+                }
+                
+                swatch.addEventListener('click', () => {
+                    if (editMode) {
+                        makeProgrammable(swatch);
+                    } else {
+                        selectColor(swatch, color);
+                    }
+                });
+                
+                // Add hover events for edit mode
+                swatch.addEventListener('mouseenter', () => {
+                    if (editMode) {
+                        showEditOverlay(swatch);
+                    }
+                });
+                
+                swatch.addEventListener('mouseleave', () => {
+                    if (editMode) {
+                        hideEditOverlay(swatch);
+                    }
+                });
+            } else {
+                // Programmable cells for last 4 cells
+                swatch.style.backgroundColor = '#CCCCCC';
+                swatch.dataset.color = '#CCCCCC';
+                swatch.dataset.programmable = 'true';
+                
+                swatch.addEventListener('click', () => {
+                    if (editMode) {
+                        makeProgrammable(swatch);
+                    } else if (swatch.dataset.programmable === 'true') {
+                        openColorPicker(swatch);
+                    } else {
+                        // Color has been set, just select it
+                        selectColor(swatch, swatch.dataset.color);
+                    }
+                });
+                
+                // Add hover events for edit mode
+                swatch.addEventListener('mouseenter', () => {
+                    if (editMode) {
+                        showEditOverlay(swatch);
+                    }
+                });
+                
+                swatch.addEventListener('mouseleave', () => {
+                    if (editMode) {
+                        hideEditOverlay(swatch);
+                    }
+                });
+            }
+            
+            colorPalette.appendChild(swatch);
+        }
+    }
+
+    function selectColor(swatch, color) {
+        // Remove selection from all swatches
+        document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
+        // Add selection to clicked swatch
+        swatch.classList.add('selected');
+        selectedColor = color;
+        // Update palette background to match selected color
+        colorPalette.style.backgroundColor = color;
+    }
+
+    function openColorPicker(swatch) {
+        const input = document.createElement('input');
+        input.type = 'color';
+        input.value = swatch.dataset.color;
+        
+        input.addEventListener('change', (e) => {
+            const newColor = e.target.value;
+            swatch.style.backgroundColor = newColor;
+            swatch.dataset.color = newColor;
+            swatch.dataset.programmable = 'false'; // Mark as no longer programmable
+            selectColor(swatch, newColor);
+        });
+        
+        input.click();
+    }
+
+    function makeProgrammable(swatch) {
+        swatch.style.backgroundColor = '#CCCCCC';
+        swatch.dataset.color = '#CCCCCC';
+        swatch.dataset.programmable = 'true';
+        
+        // Remove existing click listener and add new one for programmable behavior
+        swatch.replaceWith(swatch.cloneNode(true));
+        
+        // Get the new swatch reference
+        const newSwatch = document.querySelector(`[data-index="${swatch.dataset.index}"]`);
+        
+        // Add the programmable click behavior
+        newSwatch.addEventListener('click', () => {
+            if (editMode) {
+                makeProgrammable(newSwatch);
+            } else if (newSwatch.dataset.programmable === 'true') {
+                openColorPicker(newSwatch);
+            } else {
+                // Color has been set, just select it
+                selectColor(newSwatch, newSwatch.dataset.color);
+            }
+        });
+        
+        // Add hover events for edit mode
+        newSwatch.addEventListener('mouseenter', () => {
+            if (editMode) {
+                showEditOverlay(newSwatch);
+            }
+        });
+        
+        newSwatch.addEventListener('mouseleave', () => {
+            if (editMode) {
+                hideEditOverlay(newSwatch);
+            }
+        });
+    }
+
+    function showEditOverlay(swatch) {
+        // Remove any existing overlay
+        const existingOverlay = document.querySelector('.edit-overlay');
+        if (existingOverlay) {
+            existingOverlay.remove();
+        }
+        
+        const overlay = document.createElement('div');
+        overlay.className = 'edit-overlay';
+        overlay.textContent = 'X';
+        
+        // Calculate inverted color
+        const currentColor = swatch.dataset.color;
+        const invertedColor = getInvertedColor(currentColor);
+        overlay.style.color = invertedColor;
+        
+        // Position overlay at mouse cursor
+        const rect = swatch.getBoundingClientRect();
+        overlay.style.left = rect.left + 'px';
+        overlay.style.top = rect.top + 'px';
+        
+        document.body.appendChild(overlay);
+    }
+
+    function hideEditOverlay(swatch) {
+        const overlay = document.querySelector('.edit-overlay');
+        if (overlay) {
+            overlay.remove();
+        }
+    }
+
+    function getInvertedColor(hexColor) {
+        // Convert hex to RGB
+        const r = parseInt(hexColor.slice(1, 3), 16);
+        const g = parseInt(hexColor.slice(3, 5), 16);
+        const b = parseInt(hexColor.slice(5, 7), 16);
+        
+        // Calculate brightness
+        const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+        
+        // Use black or white based on brightness for better contrast
+        if (brightness > 128) {
+            return '#000000'; // Black text for light backgrounds
+        } else {
+            return '#FFFFFF'; // White text for dark backgrounds
+        }
+    }
+
     function stop() {
+        if (drawing) {
+            // Save canvas state when drawing ends
+            saveCanvasState();
+        }
         drawing = false;
         lastPos = null;
     }
@@ -115,6 +311,36 @@ window.addEventListener('DOMContentLoaded', () => {
         canvas.height = size;
         // Clear the canvas after resizing
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+        // Reset history after resize
+        canvasHistory = [];
+        currentHistoryIndex = -1;
+        saveCanvasState();
+    }
+
+    function saveCanvasState() {
+        // Save current canvas state
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        
+        // Remove any states after current index (for redo functionality)
+        canvasHistory = canvasHistory.slice(0, currentHistoryIndex + 1);
+        
+        // Add new state
+        canvasHistory.push(imageData);
+        currentHistoryIndex++;
+        
+        // Limit history size to prevent memory issues
+        if (canvasHistory.length > 50) {
+            canvasHistory.shift();
+            currentHistoryIndex--;
+        }
+    }
+
+    function undo() {
+        if (currentHistoryIndex > 0) {
+            currentHistoryIndex--;
+            const previousState = canvasHistory[currentHistoryIndex];
+            ctx.putImageData(previousState, 0, 0);
+        }
     }
 
     canvas.addEventListener('mousedown', start);
@@ -132,8 +358,8 @@ window.addEventListener('DOMContentLoaded', () => {
     });
 
     // Handle brush size changes
-    brushSizeInput.addEventListener('input', (e) => {
-        brushSizePercent = parseInt(e.target.value);
+    brushSizeInput.addEventListener('change', (e) => {
+        brushSize = parseInt(e.target.value);
     });
 
     clearButton.addEventListener('click', () => {
@@ -142,4 +368,45 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // Initialize canvas with default size
     resizeCanvas(16);
+    
+    // Create the color palette
+    createColorPalette();
+    
+    // Set initial palette background to match default selected color (black)
+    colorPalette.style.backgroundColor = selectedColor;
+    
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+        // Check for Ctrl+Z (Windows) or Cmd+Z (Mac)
+        if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+            e.preventDefault(); // Prevent default browser behavior
+            undo();
+        }
+    });
+    
+    // Edit button functionality
+    editButton.addEventListener('click', () => {
+        editMode = !editMode;
+        editButton.textContent = editMode ? 'done' : 'edit';
+        // editButton.style.background = editMode ? '#ffcccc' : '#f0f0f0';
+        
+        if (!editMode) {
+            // Remove all edit overlays when exiting edit mode
+            document.querySelectorAll('.edit-overlay').forEach(overlay => overlay.remove());
+        }
+    });
+    
+    // Reset button functionality
+    resetButton.addEventListener('click', () => {
+        // Clear the palette
+        colorPalette.innerHTML = '';
+        // Recreate the palette
+        createColorPalette();
+        // Reset edit mode
+        editMode = false;
+        editButton.textContent = 'edit';
+        // editButton.style.background = '#f0f0f0';
+        // Set initial palette background
+        colorPalette.style.backgroundColor = selectedColor;
+    });
 });
