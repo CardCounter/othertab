@@ -20,6 +20,7 @@ window.addEventListener('DOMContentLoaded', () => {
     let zoomStart = null;
     let isZoomed = false;
     let zoomImage = null;
+    let zoomRegion = null; // Store the zoom region for coordinate mapping
 
     function getPos(e) {
         const rect = canvas.getBoundingClientRect();
@@ -29,21 +30,40 @@ window.addEventListener('DOMContentLoaded', () => {
             x = t.clientX - rect.left;
             y = t.clientY - rect.top;
         } else {
-            x = e.offsetX;
-            y = e.offsetY;
+            // Handle cases where offsetX/Y might be undefined (e.g., mouseup outside canvas)
+            if (e.offsetX !== undefined && e.offsetY !== undefined) {
+                x = e.offsetX;
+                y = e.offsetY;
+            } else {
+                // Calculate position from client coordinates
+                x = e.clientX - rect.left;
+                y = e.clientY - rect.top;
+            }
         }
         // Scale coordinates to match the canvas size
         const scaleX = canvas.width / rect.width;
         const scaleY = canvas.height / rect.height;
-        return { 
+        let pos = { 
             x: Math.floor(x * scaleX), 
             y: Math.floor(y * scaleY) 
         };
+        
+        // If zoomed, convert screen coordinates to original canvas coordinates
+        if (isZoomed && zoomRegion) {
+            pos = convertZoomedToOriginal(pos);
+        }
+        
+        return pos;
     }
 
     function start(e) {
         const pos = getPos(e);
         if (selectedBrushType === 'zoom') {
+            // If already zoomed, restore zoom when clicking zoom tool again
+            if (isZoomed) {
+                restoreZoom();
+                return;
+            }
             zoomSelecting = true;
             zoomStart = pos;
             return;
@@ -143,6 +163,11 @@ window.addEventListener('DOMContentLoaded', () => {
         if (actualWidth > 0 && actualHeight > 0) {
             ctx.fillStyle = selectedColor;
             ctx.fillRect(actualStartX, actualStartY, actualWidth, actualHeight);
+            
+            // If zoomed, update the zoomed display
+            if (isZoomed) {
+                updateZoomedDisplay();
+            }
         }
     }
 
@@ -156,6 +181,11 @@ window.addEventListener('DOMContentLoaded', () => {
         ctx.beginPath();
         ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
         ctx.fill();
+        
+        // If zoomed, update the zoomed display
+        if (isZoomed) {
+            updateZoomedDisplay();
+        }
     }
 
     function drawSprayBrush(pos) {
@@ -185,6 +215,14 @@ window.addEventListener('DOMContentLoaded', () => {
                 const particleSize = Math.random() * 1 + 0.3;
                 ctx.fillRect(x, y, particleSize, particleSize);
             }
+        }
+        
+        // Reset global alpha
+        ctx.globalAlpha = 1.0;
+        
+        // If zoomed, update the zoomed display
+        if (isZoomed) {
+            updateZoomedDisplay();
         }
     }
 
@@ -268,6 +306,11 @@ window.addEventListener('DOMContentLoaded', () => {
         // Put the modified image data back to canvas once
         ctx.putImageData(imageData, 0, 0);
         
+        // If zoomed, update the zoomed display
+        if (isZoomed) {
+            updateZoomedDisplay();
+        }
+        
         // Reset the filling flag
         isFilling = false;
     }
@@ -299,18 +342,34 @@ window.addEventListener('DOMContentLoaded', () => {
         if (actualWidth > 0 && actualHeight > 0) {
             // Clear the area (eraser effect) - checkerboard shows through automatically
             ctx.clearRect(actualStartX, actualStartY, actualWidth, actualHeight);
+            
+            // If zoomed, update the zoomed display
+            if (isZoomed) {
+                updateZoomedDisplay();
+            }
         }
     }
 
     function performZoom(start, end) {
-        const x1 = Math.min(start.x, end.x);
-        const y1 = Math.min(start.y, end.y);
-        const w = Math.abs(end.x - start.x);
-        const h = Math.abs(end.y - start.y);
+        // Clamp coordinates to canvas boundaries
+        const x1 = Math.max(0, Math.min(canvasSize - 1, Math.min(start.x, end.x)));
+        const y1 = Math.max(0, Math.min(canvasSize - 1, Math.min(start.y, end.y)));
+        const x2 = Math.max(0, Math.min(canvasSize - 1, Math.max(start.x, end.x)));
+        const y2 = Math.max(0, Math.min(canvasSize - 1, Math.max(start.y, end.y)));
+        
+        const w = x2 - x1 + 1;
+        const h = y2 - y1 + 1;
         const size = Math.min(w, h);
+        
         if (size === 0) return;
 
-        zoomImage = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        // Store zoom region for coordinate mapping
+        zoomRegion = { x1, y1, x2, y2, size };
+
+        // Only save original state if not already zoomed
+        if (!isZoomed) {
+            zoomImage = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        }
 
         const off = document.createElement('canvas');
         off.width = size;
@@ -331,7 +390,41 @@ window.addEventListener('DOMContentLoaded', () => {
         if (!isZoomed || !zoomImage) return;
         ctx.putImageData(zoomImage, 0, 0);
         isZoomed = false;
+        zoomRegion = null;
         canvas.classList.remove('zoomed');
+    }
+
+    function convertZoomedToOriginal(screenPos) {
+        if (!zoomRegion) return screenPos;
+        
+        // Convert screen coordinates back to original canvas coordinates
+        const scale = zoomRegion.size / canvasSize;
+        const originalX = Math.floor(screenPos.x * scale) + zoomRegion.x1;
+        const originalY = Math.floor(screenPos.y * scale) + zoomRegion.y1;
+        
+        return {
+            x: Math.max(zoomRegion.x1, Math.min(zoomRegion.x2, originalX)),
+            y: Math.max(zoomRegion.y1, Math.min(zoomRegion.y2, originalY))
+        };
+    }
+
+    function updateZoomedDisplay() {
+        if (!isZoomed || !zoomRegion) return;
+        
+        // Get the current state of the original canvas area
+        const currentData = ctx.getImageData(zoomRegion.x1, zoomRegion.y1, zoomRegion.size, zoomRegion.size);
+        
+        // Create temporary canvas for scaling
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = zoomRegion.size;
+        tempCanvas.height = zoomRegion.size;
+        const tempCtx = tempCanvas.getContext('2d');
+        tempCtx.putImageData(currentData, 0, 0);
+        
+        // Clear and redraw the zoomed view
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(tempCanvas, 0, 0, canvas.width, canvas.height);
     }
 
     function createColorPalette() {
@@ -646,6 +739,11 @@ window.addEventListener('DOMContentLoaded', () => {
     // Handle brush type selection
     document.querySelectorAll('.brush-type').forEach(button => {
         button.addEventListener('click', () => {
+            // If clicking zoom tool while already zoomed, restore zoom
+            if (button.dataset.type === 'zoom' && isZoomed) {
+                restoreZoom();
+            }
+            
             // Remove active class from all brush type buttons
             document.querySelectorAll('.brush-type').forEach(btn => btn.classList.remove('active'));
             // Add active class to clicked button
