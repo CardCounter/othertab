@@ -2,7 +2,6 @@ window.addEventListener('DOMContentLoaded', () => {
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     const canvasSizeSelect = document.getElementById('canvas-size');
-    const brushSizeInput = document.getElementById('brush-size');
     const colorPalette = document.getElementById('color-palette');
     const editButton = document.getElementById('edit-button');
     const resetButton = document.getElementById('reset-button');
@@ -16,6 +15,7 @@ window.addEventListener('DOMContentLoaded', () => {
     let canvasHistory = []; // Store canvas states for undo
     let currentHistoryIndex = -1; // Track current position in history
     let selectedBrushType = 'square'; // Default brush type
+    let isFilling = false; // Flag to prevent multiple fill operations
 
     function getPos(e) {
         const rect = canvas.getBoundingClientRect();
@@ -98,8 +98,8 @@ window.addEventListener('DOMContentLoaded', () => {
             case 'spray':
                 drawSprayBrush(pos);
                 break;
-            case 'forward-slash':
-                drawForwardSlashBrush(pos);
+            case 'fill':
+                drawFillTool(pos);
                 break;
             case 'back-slash':
                 drawBackSlashBrush(pos);
@@ -138,7 +138,7 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     function drawCircleBrush(pos) {
-        const radius = Math.floor(brushSize / 2);
+        const radius = Math.max(0.5, brushSize / 4);
         const centerX = pos.x;
         const centerY = pos.y;
         
@@ -179,17 +179,97 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function drawForwardSlashBrush(pos) {
-        const size = brushSize;
-        const centerX = pos.x;
-        const centerY = pos.y;
+    function drawFillTool(pos) {
+        // Prevent multiple fill operations from running simultaneously
+        if (isFilling) {
+            return;
+        }
         
-        ctx.strokeStyle = selectedColor;
-        ctx.lineWidth = Math.max(1, Math.floor(size / 4));
-        ctx.beginPath();
-        ctx.moveTo(centerX - size/2, centerY - size/2);
-        ctx.lineTo(centerX + size/2, centerY + size/2);
-        ctx.stroke();
+        isFilling = true;
+        
+        // Get the entire canvas data once
+        const imageData = ctx.getImageData(0, 0, canvasSize, canvasSize);
+        const data = imageData.data;
+        
+        // Get the target color at clicked position
+        const index = (pos.y * canvasSize + pos.x) * 4;
+        const targetColor = {
+            r: data[index],
+            g: data[index + 1],
+            b: data[index + 2],
+            a: data[index + 3]
+        };
+        
+        // Get fill color
+        const fillColor = hexToRgb(selectedColor);
+        
+        // Check if we're filling transparent/background area
+        const isTransparent = targetColor.a === 0;
+        
+        // Flood fill algorithm with optimized pixel access
+        const stack = [{x: pos.x, y: pos.y}];
+        const visited = new Set();
+        
+        while (stack.length > 0) {
+            const {x, y} = stack.pop();
+            const key = `${x},${y}`;
+            
+            if (visited.has(key) || x < 0 || x >= canvasSize || y < 0 || y >= canvasSize) {
+                continue;
+            }
+            
+            visited.add(key);
+            
+            // Get current pixel data directly from array
+            const currentIndex = (y * canvasSize + x) * 4;
+            const currentColor = {
+                r: data[currentIndex],
+                g: data[currentIndex + 1],
+                b: data[currentIndex + 2],
+                a: data[currentIndex + 3]
+            };
+            
+            // Check if pixel should be filled
+            let shouldFill = false;
+            
+            if (isTransparent) {
+                // Filling transparent/background area
+                shouldFill = currentColor.a === 0;
+            } else {
+                // Filling a specific color
+                shouldFill = currentColor.r === targetColor.r && currentColor.g === targetColor.g && 
+                    currentColor.b === targetColor.b && currentColor.a === targetColor.a;
+            }
+            
+            if (shouldFill) {
+                // Fill this pixel in the data array
+                data[currentIndex] = fillColor.r;
+                data[currentIndex + 1] = fillColor.g;
+                data[currentIndex + 2] = fillColor.b;
+                data[currentIndex + 3] = 255; // Full opacity
+                
+                // Add neighboring pixels to stack
+                stack.push({x: x + 1, y: y});
+                stack.push({x: x - 1, y: y});
+                stack.push({x: x, y: y + 1});
+                stack.push({x: x, y: y - 1});
+            }
+        }
+        
+        // Put the modified image data back to canvas once
+        ctx.putImageData(imageData, 0, 0);
+        
+        // Reset the filling flag
+        isFilling = false;
+    }
+
+    function hexToRgb(hex) {
+        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        return result ? {
+            r: parseInt(result[1], 16),
+            g: parseInt(result[2], 16),
+            b: parseInt(result[3], 16)
+        } : {r: 0, g: 0, b: 0};
     }
 
     function drawBackSlashBrush(pos) {
@@ -220,7 +300,7 @@ window.addEventListener('DOMContentLoaded', () => {
         const actualHeight = endY - actualStartY;
         
         if (actualWidth > 0 && actualHeight > 0) {
-            // Clear the area (eraser effect)
+            // Clear the area (eraser effect) - checkerboard shows through automatically
             ctx.clearRect(actualStartX, actualStartY, actualWidth, actualHeight);
         }
     }
@@ -248,8 +328,9 @@ window.addEventListener('DOMContentLoaded', () => {
                     swatch.classList.add('selected');
                 }
                 
-                swatch.addEventListener('click', () => {
+                swatch.addEventListener('click', (e) => {
                     if (editMode) {
+                        e.stopPropagation(); // Prevent click from bubbling up
                         makeProgrammable(swatch);
                     } else {
                         selectColor(swatch, color);
@@ -274,8 +355,9 @@ window.addEventListener('DOMContentLoaded', () => {
                 swatch.dataset.color = '#CCCCCC';
                 swatch.dataset.programmable = 'true';
                 
-                swatch.addEventListener('click', () => {
+                swatch.addEventListener('click', (e) => {
                     if (editMode) {
+                        e.stopPropagation(); // Prevent click from bubbling up
                         makeProgrammable(swatch);
                     } else if (swatch.dataset.programmable === 'true') {
                         openColorPicker(swatch);
@@ -341,8 +423,9 @@ window.addEventListener('DOMContentLoaded', () => {
         const newSwatch = document.querySelector(`[data-index="${swatch.dataset.index}"]`);
         
         // Add the programmable click behavior
-        newSwatch.addEventListener('click', () => {
+        newSwatch.addEventListener('click', (e) => {
             if (editMode) {
+                e.stopPropagation(); // Prevent click from bubbling up
                 makeProgrammable(newSwatch);
             } else if (newSwatch.dataset.programmable === 'true') {
                 openColorPicker(newSwatch);
@@ -427,8 +510,13 @@ window.addEventListener('DOMContentLoaded', () => {
         canvasSize = size;
         canvas.width = size;
         canvas.height = size;
+        
         // Clear the canvas after resizing
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // Update brush sizes for new canvas size
+        updateBrushSize('5'); // Update to current S size
+        
         // Reset history after resize
         canvasHistory = [];
         currentHistoryIndex = -1;
@@ -461,6 +549,14 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function redo() {
+        if (currentHistoryIndex < canvasHistory.length - 1) {
+            currentHistoryIndex++;
+            const nextState = canvasHistory[currentHistoryIndex];
+            ctx.putImageData(nextState, 0, 0);
+        }
+    }
+
     canvas.addEventListener('mousedown', start);
     canvas.addEventListener('mousemove', draw);
     window.addEventListener('mouseup', stop);
@@ -475,10 +571,42 @@ window.addEventListener('DOMContentLoaded', () => {
         resizeCanvas(parseInt(e.target.value));
     });
 
-    // Handle brush size changes
-    brushSizeInput.addEventListener('change', (e) => {
-        brushSize = parseInt(e.target.value);
+    // Handle brush size selection
+    document.querySelectorAll('.brush-size').forEach(button => {
+        button.addEventListener('click', () => {
+            // Remove active class from all brush size buttons
+            document.querySelectorAll('.brush-size').forEach(btn => btn.classList.remove('active'));
+            // Add active class to clicked button
+            button.classList.add('active');
+            // Update brush size based on canvas size
+            updateBrushSize(button.dataset.size);
+        });
     });
+
+    function updateBrushSize(sizeType) {
+        const smallSize = 1; // S is always 1 pixel
+        const xlSize = Math.floor(canvasSize / 4); // XL is always 1/4 of canvas size
+        
+        // Logarithmic scaling between S (1px) and XL (1/4 canvas size)
+        const logRange = Math.log(xlSize) - Math.log(smallSize);
+        
+        switch(sizeType) {
+            case '5': // S
+                brushSize = smallSize;
+                break;
+            case '10': // M
+                brushSize = Math.floor(Math.exp(Math.log(smallSize) + logRange * 0.33) + 1);
+                break;
+            case '15': // L
+                brushSize = Math.floor(Math.exp(Math.log(smallSize) + logRange * 0.67) + 1);
+                break;
+            case '25': // XL
+                brushSize = xlSize;
+                break;
+            default:
+                brushSize = smallSize;
+        }
+    }
 
     // Handle brush type selection
     document.querySelectorAll('.brush-type').forEach(button => {
@@ -495,18 +623,29 @@ window.addEventListener('DOMContentLoaded', () => {
     // Initialize canvas with default size
     resizeCanvas(16);
     
+    // Set initial brush size
+    updateBrushSize('5'); // Start with S size
+    
     // Create the color palette
     createColorPalette();
+    
+
     
     // Set initial palette background to match default selected color (black)
     colorPalette.style.backgroundColor = selectedColor;
     
     // Keyboard shortcuts
     document.addEventListener('keydown', (e) => {
-        // Check for Ctrl+Z (Windows) or Cmd+Z (Mac)
-        if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+        // Check for Ctrl+Z (Windows) or Cmd+Z (Mac) - Undo
+        if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
             e.preventDefault(); // Prevent default browser behavior
             undo();
+        }
+        
+        // Check for Shift+Ctrl+Z (Windows) or Shift+Cmd+Z (Mac) - Redo
+        if ((e.ctrlKey || e.metaKey) && e.key === 'z' && e.shiftKey) {
+            e.preventDefault(); // Prevent default browser behavior
+            redo();
         }
     });
     
@@ -519,6 +658,24 @@ window.addEventListener('DOMContentLoaded', () => {
         if (!editMode) {
             // Remove all edit overlays when exiting edit mode
             document.querySelectorAll('.edit-overlay').forEach(overlay => overlay.remove());
+        }
+    });
+
+    // Click outside color palette to exit edit mode
+    document.addEventListener('click', (e) => {
+        if (editMode) {
+            // Check if click is outside the color palette and not on the edit button
+            const colorPalette = document.getElementById('color-palette');
+            const isClickInPalette = colorPalette.contains(e.target);
+            const isClickOnEditButton = editButton.contains(e.target);
+            
+            if (!isClickInPalette && !isClickOnEditButton) {
+                // Exit edit mode
+                editMode = false;
+                editButton.textContent = 'edit';
+                // Remove all edit overlays
+                document.querySelectorAll('.edit-overlay').forEach(overlay => overlay.remove());
+            }
         }
     });
     

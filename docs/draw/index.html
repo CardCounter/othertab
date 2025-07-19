@@ -39,22 +39,25 @@
                             <option value="512">512</option>
                             <option value="1024">1024</option>
                         </select></label>
-                        <label>brush size <select id="brush-size">
-                            <option value="1">s</option>
-                            <option value="5">m</option>
-                            <option value="10">l</option>
-                            <option value="25">xl</option>
-                        </select></label>
+                        <div class="brush-size-controls">
+                            <label>brush size</label>
+                            <div class="brush-sizes">
+                                <button class="brush-size button active" data-size="5">S</button>
+                                <button class="brush-size button" data-size="10">M</button>
+                                <button class="brush-size button" data-size="15">L</button>
+                                <button class="brush-size button" data-size="25">XL</button>
+                            </div>
+                        </div>
                         
                         <div class="brush-types">
-                            <button class="brush-type active" data-type="square">□</button>
-                            <button class="brush-type" data-type="circle">○</button>
-                            <button class="brush-type" data-type="spray">💨</button>
-                            <button class="brush-type" data-type="forward-slash">/</button>
-                            <button class="brush-type" data-type="back-slash">\</button>
-                            <button class="brush-type" data-type="eraser">⌫</button>
-                            <button class="brush-type" data-type="custom1">?</button>
-                            <button class="brush-type" data-type="custom2">?</button>
+                            <button class="brush-type button active" data-type="square" style="font-size: 24px;">□</button>
+                            <button class="brush-type button" data-type="circle" style="font-size: 24px;">○</button>
+                            <button class="brush-type button" data-type="spray" style="font-size: 18px;">S</button>
+                            <button class="brush-type button" data-type="fill" style="font-size: 18px;">F</button>
+                            <button class="brush-type button" data-type="back-slash" style="font-size: 18px;">\</button>
+                            <button class="brush-type button" data-type="eraser" style="font-size: 18px;">⌫</button>
+                            <button class="brush-type button" data-type="custom1" style="font-size: 18px;">?</button>
+                            <button class="brush-type button" data-type="custom2" style="font-size: 18px;">?</button>
                         </div>
 
                     </div>

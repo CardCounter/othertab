@@ -91,14 +91,31 @@ main {
 }
 
 #canvas {
-    border: 1px solid var(--text-color);
-    background-color: var(--bg-color);
+    background-image: 
+        linear-gradient(45deg, #f9f9f9 25%, transparent 25%), 
+        linear-gradient(-45deg, #f9f9f9 25%, transparent 25%), 
+        linear-gradient(45deg, transparent 75%, #f9f9f9 75%), 
+        linear-gradient(-45deg, transparent 75%, #f9f9f9 75%);
+    background-size: 2px 2px;
+    background-position: 0 0, 0 1px, 1px -1px, -1px 0px;
+    background-color: #e0e0e0;
     touch-action: none;
     width: 80vmin;
     height: 80vmin;
     image-rendering: pixelated;
     image-rendering: -moz-crisp-edges;
     image-rendering: crisp-edges;
+}
+
+.dark-mode #canvas {
+    background-image: 
+        linear-gradient(45deg, #404040 25%, transparent 25%), 
+        linear-gradient(-45deg, #404040 25%, transparent 25%), 
+        linear-gradient(45deg, transparent 75%, #404040 75%), 
+        linear-gradient(-45deg, transparent 75%, #404040 75%);
+    background-size: 2px 2px;
+    background-position: 0 0, 0 1px, 1px -1px, -1px 0px;
+    background-color: #202020;
 }
 
 .palette-controls {
@@ -144,6 +161,29 @@ select:hover {
     background-color: grey;
 }
 
+/* Brush size controls styling */
+.brush-size-controls {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 8px;
+    margin-top: 8px;
+}
+
+.brush-sizes {
+    display: flex;
+    gap: 4px;
+}
+
+.brush-size.active {
+    background-color: grey !important;
+}
+
+.brush-type.active {
+    background-color: grey !important;
+}
+
 /* Brush types grid styling */
 .brush-types {
     display: grid;
@@ -154,25 +194,4 @@ select:hover {
     width: 60px;
 }
 
-.brush-type {
-    width: 24px;
-    height: 24px;
-    font-size: 14px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: 1px solid var(--text-color);
-    background-color: var(--bg-color);
-    color: var(--text-color);
-    cursor: pointer;
-    transition: background-color 0.2s;
-}
 
-.brush-type:hover {
-    background-color: grey;
-}
-
-.brush-type.active {
-    background-color: var(--text-color);
-    color: var(--bg-color);
-}
