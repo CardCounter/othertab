@@ -29,10 +29,12 @@ main {
     gap: 2rem;
 }
 
-.controls-bar {
+.drawing-controls {
     display: flex;
+    flex-direction: column;
     gap: 0.5rem;
     align-items: center;
+    margin-bottom: 1rem;
 }
 
 .drawing-area {
@@ -44,6 +46,14 @@ main {
 }
 
 .left-section {
+    /* display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center; */
+    margin-right: 2rem;
+}
+
+.left-content {
     display: flex;
     flex-direction: column;
     align-items: center;

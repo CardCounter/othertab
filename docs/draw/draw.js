@@ -3,7 +3,6 @@ window.addEventListener('DOMContentLoaded', () => {
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     const canvasSizeSelect = document.getElementById('canvas-size');
     const brushSizeInput = document.getElementById('brush-size');
-    const clearButton = document.getElementById('clear-button');
     const colorPalette = document.getElementById('color-palette');
     const editButton = document.getElementById('edit-button');
     const resetButton = document.getElementById('reset-button');
@@ -360,10 +359,6 @@ window.addEventListener('DOMContentLoaded', () => {
     // Handle brush size changes
     brushSizeInput.addEventListener('change', (e) => {
         brushSize = parseInt(e.target.value);
-    });
-
-    clearButton.addEventListener('click', () => {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
     });
 
     // Initialize canvas with default size

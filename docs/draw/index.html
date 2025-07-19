@@ -26,30 +26,32 @@
     </header>
 
     <main>
-        <div class="controls-bar">
-            <label>canvas size <select id="canvas-size">
-                <option value="16">16</option>
-                <option value="32">32</option>
-                <option value="64">64</option>
-                <option value="128">128</option>
-                <option value="256">256</option>
-                <option value="512">512</option>
-                <option value="1024">1024</option>
-            </select></label>
-            <label>brush size <select id="brush-size">
-                <option value="1">S</option>
-                <option value="5">M</option>
-                <option value="10">L</option>
-                <option value="25">XL</option>
-            </select></label>
-            <button id="clear-button">clear</button>
-        </div>
         <div class="drawing-area">
             <div class="left-section">
-                <div class="color-palette" id="color-palette"></div>
-                <div class="palette-controls">
-                    <button id="edit-button">edit</button>
-                    <button id="reset-button">reset</button>
+                <div class="left-content">
+                    <div class="drawing-controls">
+                        <label>canvas size <select id="canvas-size">
+                            <option value="16">16</option>
+                            <option value="32">32</option>
+                            <option value="64">64</option>
+                            <option value="128">128</option>
+                            <option value="256">256</option>
+                            <option value="512">512</option>
+                            <option value="1024">1024</option>
+                        </select></label>
+                        <label>brush size <select id="brush-size">
+                            <option value="1">s</option>
+                            <option value="5">m</option>
+                            <option value="10">l</option>
+                            <option value="25">xl</option>
+                        </select></label>
+
+                    </div>
+                    <div class="color-palette" id="color-palette"></div>
+                    <div class="palette-controls">
+                        <button id="edit-button">edit</button>
+                        <button id="reset-button">reset</button>
+                    </div>
                 </div>
             </div>
             <div class="center-section">
