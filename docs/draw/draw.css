@@ -124,3 +124,55 @@ main {
     height: 20px;
     border-radius: 2px;
 }
+
+/* Select styling to match button style guide */
+select {
+    padding: 0 0;
+    cursor: pointer;
+    background-color: white;
+    color: black;
+    border: none;
+    font-size: 16px;
+}
+
+.dark-mode select {
+    background-color: black;
+    color: white;
+}
+
+select:hover {
+    background-color: grey;
+}
+
+/* Brush types grid styling */
+.brush-types {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: repeat(4, 1fr);
+    gap: 4px;
+    margin-top: 8px;
+    width: 60px;
+}
+
+.brush-type {
+    width: 24px;
+    height: 24px;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--text-color);
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.brush-type:hover {
+    background-color: grey;
+}
+
+.brush-type.active {
+    background-color: var(--text-color);
+    color: var(--bg-color);
+}

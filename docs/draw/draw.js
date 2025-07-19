@@ -15,6 +15,7 @@ window.addEventListener('DOMContentLoaded', () => {
     let editMode = false; // Track edit mode state
     let canvasHistory = []; // Store canvas states for undo
     let currentHistoryIndex = -1; // Track current position in history
+    let selectedBrushType = 'square'; // Default brush type
 
     function getPos(e) {
         const rect = canvas.getBoundingClientRect();
@@ -87,6 +88,36 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     function drawAtPosition(pos) {
+        switch (selectedBrushType) {
+            case 'square':
+                drawSquareBrush(pos);
+                break;
+            case 'circle':
+                drawCircleBrush(pos);
+                break;
+            case 'spray':
+                drawSprayBrush(pos);
+                break;
+            case 'forward-slash':
+                drawForwardSlashBrush(pos);
+                break;
+            case 'back-slash':
+                drawBackSlashBrush(pos);
+                break;
+            case 'eraser':
+                drawEraser(pos);
+                break;
+            case 'custom1':
+            case 'custom2':
+                // Placeholder for future custom brushes
+                drawSquareBrush(pos);
+                break;
+            default:
+                drawSquareBrush(pos);
+        }
+    }
+
+    function drawSquareBrush(pos) {
         // Calculate the top-left corner of the brush (center the brush on the cursor)
         const halfBrush = Math.floor(brushSize / 2);
         const startX = pos.x - halfBrush;
@@ -103,6 +134,94 @@ window.addEventListener('DOMContentLoaded', () => {
         if (actualWidth > 0 && actualHeight > 0) {
             ctx.fillStyle = selectedColor;
             ctx.fillRect(actualStartX, actualStartY, actualWidth, actualHeight);
+        }
+    }
+
+    function drawCircleBrush(pos) {
+        const radius = Math.floor(brushSize / 2);
+        const centerX = pos.x;
+        const centerY = pos.y;
+        
+        // Draw filled circle
+        ctx.fillStyle = selectedColor;
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+        ctx.fill();
+    }
+
+    function drawSprayBrush(pos) {
+        const radius = Math.floor(brushSize / 2);
+        const centerX = pos.x;
+        const centerY = pos.y;
+        
+        // Reduced number of particles for lighter spray
+        const particleCount = Math.max(5, brushSize);
+        
+        ctx.fillStyle = selectedColor;
+        
+        for (let i = 0; i < particleCount; i++) {
+            // Use square root distribution for more even spread
+            const angle = Math.random() * 2 * Math.PI;
+            const distance = Math.sqrt(Math.random()) * radius; // Square root for even distribution
+            
+            const x = centerX + Math.cos(angle) * distance;
+            const y = centerY + Math.sin(angle) * distance;
+            
+            // Only draw if within canvas bounds
+            if (x >= 0 && x < canvasSize && y >= 0 && y < canvasSize) {
+                // Set alpha for each individual particle
+                ctx.globalAlpha = Math.random() * 0.4 + 0.1; // Random alpha between 0.1 and 0.5
+                
+                // Smaller particle size for lighter spray
+                const particleSize = Math.random() * 1 + 0.3;
+                ctx.fillRect(x, y, particleSize, particleSize);
+            }
+        }
+    }
+
+    function drawForwardSlashBrush(pos) {
+        const size = brushSize;
+        const centerX = pos.x;
+        const centerY = pos.y;
+        
+        ctx.strokeStyle = selectedColor;
+        ctx.lineWidth = Math.max(1, Math.floor(size / 4));
+        ctx.beginPath();
+        ctx.moveTo(centerX - size/2, centerY - size/2);
+        ctx.lineTo(centerX + size/2, centerY + size/2);
+        ctx.stroke();
+    }
+
+    function drawBackSlashBrush(pos) {
+        const size = brushSize;
+        const centerX = pos.x;
+        const centerY = pos.y;
+        
+        ctx.strokeStyle = selectedColor;
+        ctx.lineWidth = Math.max(1, Math.floor(size / 4));
+        ctx.beginPath();
+        ctx.moveTo(centerX + size/2, centerY - size/2);
+        ctx.lineTo(centerX - size/2, centerY + size/2);
+        ctx.stroke();
+    }
+
+    function drawEraser(pos) {
+        // Calculate the top-left corner of the eraser (center the eraser on the cursor)
+        const halfBrush = Math.floor(brushSize / 2);
+        const startX = pos.x - halfBrush;
+        const startY = pos.y - halfBrush;
+        
+        // Calculate the actual eraser size to draw (may be smaller near edges)
+        const endX = Math.min(startX + brushSize, canvasSize);
+        const endY = Math.min(startY + brushSize, canvasSize);
+        const actualStartX = Math.max(0, startX);
+        const actualStartY = Math.max(0, startY);
+        const actualWidth = endX - actualStartX;
+        const actualHeight = endY - actualStartY;
+        
+        if (actualWidth > 0 && actualHeight > 0) {
+            // Clear the area (eraser effect)
+            ctx.clearRect(actualStartX, actualStartY, actualWidth, actualHeight);
         }
     }
 
@@ -359,6 +478,18 @@ window.addEventListener('DOMContentLoaded', () => {
     // Handle brush size changes
     brushSizeInput.addEventListener('change', (e) => {
         brushSize = parseInt(e.target.value);
+    });
+
+    // Handle brush type selection
+    document.querySelectorAll('.brush-type').forEach(button => {
+        button.addEventListener('click', () => {
+            // Remove active class from all brush type buttons
+            document.querySelectorAll('.brush-type').forEach(btn => btn.classList.remove('active'));
+            // Add active class to clicked button
+            button.classList.add('active');
+            // Update selected brush type
+            selectedBrushType = button.dataset.type;
+        });
     });
 
     // Initialize canvas with default size
