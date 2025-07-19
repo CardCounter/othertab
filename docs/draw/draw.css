@@ -192,4 +192,42 @@ select:hover {
     width: 60px;
 }
 
+/* Bottom corner buttons positioned like nono settings button */
+#save-button {
+    position: absolute;
+    left: calc(1rem + 4px);
+    bottom: calc(1rem + 4px);
+}
+
+#clear-button {
+    position: absolute;
+    right: calc(1rem + 4px);
+    bottom: calc(1rem + 4px);
+}
+
+/* Save input container styling */
+.save-input-container {
+    display: flex;
+    gap: 2px;
+    align-items: center;
+    margin-top: 4px;
+}
+
+.save-input-container input {
+    padding: 4px 8px;
+    border: 1px solid var(--text-color);
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    font-size: 14px;
+    width: 120px;
+}
+
+.save-error {
+    color: var(--text-color);
+    font-size: 16px;
+    margin-bottom: 4px;
+    text-align: left;
+}
+
+
 

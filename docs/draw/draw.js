@@ -6,6 +6,12 @@ window.addEventListener('DOMContentLoaded', () => {
     const editButton = document.getElementById('edit-button');
     const resetButton = document.getElementById('reset-button');
     const clearButton = document.getElementById('clear-button');
+    const saveButton = document.getElementById('save-button');
+    const saveInputContainer = document.getElementById('save-input-container');
+    const saveFilename = document.getElementById('save-filename');
+    const saveConfirm = document.getElementById('save-confirm');
+    const saveCancel = document.getElementById('save-cancel');
+    const saveError = document.getElementById('save-error');
 
     let drawing = false;
     let canvasSize = 16; // Default size
@@ -187,6 +193,9 @@ window.addEventListener('DOMContentLoaded', () => {
                 ctx.fillRect(x, y, particleSize, particleSize);
             }
         }
+        
+        // Reset global alpha to 1.0 after spray operation
+        ctx.globalAlpha = 1.0;
     }
 
     function drawFillTool(pos) {
@@ -280,6 +289,90 @@ window.addEventListener('DOMContentLoaded', () => {
             g: parseInt(result[2], 16),
             b: parseInt(result[3], 16)
         } : {r: 0, g: 0, b: 0};
+    }
+
+    function sanitizeFilename(filename) {
+        // Remove or replace invalid characters for filenames
+        return filename
+            .replace(/[<>:"/\\|?*]/g, '_') // Replace invalid characters with underscore
+            .replace(/\s+/g, '_') // Replace spaces with underscores
+            .replace(/^\.+/, '') // Remove leading dots
+            .replace(/\.+$/, '') // Remove trailing dots
+            .replace(/_+/g, '_') // Replace multiple underscores with single
+            .substring(0, 50); // Limit length
+    }
+
+    function showSaveInput() {
+        saveInputContainer.style.display = 'flex';
+        saveError.style.display = 'none'; // Hide any previous error
+        
+        // Position the input directly above the save button
+        const saveButton = document.getElementById('save-button');
+        const buttonRect = saveButton.getBoundingClientRect();
+        
+        // Calculate position: input should be above the button
+        const inputTop = buttonRect.top - 40; // 40px above the button
+        const inputLeft = buttonRect.left;
+        
+        saveInputContainer.style.position = 'fixed';
+        saveInputContainer.style.top = inputTop + 'px';
+        saveInputContainer.style.left = inputLeft + 'px';
+        saveInputContainer.style.zIndex = '1000';
+        
+        saveFilename.focus();
+        saveFilename.select();
+    }
+
+    function hideSaveInput() {
+        saveInputContainer.style.display = 'none';
+        saveFilename.value = '';
+        saveError.style.display = 'none'; // Hide error message
+        
+        // Reset positioning
+        saveInputContainer.style.position = '';
+        saveInputContainer.style.bottom = '';
+        saveInputContainer.style.left = '';
+        saveInputContainer.style.zIndex = '';
+    }
+
+    function saveCanvas() {
+        const userInput = saveFilename.value.trim();
+        
+        // Validate input
+        if (!userInput) {
+            saveError.style.display = 'block';
+            saveSanitize.style.display = 'none'; // Hide sanitize message if showing error
+            return;
+        }
+        
+        // Sanitize filename
+        const sanitizedFilename = sanitizeFilename(userInput);
+        
+        // Create a temporary canvas with the current size
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = canvasSize;
+        tempCanvas.height = canvasSize;
+        const tempCtx = tempCanvas.getContext('2d');
+        
+        // Copy the current canvas content to the temporary canvas
+        tempCtx.drawImage(canvas, 0, 0);
+        
+        // Convert to PNG and download
+        tempCanvas.toBlob((blob) => {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            // Add .png extension if not already present
+            const finalFilename = sanitizedFilename.endsWith('.png') ? sanitizedFilename : `${sanitizedFilename}.png`;
+            a.download = finalFilename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            // Hide the input after successful save
+            hideSaveInput();
+        }, 'image/png');
     }
 
     function drawBackSlashBrush(pos) {
@@ -775,6 +868,31 @@ window.addEventListener('DOMContentLoaded', () => {
     clearButton.addEventListener('click', () => {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         saveCanvasState();
+    });
+
+    // Save canvas functionality
+    saveButton.addEventListener('click', showSaveInput);
+
+    // Save confirm button
+    saveConfirm.addEventListener('click', saveCanvas);
+
+    // Save cancel button
+    saveCancel.addEventListener('click', hideSaveInput);
+
+    // Handle Enter key in save input
+    saveFilename.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            saveCanvas();
+        } else if (e.key === 'Escape') {
+            hideSaveInput();
+        }
+    });
+
+    // Hide save input when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!saveInputContainer.contains(e.target) && !saveButton.contains(e.target)) {
+            hideSaveInput();
+        }
     });
 });
 

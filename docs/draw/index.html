@@ -65,7 +65,14 @@
                     <div class="palette-controls">
                         <button id="edit-button">edit</button>
                         <button id="reset-button">reset</button>
-                        <button id="clear-button">clear</button>
+                    </div>
+                    <div class="canvas-controls">
+                        <div id="save-input-container" class="save-input-container" style="display: none;">
+                            <div id="save-error" class="save-error" style="display: none;">enter a drawing name</div>
+                            <input type="text" id="save-filename" placeholder="drawing" maxlength="50">
+                            <button id="save-confirm" class="page-button">y</button>
+                            <button id="save-cancel" class="page-button">n</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -75,6 +82,10 @@
             <div class="right-section">
             </div>
         </div>
+        
+        <button id="save-button" class="page-button">save</button>
+        <button id="clear-button" class="page-button">clear</button>
+        
     </main>
 
     <footer>
