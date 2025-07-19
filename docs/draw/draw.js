@@ -5,6 +5,7 @@ window.addEventListener('DOMContentLoaded', () => {
     const colorPalette = document.getElementById('color-palette');
     const editButton = document.getElementById('edit-button');
     const resetButton = document.getElementById('reset-button');
+    const clearButton = document.getElementById('clear-button');
 
     let drawing = false;
     let canvasSize = 16; // Default size
@@ -524,17 +525,74 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     function resizeCanvas(size) {
+        const oldSize = canvasSize;
+        const oldData = ctx.getImageData(0, 0, oldSize, oldSize);
+
         canvasSize = size;
         canvas.width = size;
         canvas.height = size;
-        
-        // Clear the canvas after resizing
+
+        const newImageData = ctx.createImageData(size, size);
+
+        if (size > oldSize) {
+            // Scale up: keep old pixels centred and add empty space around
+            const offset = Math.floor((size - oldSize) / 2);
+            for (let y = 0; y < oldSize; y++) {
+                for (let x = 0; x < oldSize; x++) {
+                    const oldIndex = (y * oldSize + x) * 4;
+                    const newIndex = ((y + offset) * size + (x + offset)) * 4;
+                    newImageData.data[newIndex] = oldData.data[oldIndex];
+                    newImageData.data[newIndex + 1] = oldData.data[oldIndex + 1];
+                    newImageData.data[newIndex + 2] = oldData.data[oldIndex + 2];
+                    newImageData.data[newIndex + 3] = oldData.data[oldIndex + 3];
+                }
+            }
+        } else if (size < oldSize) {
+            // Scale down: majority pixel of the corresponding block
+            const ratio = oldSize / size;
+            for (let ny = 0; ny < size; ny++) {
+                for (let nx = 0; nx < size; nx++) {
+                    const startX = Math.floor(nx * ratio);
+                    const startY = Math.floor(ny * ratio);
+                    const endX = Math.floor((nx + 1) * ratio);
+                    const endY = Math.floor((ny + 1) * ratio);
+                    const colorCount = {};
+                    for (let y = startY; y < endY; y++) {
+                        for (let x = startX; x < endX; x++) {
+                            const idx = (y * oldSize + x) * 4;
+                            const r = oldData.data[idx];
+                            const g = oldData.data[idx + 1];
+                            const b = oldData.data[idx + 2];
+                            const a = oldData.data[idx + 3];
+                            const key = `${r},${g},${b},${a}`;
+                            colorCount[key] = (colorCount[key] || 0) + 1;
+                        }
+                    }
+                    let max = 0;
+                    let chosen = '0,0,0,0';
+                    for (const key in colorCount) {
+                        if (colorCount[key] > max) {
+                            max = colorCount[key];
+                            chosen = key;
+                        }
+                    }
+                    const [r, g, b, a] = chosen.split(',').map(Number);
+                    const newIndex = (ny * size + nx) * 4;
+                    newImageData.data[newIndex] = r;
+                    newImageData.data[newIndex + 1] = g;
+                    newImageData.data[newIndex + 2] = b;
+                    newImageData.data[newIndex + 3] = a;
+                }
+            }
+        } else {
+            // Same size
+            newImageData.data.set(oldData.data);
+        }
+
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        
-        // Update brush sizes for new canvas size
-        updateBrushSize('5'); // Update to current S size
-        
-        // Reset history after resize
+        ctx.putImageData(newImageData, 0, 0);
+
+        updateBrushSize('5');
         canvasHistory = [];
         currentHistoryIndex = -1;
         saveCanvasState();
@@ -711,6 +769,12 @@ window.addEventListener('DOMContentLoaded', () => {
         // editButton.style.background = '#f0f0f0';
         // Set initial palette background
         colorPalette.style.backgroundColor = selectedColor;
+    });
+
+    // Clear canvas functionality
+    clearButton.addEventListener('click', () => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        saveCanvasState();
     });
 });
 
