@@ -514,7 +514,8 @@ window.addEventListener('DOMContentLoaded', () => {
         drawing = false;
         lastPos = null;
 
-        if (rightClickErasing && e && e.button === 2) {
+        // Restore brush type if we were right-click erasing
+        if (rightClickErasing) {
             rightClickErasing = false;
             if (prevBrushType) {
                 setActiveBrushType(prevBrushType);
