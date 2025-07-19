@@ -16,6 +16,10 @@ window.addEventListener('DOMContentLoaded', () => {
     let currentHistoryIndex = -1; // Track current position in history
     let selectedBrushType = 'square'; // Default brush type
     let isFilling = false; // Flag to prevent multiple fill operations
+    let zoomSelecting = false;
+    let zoomStart = null;
+    let isZoomed = false;
+    let zoomImage = null;
 
     function getPos(e) {
         const rect = canvas.getBoundingClientRect();
@@ -38,15 +42,20 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     function start(e) {
-        drawing = true;
         const pos = getPos(e);
+        if (selectedBrushType === 'zoom') {
+            zoomSelecting = true;
+            zoomStart = pos;
+            return;
+        }
+        drawing = true;
         lastPos = pos;
         drawAtPosition(pos);
         draw(e);
     }
 
     function draw(e) {
-        if (!drawing) return;
+        if (selectedBrushType === 'zoom' || !drawing) return;
         const pos = getPos(e);
         
         if (lastPos) {
@@ -101,8 +110,8 @@ window.addEventListener('DOMContentLoaded', () => {
             case 'fill':
                 drawFillTool(pos);
                 break;
-            case 'back-slash':
-                drawBackSlashBrush(pos);
+            case 'zoom':
+                // zoom handled separately
                 break;
             case 'eraser':
                 drawEraser(pos);
@@ -272,18 +281,6 @@ window.addEventListener('DOMContentLoaded', () => {
         } : {r: 0, g: 0, b: 0};
     }
 
-    function drawBackSlashBrush(pos) {
-        const size = brushSize;
-        const centerX = pos.x;
-        const centerY = pos.y;
-        
-        ctx.strokeStyle = selectedColor;
-        ctx.lineWidth = Math.max(1, Math.floor(size / 4));
-        ctx.beginPath();
-        ctx.moveTo(centerX + size/2, centerY - size/2);
-        ctx.lineTo(centerX - size/2, centerY + size/2);
-        ctx.stroke();
-    }
 
     function drawEraser(pos) {
         // Calculate the top-left corner of the eraser (center the eraser on the cursor)
@@ -303,6 +300,38 @@ window.addEventListener('DOMContentLoaded', () => {
             // Clear the area (eraser effect) - checkerboard shows through automatically
             ctx.clearRect(actualStartX, actualStartY, actualWidth, actualHeight);
         }
+    }
+
+    function performZoom(start, end) {
+        const x1 = Math.min(start.x, end.x);
+        const y1 = Math.min(start.y, end.y);
+        const w = Math.abs(end.x - start.x);
+        const h = Math.abs(end.y - start.y);
+        const size = Math.min(w, h);
+        if (size === 0) return;
+
+        zoomImage = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+        const off = document.createElement('canvas');
+        off.width = size;
+        off.height = size;
+        const offCtx = off.getContext('2d');
+        const data = ctx.getImageData(x1, y1, size, size);
+        offCtx.putImageData(data, 0, 0);
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(off, 0, 0, canvas.width, canvas.height);
+
+        isZoomed = true;
+        canvas.classList.add('zoomed');
+    }
+
+    function restoreZoom() {
+        if (!isZoomed || !zoomImage) return;
+        ctx.putImageData(zoomImage, 0, 0);
+        isZoomed = false;
+        canvas.classList.remove('zoomed');
     }
 
     function createColorPalette() {
@@ -497,7 +526,13 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function stop() {
+    function stop(e) {
+        if (zoomSelecting && selectedBrushType === 'zoom') {
+            const pos = getPos(e);
+            zoomSelecting = false;
+            performZoom(zoomStart, pos);
+            return;
+        }
         if (drawing) {
             // Save canvas state when drawing ends
             saveCanvasState();
@@ -563,8 +598,8 @@ window.addEventListener('DOMContentLoaded', () => {
 
     canvas.addEventListener('touchstart', (e) => { e.preventDefault(); start(e); });
     canvas.addEventListener('touchmove', (e) => { e.preventDefault(); draw(e); });
-    canvas.addEventListener('touchend', stop);
-    canvas.addEventListener('touchcancel', stop);
+    canvas.addEventListener('touchend', (e) => { stop(e); });
+    canvas.addEventListener('touchcancel', (e) => { stop(e); });
 
     // Handle canvas size changes
     canvasSizeSelect.addEventListener('change', (e) => {
@@ -647,6 +682,10 @@ window.addEventListener('DOMContentLoaded', () => {
             e.preventDefault(); // Prevent default browser behavior
             redo();
         }
+
+        if (e.key === 'Escape') {
+            restoreZoom();
+        }
     });
     
     // Edit button functionality
@@ -663,6 +702,9 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // Click outside color palette to exit edit mode
     document.addEventListener('click', (e) => {
+        if (isZoomed && !canvas.contains(e.target) && !e.target.classList.contains('brush-type')) {
+            restoreZoom();
+        }
         if (editMode) {
             // Check if click is outside the color palette and not on the edit button
             const colorPalette = document.getElementById('color-palette');
@@ -696,6 +738,5 @@ window.addEventListener('DOMContentLoaded', () => {
 
 // todo:
 // make right click erase
-// add zoom
 // add select
 // add type
