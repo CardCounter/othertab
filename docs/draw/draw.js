@@ -693,3 +693,9 @@ window.addEventListener('DOMContentLoaded', () => {
         colorPalette.style.backgroundColor = selectedColor;
     });
 });
+
+// todo:
+// make right click erase
+// add zoom
+// add select
+// add type

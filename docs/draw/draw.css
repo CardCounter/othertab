@@ -105,6 +105,7 @@ main {
     image-rendering: pixelated;
     image-rendering: -moz-crisp-edges;
     image-rendering: crisp-edges;
+    border: 1px solid var(--text-color);
 }
 
 .dark-mode #canvas {
@@ -124,8 +125,6 @@ main {
     margin-top: 8px;
     justify-content: center;
 }
-
-
 
 .edit-overlay {
     position: fixed;
@@ -167,7 +166,6 @@ select:hover {
     flex-direction: column;
     align-items: center;
     gap: 4px;
-    margin-bottom: 8px;
     margin-top: 8px;
 }
 
