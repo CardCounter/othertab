@@ -933,8 +933,6 @@ window.addEventListener('DOMContentLoaded', () => {
 
 // todo:
 // add zoom
-// add select
-// add type
 // fix fill, make sure to only use it once like click, when click and drag calls to much and crashes
 // add quick switcher, q
 
