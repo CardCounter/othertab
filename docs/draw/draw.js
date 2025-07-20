@@ -154,7 +154,8 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     function drawCircleBrush(pos) {
-        const radius = Math.max(0.5, brushSize / 4);
+        // For very small canvases, ensure minimum visible circle size
+        const radius = canvasSize <= 16 ? Math.max(0.5, brushSize / 2) : Math.max(0.5, brushSize / 4);
         const centerX = pos.x;
         const centerY = pos.y;
         
@@ -170,8 +171,8 @@ window.addEventListener('DOMContentLoaded', () => {
         const centerX = pos.x;
         const centerY = pos.y;
         
-        // Reduced number of particles for lighter spray
-        const particleCount = Math.max(5, brushSize);
+        // Adjust particle count for small canvases
+        const particleCount = canvasSize <= 16 ? Math.max(3, Math.min(brushSize, 8)) : Math.max(5, brushSize);
         
         ctx.fillStyle = selectedColor;
         
@@ -768,26 +769,46 @@ window.addEventListener('DOMContentLoaded', () => {
 
     function updateBrushSize(sizeType) {
         const smallSize = 1; // S is always 1 pixel
-        const xlSize = Math.floor(canvasSize / 4); // XL is always 1/4 of canvas size
+        const xlSize = Math.max(1, Math.floor(canvasSize / 4)); // XL is 1/4 of canvas size, minimum 1
         
-        // Logarithmic scaling between S (1px) and XL (1/4 canvas size)
-        const logRange = Math.log(xlSize) - Math.log(smallSize);
-        
-        switch(sizeType) {
-            case '5': // S
-                brushSize = smallSize;
-                break;
-            case '10': // M
-                brushSize = Math.floor(Math.exp(Math.log(smallSize) + logRange * 0.33) + 1);
-                break;
-            case '15': // L
-                brushSize = Math.floor(Math.exp(Math.log(smallSize) + logRange * 0.67) + 1);
-                break;
-            case '25': // XL
-                brushSize = xlSize;
-                break;
-            default:
-                brushSize = smallSize;
+        // For very small canvases (8x8), use simpler scaling
+        if (canvasSize <= 16) {
+            switch(sizeType) {
+                case '5': // S
+                    brushSize = 1;
+                    break;
+                case '10': // M
+                    brushSize = Math.max(1, Math.floor(canvasSize / 8));
+                    break;
+                case '15': // L
+                    brushSize = Math.max(1, Math.floor(canvasSize / 4));
+                    break;
+                case '25': // XL
+                    brushSize = Math.max(1, Math.floor(canvasSize / 2));
+                    break;
+                default:
+                    brushSize = 1;
+            }
+        } else {
+            // Logarithmic scaling for larger canvases
+            const logRange = Math.log(xlSize) - Math.log(smallSize);
+            
+            switch(sizeType) {
+                case '5': // S
+                    brushSize = smallSize;
+                    break;
+                case '10': // M
+                    brushSize = Math.floor(Math.exp(Math.log(smallSize) + logRange * 0.33) + 1);
+                    break;
+                case '15': // L
+                    brushSize = Math.floor(Math.exp(Math.log(smallSize) + logRange * 0.67) + 1);
+                    break;
+                case '25': // XL
+                    brushSize = xlSize;
+                    break;
+                default:
+                    brushSize = smallSize;
+            }
         }
     }
 
@@ -914,3 +935,11 @@ window.addEventListener('DOMContentLoaded', () => {
 // add zoom
 // add select
 // add type
+// fix fill, make sure to only use it once like click, when click and drag calls to much and crashes
+// add quick switcher, q
+
+//// 1234
+//// qwe
+////  sd
+////  xc
+//// space
