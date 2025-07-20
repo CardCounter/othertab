@@ -25,6 +25,9 @@ window.addEventListener('DOMContentLoaded', () => {
     let isFilling = false; // Flag to prevent multiple fill operations
     let prevBrushType = null; // Store previous brush when right-click erasing
     let rightClickErasing = false; // Track right click erase state
+    let lineStartPos = null; // Store line start position for line tool
+    let ghostCanvas = null; // Temporary canvas for ghost line preview
+    let ghostCtx = null; // Context for ghost canvas
 
     function getPos(e) {
         const rect = canvas.getBoundingClientRect();
@@ -46,6 +49,103 @@ window.addEventListener('DOMContentLoaded', () => {
         };
     }
 
+    function initGhostCanvas() {
+        if (!ghostCanvas) {
+            ghostCanvas = document.createElement('canvas');
+            ghostCanvas.width = canvas.width;
+            ghostCanvas.height = canvas.height;
+            ghostCanvas.style.position = 'absolute';
+            ghostCanvas.style.pointerEvents = 'none';
+            ghostCanvas.style.zIndex = '10';
+            ghostCanvas.style.opacity = '0.5';
+            
+            // Position exactly over the main canvas
+            const canvasRect = canvas.getBoundingClientRect();
+            ghostCanvas.style.top = canvasRect.top + 'px';
+            ghostCanvas.style.left = canvasRect.left + 'px';
+            ghostCanvas.style.width = canvasRect.width + 'px';
+            ghostCanvas.style.height = canvasRect.height + 'px';
+            
+            // Set image rendering to pixelated for crisp pixels
+            ghostCanvas.style.imageRendering = 'pixelated';
+            ghostCanvas.style.imageRendering = '-moz-crisp-edges';
+            ghostCanvas.style.imageRendering = 'crisp-edges';
+            
+            document.body.appendChild(ghostCanvas);
+            ghostCtx = ghostCanvas.getContext('2d');
+            ghostCtx.imageSmoothingEnabled = false;
+        } else {
+            // Update position if ghost canvas already exists
+            const canvasRect = canvas.getBoundingClientRect();
+            ghostCanvas.style.top = canvasRect.top + 'px';
+            ghostCanvas.style.left = canvasRect.left + 'px';
+            ghostCanvas.style.width = canvasRect.width + 'px';
+            ghostCanvas.style.height = canvasRect.height + 'px';
+        }
+    }
+
+    function clearGhostCanvas() {
+        if (ghostCtx) {
+            ghostCtx.clearRect(0, 0, ghostCanvas.width, ghostCanvas.height);
+        }
+    }
+
+    function drawGhostLine(start, end) {
+        if (!ghostCtx) {
+            console.log('Ghost context not available');
+            return;
+        }
+        
+        clearGhostCanvas();
+        
+        // Draw ghost line using the same algorithm as regular lines
+        let x0 = start.x;
+        let y0 = start.y;
+        let x1 = end.x;
+        let y1 = end.y;
+        
+        const dx = Math.abs(x1 - x0);
+        const dy = Math.abs(y1 - y0);
+        const sx = x0 < x1 ? 1 : -1;
+        const sy = y0 < y1 ? 1 : -1;
+        let err = dx - dy;
+        
+        // Set ghost line style
+        ghostCtx.fillStyle = selectedColor;
+        ghostCtx.globalAlpha = 0.6; // Make it more visible for testing
+        
+        while (true) {
+            // Draw ghost pixels
+            const halfBrush = Math.floor(brushSize / 2);
+            const startX = x0 - halfBrush;
+            const startY = y0 - halfBrush;
+            const endX = Math.min(startX + brushSize, canvasSize);
+            const endY = Math.min(startY + brushSize, canvasSize);
+            const actualStartX = Math.max(0, startX);
+            const actualStartY = Math.max(0, startY);
+            const actualWidth = endX - actualStartX;
+            const actualHeight = endY - actualStartY;
+            
+            if (actualWidth > 0 && actualHeight > 0) {
+                ghostCtx.fillRect(actualStartX, actualStartY, actualWidth, actualHeight);
+            }
+            
+            if (x0 === x1 && y0 === y1) break;
+            
+            const e2 = 2 * err;
+            if (e2 > -dy) {
+                err -= dy;
+                x0 += sx;
+            }
+            if (e2 < dx) {
+                err += dx;
+                y0 += sy;
+            }
+        }
+        
+        ghostCtx.globalAlpha = 1.0;
+    }
+
     function start(e) {
         if (e.button === 2) {
             rightClickErasing = true;
@@ -57,6 +157,13 @@ window.addEventListener('DOMContentLoaded', () => {
         drawing = true;
         const pos = getPos(e);
         lastPos = pos;
+        
+        // Store line start position for line tool
+        if (selectedBrushType === 'line') {
+            lineStartPos = pos;
+            initGhostCanvas();
+        }
+        
         drawAtPosition(pos);
         draw(e);
     }
@@ -64,6 +171,15 @@ window.addEventListener('DOMContentLoaded', () => {
     function draw(e) {
         if (!drawing) return;
         const pos = getPos(e);
+        
+        // For line tool, don't draw continuously - just update position and ghost line
+        if (selectedBrushType === 'line') {
+            lastPos = pos;
+            if (lineStartPos) {
+                drawGhostLine(lineStartPos, pos);
+            }
+            return;
+        }
         
         if (lastPos) {
             // Draw line between last position and current position
@@ -87,7 +203,12 @@ window.addEventListener('DOMContentLoaded', () => {
         let err = dx - dy;
         
         while (true) {
-            drawAtPosition({ x: x0, y: y0 });
+            // For line tool, draw individual pixels; for other tools, use their specific drawing
+            if (selectedBrushType === 'line') {
+                drawSquareBrush({ x: x0, y: y0 });
+            } else {
+                drawAtPosition({ x: x0, y: y0 });
+            }
             
             if (x0 === x1 && y0 === y1) break;
             
@@ -108,8 +229,8 @@ window.addEventListener('DOMContentLoaded', () => {
             case 'square':
                 drawSquareBrush(pos);
                 break;
-            case 'circle':
-                drawCircleBrush(pos);
+            case 'line':
+                drawLineTool(pos);
                 break;
             case 'spray':
                 drawSprayBrush(pos);
@@ -148,17 +269,10 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function drawCircleBrush(pos) {
-        // For very small canvases, ensure minimum visible circle size
-        const radius = canvasSize <= 16 ? Math.max(0.5, brushSize / 2) : Math.max(0.5, brushSize / 4);
-        const centerX = pos.x;
-        const centerY = pos.y;
-        
-        // Draw filled circle
-        ctx.fillStyle = selectedColor;
-        ctx.beginPath();
-        ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
-        ctx.fill();
+    function drawLineTool(pos) {
+        // Line tool just draws a single pixel at the current position
+        // The line drawing is handled by the main draw() function calling drawLine()
+        drawSquareBrush(pos);
     }
 
     function drawSprayBrush(pos) {
@@ -344,14 +458,20 @@ window.addEventListener('DOMContentLoaded', () => {
         // Sanitize filename
         const sanitizedFilename = sanitizeFilename(userInput);
         
-        // Create a temporary canvas with the current size
+        // Determine output size - scale up to 1024 if canvas is smaller
+        const outputSize = canvasSize < 1024 ? 1024 : canvasSize;
+        
+        // Create a temporary canvas with the output size
         const tempCanvas = document.createElement('canvas');
-        tempCanvas.width = canvasSize;
-        tempCanvas.height = canvasSize;
+        tempCanvas.width = outputSize;
+        tempCanvas.height = outputSize;
         const tempCtx = tempCanvas.getContext('2d');
         
-        // Copy the current canvas content to the temporary canvas
-        tempCtx.drawImage(canvas, 0, 0);
+        // Disable image smoothing for pixel-perfect scaling
+        tempCtx.imageSmoothingEnabled = false;
+        
+        // Copy and scale the current canvas content to the temporary canvas
+        tempCtx.drawImage(canvas, 0, 0, canvasSize, canvasSize, 0, 0, outputSize, outputSize);
         
         // Convert to PNG and download
         tempCanvas.toBlob((blob) => {
@@ -612,11 +732,19 @@ window.addEventListener('DOMContentLoaded', () => {
 
     function stop(e) {
         if (drawing) {
+                    // For line tool, draw the final line from start to end
+        if (selectedBrushType === 'line' && lineStartPos && lastPos) {
+            drawLine(lineStartPos, lastPos);
+            clearGhostCanvas();
+        }
+            
             // Save canvas state when drawing ends
             saveCanvasState();
         }
         drawing = false;
         lastPos = null;
+        lineStartPos = null; // Reset line start position
+        clearGhostCanvas(); // Clear any remaining ghost line
 
         // Restore brush type if we were right-click erasing
         if (rightClickErasing) {
@@ -634,6 +762,24 @@ window.addEventListener('DOMContentLoaded', () => {
         canvasSize = size;
         canvas.width = size;
         canvas.height = size;
+        
+        // Update ghost canvas size if it exists
+        if (ghostCanvas) {
+            ghostCanvas.width = size;
+            ghostCanvas.height = size;
+            
+            // Update position to match new canvas size
+            const canvasRect = canvas.getBoundingClientRect();
+            ghostCanvas.style.top = canvasRect.top + 'px';
+            ghostCanvas.style.left = canvasRect.left + 'px';
+            ghostCanvas.style.width = canvasRect.width + 'px';
+            ghostCanvas.style.height = canvasRect.height + 'px';
+            
+            // Ensure pixelated rendering is maintained
+            ghostCanvas.style.imageRendering = 'pixelated';
+            ghostCanvas.style.imageRendering = '-moz-crisp-edges';
+            ghostCanvas.style.imageRendering = 'crisp-edges';
+        }
 
         const newImageData = ctx.createImageData(size, size);
 
