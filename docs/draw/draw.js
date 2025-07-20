@@ -123,11 +123,6 @@ window.addEventListener('DOMContentLoaded', () => {
             case 'eraser':
                 drawEraser(pos);
                 break;
-            case 'custom1':
-            case 'custom2':
-                // Placeholder for future custom brushes
-                drawSquareBrush(pos);
-                break;
             default:
                 drawSquareBrush(pos);
         }
