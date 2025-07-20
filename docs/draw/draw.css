@@ -75,10 +75,10 @@ main {
 .color-palette {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    grid-template-rows: repeat(3, 1fr);
+    grid-template-rows: repeat(9, 1fr);
     gap: 2px;
     width: 80px;
-    height: 60px;
+    height: 180px;
     background-color: #f0f0f0;
     padding: 8px;
     /* border: 1px solid var(--text-color); */

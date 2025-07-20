@@ -410,18 +410,32 @@ window.addEventListener('DOMContentLoaded', () => {
 
     function createColorPalette() {
         const fixedColors = [
-            '#000000', '#FFFFFF', '#808080', '#FF0000', 
-            '#0000FF', '#00FF00', '#FFFF00', '#FFA500'
+            // Row 1: Grays and whites
+            '#000000', '#808080', '#D3D3D3', '#FFFFFF',
+            // Row 2: Reds (dark, medium, light, lighter)
+            '#8B0000', '#FF0000', '#FF4444', '#FF8888',
+            // Row 3: Oranges (dark, medium, light, lighter)
+            '#CC6600', '#FF8C00', '#FFAA44', '#FFCC88',
+            // Row 4: Yellows (dark, medium, light, lighter)
+            '#CCCC00', '#FFD700', '#FFE044', '#FFE888',
+            // Row 5: Greens (dark, medium, light, lighter)
+            '#006600', '#32CD32', '#44FF44', '#88FF88',
+            // Row 6: Blues (dark, medium, light, lighter)
+            '#000080', '#0000FF', '#4444FF', '#8888FF',
+            // Row 7: Purples (dark, medium, light, lighter)
+            '#4B0082', '#800080', '#AA44AA', '#CC88CC',
+            // Row 8: Programmable cells
+            '#CCCCCC', '#CCCCCC', '#CCCCCC', '#CCCCCC'
         ];
 
-        // Create 12 cells (4x3 grid)
-        for (let i = 0; i < 12; i++) {
+        // Create 36 cells (4x9 grid)
+        for (let i = 0; i < 36; i++) {
             const swatch = document.createElement('div');
             swatch.className = 'color-swatch';
             swatch.dataset.index = i;
             
-            if (i < 8) {
-                // Fixed colors for first 8 cells
+            if (i < 28) {
+                // Fixed colors for first 28 cells
                 const color = fixedColors[i];
                 swatch.style.backgroundColor = color;
                 swatch.dataset.color = color;
@@ -453,7 +467,7 @@ window.addEventListener('DOMContentLoaded', () => {
                     }
                 });
             } else {
-                // Programmable cells for last 4 cells
+                // Programmable cells for last 8 cells
                 swatch.style.backgroundColor = '#CCCCCC';
                 swatch.dataset.color = '#CCCCCC';
                 swatch.dataset.programmable = 'true';
