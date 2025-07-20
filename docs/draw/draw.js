@@ -1,6 +1,7 @@
 window.addEventListener('DOMContentLoaded', () => {
     const canvas = document.getElementById('canvas');
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    const displayCtx = canvas.getContext('2d', { willReadFrequently: true });
+    let ctx = displayCtx; // active drawing context
     const canvasSizeSelect = document.getElementById('canvas-size');
     const colorPalette = document.getElementById('color-palette');
     const editButton = document.getElementById('edit-button');
@@ -25,6 +26,12 @@ window.addEventListener('DOMContentLoaded', () => {
     let isFilling = false; // Flag to prevent multiple fill operations
     let prevBrushType = null; // Store previous brush when right-click erasing
     let rightClickErasing = false; // Track right click erase state
+    let zoomSelecting = false; // True when selecting zoom area
+    let zoomed = false; // True when currently zoomed in
+    let zoomStart = null; // Start position of zoom selection
+    let zoomRegion = null; // {x, y, size}
+    const offscreenCanvas = document.createElement('canvas');
+    const offscreenCtx = offscreenCanvas.getContext('2d', { willReadFrequently: true });
 
     function getPos(e) {
         const rect = canvas.getBoundingClientRect();
@@ -47,6 +54,17 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     function start(e) {
+        if (selectedBrushType === 'zoom') {
+            if (zoomed) {
+                zoomOut();
+                return;
+            }
+            zoomSelecting = true;
+            zoomStart = getPos(e);
+            renderDisplay();
+            return;
+        }
+
         if (e.button === 2) {
             rightClickErasing = true;
             prevBrushType = selectedBrushType;
@@ -62,15 +80,27 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     function draw(e) {
+        if (selectedBrushType === 'zoom') {
+            if (!zoomSelecting) return;
+            const pos = getPos(e);
+            renderDisplay();
+            drawZoomOverlay(zoomStart, pos);
+            lastPos = pos;
+            return;
+        }
+
         if (!drawing) return;
         const pos = getPos(e);
-        
+
         if (lastPos) {
             // Draw line between last position and current position
             drawLine(lastPos, pos);
         }
-        
+
         lastPos = pos;
+        if (zoomed) {
+            renderDisplay();
+        }
     }
 
     function drawLine(from, to) {
@@ -600,7 +630,73 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function zoomIn() {
+        offscreenCanvas.width = canvas.width;
+        offscreenCanvas.height = canvas.height;
+        offscreenCtx.drawImage(canvas, 0, 0);
+        ctx = offscreenCtx;
+        zoomed = true;
+        canvas.classList.add('zoomed');
+        renderDisplay();
+    }
+
+    function zoomOut() {
+        if (!zoomed) return;
+        ctx = displayCtx;
+        displayCtx.clearRect(0, 0, canvas.width, canvas.height);
+        displayCtx.drawImage(offscreenCanvas, 0, 0);
+        zoomed = false;
+        canvas.classList.remove('zoomed');
+    }
+
+    function renderDisplay() {
+        if (!zoomed) return;
+        displayCtx.clearRect(0, 0, canvas.width, canvas.height);
+        displayCtx.imageSmoothingEnabled = false;
+        displayCtx.drawImage(
+            offscreenCanvas,
+            zoomRegion.x,
+            zoomRegion.y,
+            zoomRegion.size,
+            zoomRegion.size,
+            0,
+            0,
+            canvas.width,
+            canvas.height
+        );
+    }
+
+    function drawZoomOverlay(start, current) {
+        const size = Math.max(1, Math.min(Math.abs(current.x - start.x), Math.abs(current.y - start.y)));
+        const startX = current.x >= start.x ? start.x : start.x - size;
+        const startY = current.y >= start.y ? start.y : start.y - size;
+        renderDisplay();
+        displayCtx.setLineDash([2, 2]);
+        displayCtx.strokeStyle = selectedColor;
+        displayCtx.strokeRect(startX + 0.5, startY + 0.5, size, size);
+        displayCtx.setLineDash([]);
+    }
+
     function stop(e) {
+        if (selectedBrushType === 'zoom') {
+            if (zoomSelecting) {
+                zoomSelecting = false;
+                const pos = getPos(e);
+                const size = Math.max(1, Math.min(Math.abs(pos.x - zoomStart.x), Math.abs(pos.y - zoomStart.y)));
+                const startX = pos.x >= zoomStart.x ? zoomStart.x : zoomStart.x - size;
+                const startY = pos.y >= zoomStart.y ? zoomStart.y : zoomStart.y - size;
+                zoomRegion = {
+                    x: Math.max(0, Math.min(startX, canvasSize - size)),
+                    y: Math.max(0, Math.min(startY, canvasSize - size)),
+                    size
+                };
+                zoomIn();
+            }
+            drawing = false;
+            lastPos = null;
+            return;
+        }
+
         if (drawing) {
             // Save canvas state when drawing ends
             saveCanvasState();
@@ -615,9 +711,15 @@ window.addEventListener('DOMContentLoaded', () => {
                 setActiveBrushType(prevBrushType);
             }
         }
+        if (zoomed) {
+            renderDisplay();
+        }
     }
 
     function resizeCanvas(size) {
+        if (zoomed) {
+            zoomOut();
+        }
         const oldSize = canvasSize;
         const oldData = ctx.getImageData(0, 0, oldSize, oldSize);
 
@@ -689,6 +791,9 @@ window.addEventListener('DOMContentLoaded', () => {
         canvasHistory = [];
         currentHistoryIndex = -1;
         saveCanvasState();
+        if (zoomed) {
+            renderDisplay();
+        }
     }
 
     function saveCanvasState() {
@@ -707,6 +812,9 @@ window.addEventListener('DOMContentLoaded', () => {
             canvasHistory.shift();
             currentHistoryIndex--;
         }
+        if (zoomed) {
+            renderDisplay();
+        }
     }
 
     function undo() {
@@ -714,6 +822,9 @@ window.addEventListener('DOMContentLoaded', () => {
             currentHistoryIndex--;
             const previousState = canvasHistory[currentHistoryIndex];
             ctx.putImageData(previousState, 0, 0);
+            if (zoomed) {
+                renderDisplay();
+            }
         }
     }
 
@@ -722,6 +833,9 @@ window.addEventListener('DOMContentLoaded', () => {
             currentHistoryIndex++;
             const nextState = canvasHistory[currentHistoryIndex];
             ctx.putImageData(nextState, 0, 0);
+            if (zoomed) {
+                renderDisplay();
+            }
         }
     }
 
