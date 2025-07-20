@@ -229,5 +229,23 @@ select:hover {
     text-align: left;
 }
 
+/* Layer controls */
+#layer-controls {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.layer-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.layer-row input[type="range"] {
+    width: 60px;
+}
+
 
 

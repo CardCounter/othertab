@@ -1,6 +1,9 @@
 window.addEventListener('DOMContentLoaded', () => {
     const canvas = document.getElementById('canvas');
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    const viewCtx = canvas.getContext('2d', { willReadFrequently: true });
+    let layers = [];
+    let activeLayer = 0;
+    let ctx;
     const canvasSizeSelect = document.getElementById('canvas-size');
     const colorPalette = document.getElementById('color-palette');
     const editButton = document.getElementById('edit-button');
@@ -12,6 +15,8 @@ window.addEventListener('DOMContentLoaded', () => {
     const saveConfirm = document.getElementById('save-confirm');
     const saveCancel = document.getElementById('save-cancel');
     const saveError = document.getElementById('save-error');
+    const addLayerButton = document.getElementById('add-layer');
+    const layersContainer = document.getElementById('layers');
 
     let drawing = false;
     let canvasSize = 16; // Default size
@@ -25,6 +30,100 @@ window.addEventListener('DOMContentLoaded', () => {
     let isFilling = false; // Flag to prevent multiple fill operations
     let prevBrushType = null; // Store previous brush when right-click erasing
     let rightClickErasing = false; // Track right click erase state
+
+    function createLayer(size = 16) {
+        const off = document.createElement('canvas');
+        off.width = size;
+        off.height = size;
+        return { canvas: off, ctx: off.getContext('2d', { willReadFrequently: true }), size, alpha: 1 };
+    }
+
+    function renderLayers() {
+        const maxSize = Math.max(...layers.map(l => l.size));
+        canvas.width = maxSize;
+        canvas.height = maxSize;
+        viewCtx.clearRect(0, 0, maxSize, maxSize);
+        layers.forEach(layer => {
+            if (layer.alpha <= 0) return;
+            viewCtx.globalAlpha = layer.alpha;
+            viewCtx.drawImage(layer.canvas, 0, 0, layer.size, layer.size, 0, 0, maxSize, maxSize);
+        });
+        viewCtx.globalAlpha = 1;
+    }
+
+    function setActiveLayer(index) {
+        activeLayer = index;
+        ctx = layers[index].ctx;
+        canvasSize = layers[index].size;
+        renderLayerUI();
+    }
+
+    function renderLayerUI() {
+        layersContainer.innerHTML = '';
+        layers.forEach((layer, i) => {
+            const row = document.createElement('div');
+            row.className = 'layer-row';
+
+            const radio = document.createElement('input');
+            radio.type = 'radio';
+            radio.name = 'active-layer';
+            radio.checked = i === activeLayer;
+            radio.addEventListener('change', () => setActiveLayer(i));
+
+            const dec = document.createElement('button');
+            dec.textContent = '-';
+            dec.addEventListener('click', () => changeLayerSize(i, layer.size / 2));
+
+            const inc = document.createElement('button');
+            inc.textContent = '+';
+            inc.addEventListener('click', () => changeLayerSize(i, layer.size * 2));
+
+            const alpha = document.createElement('input');
+            alpha.type = 'range';
+            alpha.min = 0;
+            alpha.max = 1;
+            alpha.step = 0.1;
+            alpha.value = layer.alpha;
+            alpha.addEventListener('input', () => { layer.alpha = parseFloat(alpha.value); renderLayers(); });
+
+            const saveBtn = document.createElement('button');
+            saveBtn.textContent = 's';
+            saveBtn.addEventListener('click', () => saveSingleLayer(i));
+
+            row.append(radio, document.createTextNode(`L${i+1}`), dec, inc, alpha, saveBtn);
+            layersContainer.appendChild(row);
+        });
+    }
+
+    function changeLayerSize(index, newSize) {
+        newSize = Math.max(16, Math.min(1024, Math.round(newSize / 16) * 16));
+        const layer = layers[index];
+        const temp = document.createElement('canvas');
+        temp.width = newSize;
+        temp.height = newSize;
+        temp.getContext('2d').drawImage(layer.canvas, 0, 0, newSize, newSize);
+        layer.canvas = temp;
+        layer.ctx = temp.getContext('2d', { willReadFrequently: true });
+        layer.size = newSize;
+        if (index === activeLayer) {
+            ctx = layer.ctx;
+            canvasSize = newSize;
+        }
+        renderLayerUI();
+        renderLayers();
+    }
+
+    function saveSingleLayer(index) {
+        const layer = layers[index];
+        const link = document.createElement('a');
+        link.download = `layer${index + 1}.png`;
+        link.href = layer.canvas.toDataURL('image/png');
+        link.click();
+    }
+
+    layers.push(createLayer(16));
+    setActiveLayer(0);
+    renderLayers();
 
     function getPos(e) {
         const rect = canvas.getBoundingClientRect();
@@ -56,21 +155,30 @@ window.addEventListener('DOMContentLoaded', () => {
         }
         drawing = true;
         const pos = getPos(e);
-        lastPos = pos;
-        drawAtPosition(pos);
+        const layerPos = {
+            x: Math.floor(pos.x * canvasSize / canvas.width),
+            y: Math.floor(pos.y * canvasSize / canvas.height)
+        };
+        lastPos = layerPos;
+        drawAtPosition(layerPos);
         draw(e);
     }
 
     function draw(e) {
         if (!drawing) return;
         const pos = getPos(e);
-        
+        const layerPos = {
+            x: Math.floor(pos.x * canvasSize / canvas.width),
+            y: Math.floor(pos.y * canvasSize / canvas.height)
+        };
+
         if (lastPos) {
             // Draw line between last position and current position
-            drawLine(lastPos, pos);
+            drawLine(lastPos, layerPos);
         }
-        
-        lastPos = pos;
+
+        lastPos = layerPos;
+        renderLayers();
     }
 
     function drawLine(from, to) {
@@ -341,21 +449,24 @@ window.addEventListener('DOMContentLoaded', () => {
         // Validate input
         if (!userInput) {
             saveError.style.display = 'block';
-            saveSanitize.style.display = 'none'; // Hide sanitize message if showing error
             return;
         }
         
         // Sanitize filename
         const sanitizedFilename = sanitizeFilename(userInput);
         
-        // Create a temporary canvas with the current size
+        const maxSize = Math.max(...layers.map(l => l.size));
         const tempCanvas = document.createElement('canvas');
-        tempCanvas.width = canvasSize;
-        tempCanvas.height = canvasSize;
+        tempCanvas.width = maxSize;
+        tempCanvas.height = maxSize;
         const tempCtx = tempCanvas.getContext('2d');
-        
-        // Copy the current canvas content to the temporary canvas
-        tempCtx.drawImage(canvas, 0, 0);
+
+        layers.forEach(layer => {
+            if (layer.alpha <= 0) return;
+            tempCtx.globalAlpha = layer.alpha;
+            tempCtx.drawImage(layer.canvas, 0, 0, layer.size, layer.size, 0, 0, maxSize, maxSize);
+        });
+        tempCtx.globalAlpha = 1;
         
         // Convert to PNG and download
         tempCanvas.toBlob((blob) => {
@@ -622,8 +733,8 @@ window.addEventListener('DOMContentLoaded', () => {
         const oldData = ctx.getImageData(0, 0, oldSize, oldSize);
 
         canvasSize = size;
-        canvas.width = size;
-        canvas.height = size;
+        layers[activeLayer].canvas.width = size;
+        layers[activeLayer].canvas.height = size;
 
         const newImageData = ctx.createImageData(size, size);
 
@@ -682,18 +793,19 @@ window.addEventListener('DOMContentLoaded', () => {
             newImageData.data.set(oldData.data);
         }
 
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.clearRect(0, 0, canvasSize, canvasSize);
         ctx.putImageData(newImageData, 0, 0);
 
         updateBrushSize('5');
         canvasHistory = [];
         currentHistoryIndex = -1;
         saveCanvasState();
+        renderLayers();
     }
 
     function saveCanvasState() {
         // Save current canvas state
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const imageData = ctx.getImageData(0, 0, canvasSize, canvasSize);
         
         // Remove any states after current index (for redo functionality)
         canvasHistory = canvasHistory.slice(0, currentHistoryIndex + 1);
@@ -866,8 +978,17 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // Clear canvas functionality
     clearButton.addEventListener('click', () => {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.clearRect(0, 0, canvasSize, canvasSize);
+        renderLayers();
         saveCanvasState();
+    });
+
+    // Add layer functionality
+    addLayerButton.addEventListener('click', () => {
+        if (layers.length >= 5) return;
+        layers.push(createLayer(canvasSize));
+        setActiveLayer(layers.length - 1);
+        renderLayers();
     });
 
     // Save canvas functionality
