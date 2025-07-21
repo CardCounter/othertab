@@ -375,6 +375,8 @@ window.addEventListener('DOMContentLoaded', () => {
 
     function loadImageFromFile(file) {
         const img = new Image();
+        const objectURL = URL.createObjectURL(file);
+        
         img.onload = () => {
             const width = img.width;
             const height = img.height;
@@ -396,10 +398,19 @@ window.addEventListener('DOMContentLoaded', () => {
                 ctx.drawImage(img, 0, 0, width, height, 0, 0, closest, closest);
             }
             saveCanvasState();
-            URL.revokeObjectURL(img.src);
+            URL.revokeObjectURL(objectURL);
             loadInput.value = '';
         };
-        img.src = URL.createObjectURL(file);
+        
+        img.onerror = () => {
+            // Handle image loading errors
+            console.error('Failed to load image:', file.name);
+            URL.revokeObjectURL(objectURL);
+            loadInput.value = '';
+            // Optionally show user feedback here
+        };
+        
+        img.src = objectURL;
     }
 
     function drawBackSlashBrush(pos) {
@@ -974,4 +985,5 @@ window.addEventListener('DOMContentLoaded', () => {
 //// qwe
 ////  sd
 ////  xc
+//// space
 //// space

@@ -187,9 +187,8 @@ select:hover {
 
 #load-button {
     position: absolute;
-    left: 50%;
+    left: calc(1rem + 4px + 40px); /* save button width + gap */
     bottom: calc(1rem + 4px);
-    transform: translateX(-50%);
 }
 
 #clear-button {
