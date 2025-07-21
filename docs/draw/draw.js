@@ -39,6 +39,11 @@ window.addEventListener('DOMContentLoaded', () => {
         layerCanvas.className = 'drawing-layer';
         layerCanvas.style.opacity = '1';
         layerCanvas.style.pointerEvents = 'none';
+        
+        // Set z-index to ensure newer layers appear on top
+        // First layer gets z-index 1, second gets 2, etc.
+        layerCanvas.style.zIndex = (layers.length + 1).toString();
+        
         canvasContainer.appendChild(layerCanvas);
 
         const preview = document.createElement('canvas');
@@ -57,7 +62,13 @@ window.addEventListener('DOMContentLoaded', () => {
         item.className = 'layer-item';
         item.appendChild(preview);
         item.appendChild(alphaInput);
-        layersList.appendChild(item);
+        
+        // Insert new layers at the top of the UI list (newest first)
+        if (layersList.firstChild) {
+            layersList.insertBefore(item, layersList.firstChild);
+        } else {
+            layersList.appendChild(item);
+        }
 
         const ctx = layerCanvas.getContext('2d', { willReadFrequently: true });
         
