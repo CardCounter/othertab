@@ -108,7 +108,12 @@ window.addEventListener('DOMContentLoaded', () => {
         };
         layers.push(layer);
 
-        item.addEventListener('click', () => selectLayer(layers.indexOf(layer)));
+        // Switch layer if clicking the background of the item or the preview image
+        item.addEventListener('click', (e) => {
+            if (e.target === item || e.target === preview) {
+                selectLayer(layers.indexOf(layer));
+            }
+        });
         
         // Add toggle functionality
         toggleButton.addEventListener('click', (e) => {
@@ -170,12 +175,26 @@ window.addEventListener('DOMContentLoaded', () => {
             layers.forEach((remainingLayer, index) => {
                 remainingLayer.canvas.style.zIndex = (index + 1).toString();
             });
+            
+            // Update add layer button visibility
+            updateAddLayerButtonVisibility();
         });
 
         updatePreview(layer);
 
+        // Update add layer button visibility
+        updateAddLayerButtonVisibility();
+
         // Don't automatically select the first layer - let it behave like added layers
         // The user will click on it to activate it, which will call selectLayer
+    }
+
+    function updateAddLayerButtonVisibility() {
+        if (layers.length >= 5) {
+            addLayerButton.style.display = 'none';
+        } else {
+            addLayerButton.style.display = 'block';
+        }
     }
 
     function updatePreview(layer) {

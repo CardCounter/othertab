@@ -46,10 +46,6 @@ main {
 }
 
 .left-section {
-    /* display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center; */
     margin-right: 2rem;
 }
 
@@ -64,13 +60,14 @@ main {
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-right: 2rem;
+
 }
 
 .right-section {
     display: flex;
     align-items: center;
     justify-content: center;
+    margin-left: 2rem;
 }
 
 .color-palette {
