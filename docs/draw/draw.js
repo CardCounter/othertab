@@ -777,9 +777,8 @@ window.addEventListener('DOMContentLoaded', () => {
         
         console.log('Saving canvas with', layers.length, 'layers');
         
-        // Draw each layer in order (bottom layer first, top layer last)
-        // Since layers array has oldest first (index 0) and newest last, we draw in order
-        for (let i = 0; i < layers.length; i++) {
+        // Draw each layer in order (top layer first, bottom layer last)
+        for (let i = layers.length - 1; i >= 0; i--) {
             const layer = layers[i];
             console.log('Drawing layer', i, 'with opacity:', layer.alphaInput ? layer.alphaInput.value : 1, 'layer size:', layer.size);
             
