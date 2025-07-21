@@ -175,31 +175,15 @@ window.addEventListener('DOMContentLoaded', () => {
         layersList.appendChild(dropZone);
 
         // Drag-and-drop for the item itself
-        // Only allow drag from background or preview, not controls
-        item.draggable = false;
-        item.addEventListener('mousedown', (e) => {
-            if (e.target === item || e.target === preview) {
-                item.draggable = true;
-            } else {
-                item.draggable = false;
-            }
-        });
-        item.addEventListener('mouseup', () => {
-            item.draggable = false;
-        });
-        item.addEventListener('dragend', () => {
-            item.draggable = false;
-            item.classList.remove('dragging');
-            Array.from(layersList.querySelectorAll('.drag-over')).forEach(child => child.classList.remove('drag-over'));
-        });
+        item.draggable = true;
         item.addEventListener('dragstart', (e) => {
-            if (!item.draggable) {
-                e.preventDefault();
-                return false;
-            }
             item.classList.add('dragging');
             e.dataTransfer.effectAllowed = 'move';
             e.dataTransfer.setData('text/plain', layers.indexOf(layer));
+        });
+        item.addEventListener('dragend', () => {
+            item.classList.remove('dragging');
+            Array.from(layersList.querySelectorAll('.drag-over')).forEach(child => child.classList.remove('drag-over'));
         });
         item.addEventListener('dragover', (e) => {
             e.preventDefault();
@@ -793,8 +777,9 @@ window.addEventListener('DOMContentLoaded', () => {
         
         console.log('Saving canvas with', layers.length, 'layers');
         
-        // Draw each layer in order (top layer first, bottom layer last)
-        for (let i = layers.length - 1; i >= 0; i--) {
+        // Draw each layer in order (bottom layer first, top layer last)
+        // Since layers array has oldest first (index 0) and newest last, we draw in order
+        for (let i = 0; i < layers.length; i++) {
             const layer = layers[i];
             console.log('Drawing layer', i, 'with opacity:', layer.alphaInput ? layer.alphaInput.value : 1, 'layer size:', layer.size);
             
@@ -931,31 +916,37 @@ window.addEventListener('DOMContentLoaded', () => {
 
     function createColorPalette() {
         const fixedColors = [
-            // Row 1: Grays and whites
-            '#000000', '#808080', '#D3D3D3', '#FFFFFF',
-            // Row 2: Reds (dark, medium, light, lighter)
+            // Row 1: Black to grey
+            '#000000', '#202020', '#404040', '#606060',
+            // Row 2: Grey (slightly lighter than #808080) to white
+            '#A0A0A0', '#C0C0C0', '#E0E0E0', '#FFFFFF',
+            // Row 3: Reds (dark, medium, light, lighter)
             '#8B0000', '#FF0000', '#FF4444', '#FF8888',
-            // Row 3: Oranges (dark, medium, light, lighter)
+            // Row 4: Oranges (dark, medium, light, lighter)
             '#CC6600', '#FF8C00', '#FFAA44', '#FFCC88',
-            // Row 4: Yellows (dark, medium, light, lighter)
+            // Row 5: Yellows (dark, medium, light, lighter)
             '#CCCC00', '#FFD700', '#FFE044', '#FFE888',
-            // Row 5: Greens (dark, medium, light, lighter)
+            // Row 6: Greens (dark, medium, light, lighter)
             '#006600', '#32CD32', '#44FF44', '#88FF88',
-            // Row 6: Blues (dark, medium, light, lighter)
+            // Row 7: Blues (dark, medium, light, lighter)
             '#000080', '#0000FF', '#4444FF', '#8888FF',
-            // Row 7: Purples (dark, medium, light, lighter)
+            // Row 8: Purples (dark, medium, light, lighter)
             '#4B0082', '#800080', '#AA44AA', '#CC88CC',
-            // Row 8: Programmable cells
+            // Row 9: Cyans
+            '#008080', '#20B2AA', '#40E0D0', '#00CED1', // last cell is now more saturated cyan
+            // Row 10: Programmable cells
+            '#CCCCCC', '#CCCCCC', '#CCCCCC', '#CCCCCC',
+            // Row 11: Programmable cells
             '#CCCCCC', '#CCCCCC', '#CCCCCC', '#CCCCCC'
         ];
 
-        // Create 36 cells (4x9 grid)
-        for (let i = 0; i < 36; i++) {
+        // Create 44 cells (4x11 grid)
+        for (let i = 0; i < 44; i++) {
             const swatch = document.createElement('div');
             swatch.className = 'color-swatch';
             swatch.dataset.index = i;
             
-            if (i < 28) {
+            if (i < 36) {
                 // Fixed colors for first 28 cells
                 const color = fixedColors[i];
                 swatch.style.backgroundColor = color;
