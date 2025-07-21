@@ -7,6 +7,8 @@ window.addEventListener('DOMContentLoaded', () => {
     const resetButton = document.getElementById('reset-button');
     const clearButton = document.getElementById('clear-button');
     const saveButton = document.getElementById('save-button');
+    const loadButton = document.getElementById('load-button');
+    const loadInput = document.getElementById('load-input');
     const saveInputContainer = document.getElementById('save-input-container');
     const saveFilename = document.getElementById('save-filename');
     const saveConfirm = document.getElementById('save-confirm');
@@ -369,6 +371,35 @@ window.addEventListener('DOMContentLoaded', () => {
             // Hide the input after successful save
             hideSaveInput();
         }, 'image/png');
+    }
+
+    function loadImageFromFile(file) {
+        const img = new Image();
+        img.onload = () => {
+            const width = img.width;
+            const height = img.height;
+            const sizes = Array.from(canvasSizeSelect.options).map(opt => parseInt(opt.value));
+            if (width === height && sizes.includes(width)) {
+                resizeCanvas(width);
+                canvasSizeSelect.value = String(width);
+                ctx.drawImage(img, 0, 0);
+            } else {
+                const minSide = Math.min(width, height);
+                let closest = sizes[0];
+                for (const s of sizes) {
+                    if (Math.abs(s - minSide) < Math.abs(closest - minSide)) {
+                        closest = s;
+                    }
+                }
+                resizeCanvas(closest);
+                canvasSizeSelect.value = String(closest);
+                ctx.drawImage(img, 0, 0, width, height, 0, 0, closest, closest);
+            }
+            saveCanvasState();
+            URL.revokeObjectURL(img.src);
+            loadInput.value = '';
+        };
+        img.src = URL.createObjectURL(file);
     }
 
     function drawBackSlashBrush(pos) {
@@ -908,6 +939,14 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // Save cancel button
     saveCancel.addEventListener('click', hideSaveInput);
+
+    // Load image functionality
+    loadButton.addEventListener('click', () => loadInput.click());
+    loadInput.addEventListener('change', (e) => {
+        if (e.target.files && e.target.files[0]) {
+            loadImageFromFile(e.target.files[0]);
+        }
+    });
 
     // Handle Enter key in save input
     saveFilename.addEventListener('keydown', (e) => {

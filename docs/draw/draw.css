@@ -185,10 +185,21 @@ select:hover {
     bottom: calc(1rem + 4px);
 }
 
+#load-button {
+    position: absolute;
+    left: 50%;
+    bottom: calc(1rem + 4px);
+    transform: translateX(-50%);
+}
+
 #clear-button {
     position: absolute;
     right: calc(1rem + 4px);
     bottom: calc(1rem + 4px);
+}
+
+#load-input {
+    display: none;
 }
 
 /* Save input container styling */
