@@ -177,6 +177,12 @@ window.addEventListener('DOMContentLoaded', () => {
         // Drag-and-drop for the item itself
         item.draggable = true;
         item.addEventListener('dragstart', (e) => {
+            // Prevent drag if the drag was started from the opacity slider or any of its descendants
+            const path = e.composedPath ? e.composedPath() : (e.path || []);
+            if (path.includes(alphaInput) || e.target === alphaInput) {
+                e.preventDefault();
+                return;
+            }
             item.classList.add('dragging');
             e.dataTransfer.effectAllowed = 'move';
             e.dataTransfer.setData('text/plain', layers.indexOf(layer));
@@ -255,6 +261,11 @@ window.addEventListener('DOMContentLoaded', () => {
             layer.alpha = parseFloat(alphaInput.value);
         });
 
+        // Prevent drag events from propagating from the opacity slider to the draggable item
+        alphaInput.addEventListener('mousedown', (e) => e.stopPropagation());
+        alphaInput.addEventListener('pointerdown', (e) => e.stopPropagation());
+        alphaInput.addEventListener('dragstart', (e) => e.stopPropagation());
+
         deleteButton.addEventListener('click', (e) => {
             e.stopPropagation();
             restoreBrushFromErase();
@@ -293,6 +304,15 @@ window.addEventListener('DOMContentLoaded', () => {
         });
         // After pushing to layers, update the preview to match the blank state
         updatePreview(layer);
+
+        // Temporarily disable dragging when interacting with the opacity slider
+        alphaInput.addEventListener('mousedown', () => { item.draggable = false; });
+        alphaInput.addEventListener('touchstart', () => { item.draggable = false; });
+        alphaInput.addEventListener('focus', () => { item.draggable = false; });
+        // Re-enable dragging after interaction
+        alphaInput.addEventListener('mouseup', () => { item.draggable = true; });
+        alphaInput.addEventListener('touchend', () => { item.draggable = true; });
+        alphaInput.addEventListener('blur', () => { item.draggable = true; });
     }
 
     function updateAddLayerButtonVisibility() {
