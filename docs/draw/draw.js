@@ -34,16 +34,16 @@ window.addEventListener('DOMContentLoaded', () => {
 
     function createLayer() {
         const layerCanvas = document.createElement('canvas');
-        layerCanvas.width = 16;
-        layerCanvas.height = 16;
+        layerCanvas.width = canvasSize;
+        layerCanvas.height = canvasSize;
         layerCanvas.className = 'drawing-layer';
         layerCanvas.style.opacity = '1';
         layerCanvas.style.pointerEvents = 'none';
         canvasContainer.appendChild(layerCanvas);
 
         const preview = document.createElement('canvas');
-        preview.width = 16;
-        preview.height = 16;
+        preview.width = 40;
+        preview.height = 40;
         preview.className = 'layer-preview';
 
         const alphaInput = document.createElement('input');
@@ -60,7 +60,20 @@ window.addEventListener('DOMContentLoaded', () => {
         layersList.appendChild(item);
 
         const ctx = layerCanvas.getContext('2d', { willReadFrequently: true });
-        const layer = { canvas: layerCanvas, ctx, preview, previewCtx: preview.getContext('2d'), alphaInput, item, size: 16, history: [], historyIndex: -1 };
+        
+        // Create initial blank canvas state for the layer's history
+        const blankImageData = ctx.createImageData(canvasSize, canvasSize);
+        const layer = { 
+            canvas: layerCanvas, 
+            ctx, 
+            preview, 
+            previewCtx: preview.getContext('2d'), 
+            alphaInput, 
+            item, 
+            size: canvasSize, 
+            history: [blankImageData], 
+            historyIndex: 0 
+        };
         layers.push(layer);
 
         item.addEventListener('click', () => selectLayer(layers.indexOf(layer)));
@@ -71,9 +84,8 @@ window.addEventListener('DOMContentLoaded', () => {
 
         updatePreview(layer);
 
-        if (layers.length === 1) {
-            selectLayer(0);
-        }
+        // Don't automatically select the first layer - let it behave like added layers
+        // The user will click on it to activate it, which will call selectLayer
     }
 
     function updatePreview(layer) {
@@ -82,7 +94,7 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     function selectLayer(index) {
-        if (layers[activeLayerIndex]) {
+        if (activeLayerIndex !== undefined && layers[activeLayerIndex]) {
             layers[activeLayerIndex].canvas.style.pointerEvents = 'none';
             layers[activeLayerIndex].item.classList.remove('active');
             layers[activeLayerIndex].history = canvasHistory;
@@ -796,6 +808,8 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     function undo() {
+        // If there's exactly one action (currentHistoryIndex = 1), return to blank canvas (index 0)
+        // If there are multiple actions, go back one step
         if (currentHistoryIndex > 0) {
             currentHistoryIndex--;
             const previousState = canvasHistory[currentHistoryIndex];
@@ -825,12 +839,16 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // Handle canvas size changes
     canvasSizeSelect.addEventListener('change', (e) => {
+        const newSize = parseInt(e.target.value);
         const layer = layers[activeLayerIndex];
-        resizeLayer(layer, parseInt(e.target.value));
-        canvasSize = layer.size;
+        resizeLayer(layer, newSize);
+        canvasSize = newSize; // Update global canvas size for new layers
         updateBrushSize('5');
-        layer.history = [];
-        layer.historyIndex = -1;
+        
+        // Create new initial blank state for the resized layer
+        const blankImageData = layer.ctx.createImageData(newSize, newSize);
+        layer.history = [blankImageData];
+        layer.historyIndex = 0;
         canvasHistory = layer.history;
         currentHistoryIndex = layer.historyIndex;
         updatePreview(layer);
@@ -907,20 +925,38 @@ window.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Initialize first layer
-    createLayer();
-
-    addLayerButton.addEventListener('click', () => {
-        if (layers.length < 5) {
-            createLayer();
-        }
-    });
+    // Sync canvas size selector with default size
+    canvasSizeSelect.value = canvasSize.toString();
     
     // Set initial brush size
     updateBrushSize('5'); // Start with S size
     
     // Create the color palette
     createColorPalette();
+    
+    // Set initial palette background to match default selected color (black)
+    colorPalette.style.backgroundColor = selectedColor;
+    
+    // Reset global variables to ensure clean state (like in the working delete-and-recreate test)
+    activeLayerIndex = undefined;
+    canvas = null;
+    ctx = null;
+    canvasHistory = [];
+    currentHistoryIndex = -1;
+    
+    // Initialize first layer AFTER all other initialization is complete
+    createLayer();
+    
+    // Select the first layer after creation (like clicking on it)
+    if (layers.length > 0) {
+        selectLayer(0);
+    }
+
+    addLayerButton.addEventListener('click', () => {
+        if (layers.length < 5) {
+            createLayer();
+        }
+    });
     
 
     
