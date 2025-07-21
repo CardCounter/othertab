@@ -66,6 +66,10 @@
                         <button id="edit-button">edit</button>
                         <button id="reset-button">reset</button>
                     </div>
+                    <div class="layers-section">
+                        <button id="add-layer-button">add layer</button>
+                        <div id="layers-list"></div>
+                    </div>
                     <div class="canvas-controls">
                         <div id="save-input-container" class="save-input-container" style="display: none;">
                             <div id="save-error" class="save-error" style="display: none;">enter a drawing name</div>
@@ -77,7 +81,7 @@
                 </div>
             </div>
             <div class="center-section">
-                <canvas id="canvas" width="16" height="16"></canvas>
+                <div id="canvas-stack"></div>
             </div>
             <div class="right-section">
             </div>
