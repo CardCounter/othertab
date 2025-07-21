@@ -265,5 +265,12 @@ select:hover {
     font-weight: bold;
 }
 
+.layer-move-btn {
+    font-weight: bold;
+    font-size: 12px;
+    padding: 2px 4px;
+    margin: 1px 0;
+}
+
 
 

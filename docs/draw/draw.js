@@ -37,6 +37,23 @@ window.addEventListener('DOMContentLoaded', () => {
     let ghostCanvas = null; // Temporary canvas for ghost line preview
     let ghostCtx = null; // Context for ghost canvas
 
+    // Centralized brush restoration function
+    function restoreBrushFromErase() {
+        if (rightClickErasing && prevBrushType) {
+            rightClickErasing = false;
+            setActiveBrushType(prevBrushType);
+            prevBrushType = null;
+        }
+    }
+
+    // Centralized brush save function for erasing
+    function saveBrushForErase() {
+        if (!rightClickErasing) {
+            rightClickErasing = true;
+            prevBrushType = selectedBrushType;
+        }
+    }
+
     function createLayer() {
         const layerCanvas = document.createElement('canvas');
         layerCanvas.width = canvasSize;
@@ -70,6 +87,20 @@ window.addEventListener('DOMContentLoaded', () => {
         toggleButton.style.marginRight = '4px';
         toggleButton.title = 'Toggle layer visibility';
 
+        const upButton = document.createElement('button');
+        upButton.textContent = '^';
+        upButton.className = 'button layer-move-btn';
+        upButton.style.marginLeft = '4px';
+        upButton.style.marginRight = '2px';
+        upButton.title = 'Move layer up';
+
+        const downButton = document.createElement('button');
+        downButton.textContent = 'v';
+        downButton.className = 'button layer-move-btn';
+        downButton.style.marginLeft = '4px';
+        downButton.style.marginRight = '2px';
+        downButton.title = 'Move layer down';
+
         const deleteButton = document.createElement('button');
         deleteButton.textContent = 'X';
         deleteButton.className = 'button layer-delete-btn';
@@ -78,6 +109,8 @@ window.addEventListener('DOMContentLoaded', () => {
 
         const item = document.createElement('div');
         item.className = 'layer-item';
+        item.appendChild(upButton);
+        item.appendChild(downButton);
         item.appendChild(toggleButton);
         item.appendChild(preview);
         item.appendChild(alphaInput);
@@ -139,6 +172,69 @@ window.addEventListener('DOMContentLoaded', () => {
             }
         });
         
+        // Helper to update move button states
+        function updateMoveButtons() {
+            const layerIndex = layers.indexOf(layer);
+            upButton.disabled = (layerIndex === 0);
+            downButton.disabled = (layerIndex === layers.length - 1);
+        }
+        // Call after any move or layer change
+
+        // Add move up functionality
+        upButton.addEventListener('click', (e) => {
+            e.stopPropagation(); // Prevent layer selection when clicking move
+            const layerIndex = layers.indexOf(layer);
+            if (layerIndex > 0) {
+                // Move layer up in array (higher priority)
+                const [movedLayer] = layers.splice(layerIndex, 1);
+                layers.splice(layerIndex - 1, 0, movedLayer);
+                // Move DOM element up (before the previous sibling)
+                layersList.insertBefore(item, item.previousSibling);
+                // Update z-index for all layers
+                layers.forEach((l, i) => {
+                    l.canvas.style.zIndex = (layers.length - i).toString();
+                });
+                // Update activeLayerIndex if needed
+                if (activeLayerIndex === layerIndex) {
+                    activeLayerIndex = layerIndex - 1;
+                } else if (activeLayerIndex === layerIndex - 1) {
+                    activeLayerIndex = layerIndex;
+                }
+                // Update move buttons for all layers
+                layers.forEach(l => l.updateMoveButtons && l.updateMoveButtons());
+            }
+        });
+        // Add move down functionality
+        downButton.addEventListener('click', (e) => {
+            e.stopPropagation(); // Prevent layer selection when clicking move
+            const layerIndex = layers.indexOf(layer);
+            if (layerIndex < layers.length - 1) {
+                // Move layer down in array (lower priority)
+                const [movedLayer] = layers.splice(layerIndex, 1);
+                layers.splice(layerIndex + 1, 0, movedLayer);
+                // Move DOM element down (after the next sibling)
+                if (item.nextSibling) {
+                    layersList.insertBefore(item.nextSibling, item);
+                }
+                // Update z-index for all layers
+                layers.forEach((l, i) => {
+                    l.canvas.style.zIndex = (layers.length - i).toString();
+                });
+                // Update activeLayerIndex if needed
+                if (activeLayerIndex === layerIndex) {
+                    activeLayerIndex = layerIndex + 1;
+                } else if (activeLayerIndex === layerIndex + 1) {
+                    activeLayerIndex = layerIndex;
+                }
+                // Update move buttons for all layers
+                layers.forEach(l => l.updateMoveButtons && l.updateMoveButtons());
+            }
+        });
+        // Attach the updateMoveButtons function to the layer object for global updates
+        layer.updateMoveButtons = updateMoveButtons;
+        // Initial state
+        setTimeout(updateMoveButtons, 0);
+        
         alphaInput.addEventListener('input', () => {
             layerCanvas.style.opacity = alphaInput.value;
             layer.alpha = parseFloat(alphaInput.value);
@@ -147,6 +243,8 @@ window.addEventListener('DOMContentLoaded', () => {
         // Add delete functionality
         deleteButton.addEventListener('click', (e) => {
             e.stopPropagation(); // Prevent layer selection when clicking delete
+            // Cancel right-click erasing if deleting a layer during erase
+            restoreBrushFromErase();
             
             const layerIndex = layers.indexOf(layer);
             
@@ -162,14 +260,18 @@ window.addEventListener('DOMContentLoaded', () => {
             // Remove from layers array
             layers.splice(layerIndex, 1);
             
-            // If we deleted the active layer, select the first available layer
+            // Handle active layer selection after deletion
             if (layerIndex === activeLayerIndex) {
-                const newActiveIndex = Math.min(layerIndex, layers.length - 1);
+                // We deleted the active layer, select the first available layer
+                const newActiveIndex = 0; // Always select the first remaining layer
                 selectLayer(newActiveIndex);
             } else if (layerIndex < activeLayerIndex) {
-                // If we deleted a layer before the active one, adjust the active index
+                // We deleted a layer before the active one, adjust the active index
                 activeLayerIndex--;
+                // Re-select the same layer to ensure state is consistent
+                selectLayer(activeLayerIndex);
             }
+            // If we deleted a layer after the active one, no need to change activeLayerIndex
             
             // Update z-index for remaining layers
             layers.forEach((remainingLayer, index) => {
@@ -178,6 +280,8 @@ window.addEventListener('DOMContentLoaded', () => {
             
             // Update add layer button visibility
             updateAddLayerButtonVisibility();
+            // After deleting a layer, update move buttons for all layers
+            layers.forEach(l => l.updateMoveButtons && l.updateMoveButtons());
         });
 
         updatePreview(layer);
@@ -185,8 +289,7 @@ window.addEventListener('DOMContentLoaded', () => {
         // Update add layer button visibility
         updateAddLayerButtonVisibility();
 
-        // Don't automatically select the first layer - let it behave like added layers
-        // The user will click on it to activate it, which will call selectLayer
+        // Remove all drag functionality - layers are no longer draggable
     }
 
     function updateAddLayerButtonVisibility() {
@@ -203,6 +306,9 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     function selectLayer(index) {
+        // Cancel right-click erasing if switching layers during erase
+        restoreBrushFromErase();
+        
         if (activeLayerIndex !== undefined && layers[activeLayerIndex]) {
             layers[activeLayerIndex].canvas.style.pointerEvents = 'none';
             layers[activeLayerIndex].item.classList.remove('active');
@@ -339,8 +445,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
     function start(e) {
         if (e.button === 2) {
-            rightClickErasing = true;
-            prevBrushType = selectedBrushType;
+            saveBrushForErase();
             if (selectedBrushType !== 'eraser') {
                 setActiveBrushType('eraser');
             }
@@ -1010,11 +1115,11 @@ window.addEventListener('DOMContentLoaded', () => {
 
     function stop(e) {
         if (drawing) {
-                    // For line tool, draw the final line from start to end
-        if (selectedBrushType === 'line' && lineStartPos && lastPos) {
-            drawLine(lineStartPos, lastPos);
-            clearGhostCanvas();
-        }
+            // For line tool, draw the final line from start to end
+            if (selectedBrushType === 'line' && lineStartPos && lastPos) {
+                drawLine(lineStartPos, lastPos);
+                clearGhostCanvas();
+            }
             
             // Save canvas state when drawing ends
             saveCanvasState();
@@ -1025,12 +1130,7 @@ window.addEventListener('DOMContentLoaded', () => {
         clearGhostCanvas(); // Clear any remaining ghost line
 
         // Restore brush type if we were right-click erasing
-        if (rightClickErasing) {
-            rightClickErasing = false;
-            if (prevBrushType) {
-                setActiveBrushType(prevBrushType);
-            }
-        }
+        restoreBrushFromErase();
     }
 
     function resizeLayer(layer, size) {
@@ -1285,11 +1385,7 @@ window.addEventListener('DOMContentLoaded', () => {
     
     // Initialize first layer AFTER all other initialization is complete
     createLayer();
-    
-    // Select the first layer after creation (like clicking on it)
-    if (layers.length > 0) {
-        selectLayer(0);
-    }
+    // Do not select the first layer here
 
     addLayerButton.addEventListener('click', () => {
         if (layers.length < 5) {
@@ -1400,6 +1496,13 @@ window.addEventListener('DOMContentLoaded', () => {
             hideSaveInput();
         }
     });
+
+    // After all event listeners and setup, select the first layer (if any) by simulating a user click
+    if (layers.length > 0) {
+        restoreBrushFromErase(); // Ensure clean brush state
+        // Simulate a user click on the first layer's UI item
+        layers[0].item.dispatchEvent(new MouseEvent('click', {bubbles: true}));
+    }
 });
 
 // todo:
@@ -1418,3 +1521,5 @@ window.addEventListener('DOMContentLoaded', () => {
 //  sdf
 //  xcv
 // space
+
+/// move layers still broke
