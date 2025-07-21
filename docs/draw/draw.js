@@ -63,6 +63,13 @@ window.addEventListener('DOMContentLoaded', () => {
         alphaInput.step = '0.01';
         alphaInput.value = '1';
 
+        const toggleButton = document.createElement('button');
+        toggleButton.textContent = '>';
+        toggleButton.className = 'button layer-toggle-btn';
+        toggleButton.style.marginLeft = '4px';
+        toggleButton.style.marginRight = '4px';
+        toggleButton.title = 'Toggle layer visibility';
+
         const deleteButton = document.createElement('button');
         deleteButton.textContent = 'X';
         deleteButton.className = 'button layer-delete-btn';
@@ -71,6 +78,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
         const item = document.createElement('div');
         item.className = 'layer-item';
+        item.appendChild(toggleButton);
         item.appendChild(preview);
         item.appendChild(alphaInput);
         item.appendChild(deleteButton);
@@ -92,6 +100,7 @@ window.addEventListener('DOMContentLoaded', () => {
             preview, 
             previewCtx: preview.getContext('2d'), 
             alphaInput, 
+            toggleButton,
             item, 
             size: canvasSize, 
             history: [blankImageData], 
@@ -100,6 +109,31 @@ window.addEventListener('DOMContentLoaded', () => {
         layers.push(layer);
 
         item.addEventListener('click', () => selectLayer(layers.indexOf(layer)));
+        
+        // Add toggle functionality
+        toggleButton.addEventListener('click', (e) => {
+            e.stopPropagation(); // Prevent layer selection when clicking toggle
+            
+            const currentOpacity = parseFloat(alphaInput.value);
+            if (currentOpacity > 0) {
+                // Store current opacity and set to 0
+                layer.savedOpacity = currentOpacity;
+                alphaInput.value = '0';
+                layerCanvas.style.opacity = '0';
+                layer.alpha = 0;
+                toggleButton.textContent = '<';
+                alphaInput.disabled = true; // Disable opacity control when hidden
+            } else {
+                // Restore saved opacity or default to 1
+                const restoreOpacity = layer.savedOpacity || 1;
+                alphaInput.value = restoreOpacity.toString();
+                layerCanvas.style.opacity = restoreOpacity.toString();
+                layer.alpha = restoreOpacity;
+                toggleButton.textContent = '>';
+                alphaInput.disabled = false; // Re-enable opacity control when visible
+            }
+        });
+        
         alphaInput.addEventListener('input', () => {
             layerCanvas.style.opacity = alphaInput.value;
             layer.alpha = parseFloat(alphaInput.value);

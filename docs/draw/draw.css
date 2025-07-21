@@ -111,7 +111,6 @@ main {
     z-index: 1000;
     width: 20px;
     height: 20px;
-    border-radius: 2px;
 }
 
 /* Select styling to match button style guide */
@@ -254,7 +253,7 @@ select:hover {
 }
 
 .layer-item.active {
-    background-color: grey;
+    border: 2px solid var(--text-color);
     padding: 2px;
 }
 
@@ -263,6 +262,10 @@ select:hover {
     height: 40px;
     /* border: 1px solid var(--text-color); */
     image-rendering: pixelated;
+}
+
+.layer-toggle-btn {
+    font-weight: bold;
 }
 
 
