@@ -568,8 +568,28 @@ window.addEventListener('DOMContentLoaded', () => {
         // Disable image smoothing for pixel-perfect scaling
         tempCtx.imageSmoothingEnabled = false;
         
-        // Copy and scale the current canvas content to the temporary canvas
-        tempCtx.drawImage(canvas, 0, 0, canvasSize, canvasSize, 0, 0, outputSize, outputSize);
+        // Merge all layers from bottom to top (oldest to newest)
+        // Start with a transparent background
+        tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
+        
+        console.log('Saving canvas with', layers.length, 'layers');
+        
+        // Draw each layer in order (bottom layer first, top layer last)
+        // Since layers array has oldest first (index 0) and newest last, we draw in order
+        for (let i = 0; i < layers.length; i++) {
+            const layer = layers[i];
+            console.log('Drawing layer', i, 'with opacity:', layer.alphaInput ? layer.alphaInput.value : 1, 'layer size:', layer.size);
+            
+            // Apply layer opacity
+            const opacity = layer.alphaInput ? parseFloat(layer.alphaInput.value) : 1;
+            tempCtx.globalAlpha = opacity;
+            
+            // Draw the layer and scale it from its original size to the output size
+            tempCtx.drawImage(layer.canvas, 0, 0, layer.size, layer.size, 0, 0, outputSize, outputSize);
+        }
+        
+        // Reset global alpha
+        tempCtx.globalAlpha = 1;
         
         // Convert to PNG and download
         tempCanvas.toBlob((blob) => {
@@ -594,14 +614,27 @@ window.addEventListener('DOMContentLoaded', () => {
         const objectURL = URL.createObjectURL(file);
         
         img.onload = () => {
+            // Get the currently active layer
+            const activeLayer = layers[activeLayerIndex];
+            if (!activeLayer) {
+                console.error('No active layer to load image onto');
+                URL.revokeObjectURL(objectURL);
+                loadInput.value = '';
+                return;
+            }
+            
             const width = img.width;
             const height = img.height;
+            
+            // Determine the best size for the layer based on the image
             const sizes = Array.from(canvasSizeSelect.options).map(opt => parseInt(opt.value));
+            let bestSize;
+            
             if (width === height && sizes.includes(width)) {
-                resizeCanvas(width);
-                canvasSizeSelect.value = String(width);
-                ctx.drawImage(img, 0, 0);
+                // Perfect match - use the image's exact size
+                bestSize = width;
             } else {
+                // Find the closest available size that can accommodate the image
                 const minSide = Math.min(width, height);
                 let closest = sizes[0];
                 for (const s of sizes) {
@@ -609,11 +642,25 @@ window.addEventListener('DOMContentLoaded', () => {
                         closest = s;
                     }
                 }
-                resizeCanvas(closest);
-                canvasSizeSelect.value = String(closest);
-                ctx.drawImage(img, 0, 0, width, height, 0, 0, closest, closest);
+                bestSize = closest;
             }
+            
+            // Resize the active layer to the best size
+            resizeLayer(activeLayer, bestSize);
+            
+            // Update canvas size selector to reflect the new layer size
+            canvasSizeSelect.value = bestSize.toString();
+            
+            // Clear the layer and draw the image at full size
+            activeLayer.ctx.clearRect(0, 0, bestSize, bestSize);
+            activeLayer.ctx.drawImage(img, 0, 0, width, height, 0, 0, bestSize, bestSize);
+            
+            // Update the layer's preview
+            updatePreview(activeLayer);
+            
+            // Save the layer's state
             saveCanvasState();
+            
             URL.revokeObjectURL(objectURL);
             loadInput.value = '';
         };
