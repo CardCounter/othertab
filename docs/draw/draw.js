@@ -38,6 +38,10 @@ window.addEventListener('DOMContentLoaded', () => {
     let ghostCanvas = null; // Temporary canvas for ghost line preview
     let ghostCtx = null; // Context for ghost canvas
 
+    let color1 = '#000000'; // Default color 1 (black)
+    let color2 = '#FFFFFF'; // Default color 2 (white)
+    let activeColorSlot = 1; // 1 or 2, determines which color is active
+
     // Centralized brush restoration function
     function restoreBrushFromErase() {
         if (rightClickErasing && prevBrushType) {
@@ -408,7 +412,6 @@ window.addEventListener('DOMContentLoaded', () => {
 
     function drawGhostLine(start, end) {
         if (!ghostCtx) {
-            console.log('Ghost context not available');
             return;
         }
         
@@ -795,13 +798,10 @@ window.addEventListener('DOMContentLoaded', () => {
         // Start with a transparent background
         tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
         
-        console.log('Saving canvas with', layers.length, 'layers');
-        
         // Draw each layer in order (bottom layer first, top layer last)
         // Since layers array has oldest first (index 0) and newest last, we draw in order
         for (let i = 0; i < layers.length; i++) {
             const layer = layers[i];
-            console.log('Drawing layer', i, 'with opacity:', layer.alphaInput ? layer.alphaInput.value : 1, 'layer size:', layer.size);
             
             // Apply layer opacity
             const opacity = layer.alphaInput ? parseFloat(layer.alphaInput.value) : 1;
@@ -953,7 +953,7 @@ window.addEventListener('DOMContentLoaded', () => {
             // Row 8: Purples (dark, medium, light, lighter)
             '#4B0082', '#800080', '#AA44AA', '#CC88CC',
             // Row 9: Cyans
-            '#008080', '#20B2AA', '#40E0D0', '#00CED1', // last cell is now more saturated cyan
+            '#008080', '#20B2AA', '#00CED1', '#40E0D0', // last cell is now more saturated cyan
             // Row 10: Programmable cells
             '#CCCCCC', '#CCCCCC', '#CCCCCC', '#CCCCCC',
             // Row 11: Programmable cells
@@ -967,22 +967,28 @@ window.addEventListener('DOMContentLoaded', () => {
             swatch.dataset.index = i;
             
             if (i < 36) {
-                // Fixed colors for first 28 cells
+                // Fixed colors for first 36 cells
                 const color = fixedColors[i];
                 swatch.style.backgroundColor = color;
                 swatch.dataset.color = color;
-                
-                // Select black by default
                 if (color === '#000000') {
                     swatch.classList.add('selected');
                 }
-                
                 swatch.addEventListener('click', (e) => {
                     if (editMode) {
-                        e.stopPropagation(); // Prevent click from bubbling up
+                        e.stopPropagation();
                         makeProgrammable(swatch);
                     } else {
                         selectColor(swatch, color);
+                        // Immediately update active color slot and displays
+                        if (activeColorSlot === 1) {
+                            color1 = color;
+                            selectedColor = color1;
+                        } else {
+                            color2 = color;
+                            selectedColor = color2;
+                        }
+                        updateColorDisplays();
                     }
                 });
                 
@@ -1006,13 +1012,22 @@ window.addEventListener('DOMContentLoaded', () => {
                 
                 swatch.addEventListener('click', (e) => {
                     if (editMode) {
-                        e.stopPropagation(); // Prevent click from bubbling up
+                        e.stopPropagation();
                         makeProgrammable(swatch);
                     } else if (swatch.dataset.programmable === 'true') {
                         openColorPicker(swatch);
                     } else {
                         // Color has been set, just select it
                         selectColor(swatch, swatch.dataset.color);
+                        // Immediately update active color slot and displays
+                        if (activeColorSlot === 1) {
+                            color1 = swatch.dataset.color;
+                            selectedColor = color1;
+                        } else {
+                            color2 = swatch.dataset.color;
+                            selectedColor = color2;
+                        }
+                        updateColorDisplays();
                     }
                 });
                 
@@ -1039,9 +1054,14 @@ window.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
         // Add selection to clicked swatch
         swatch.classList.add('selected');
-        selectedColor = color;
-        // Update palette background to match selected color
-        colorPalette.style.backgroundColor = color;
+        if (activeColorSlot === 1) {
+            color1 = color;
+            selectedColor = color1;
+        } else {
+            color2 = color;
+            selectedColor = color2;
+        }
+        colorPalette.style.backgroundColor = selectedColor;
     }
 
     function openColorPicker(swatch) {
@@ -1054,7 +1074,19 @@ window.addEventListener('DOMContentLoaded', () => {
             swatch.style.backgroundColor = newColor;
             swatch.dataset.color = newColor;
             swatch.dataset.programmable = 'false'; // Mark as no longer programmable
-            selectColor(swatch, newColor);
+            // Auto-select the new color as the active color
+            if (activeColorSlot === 1) {
+                color1 = newColor;
+                selectedColor = color1;
+            } else {
+                color2 = newColor;
+                selectedColor = color2;
+            }
+            updateColorDisplays();
+            // Also visually select this swatch
+            document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
+            swatch.classList.add('selected');
+            colorPalette.style.backgroundColor = selectedColor;
         });
         
         input.click();
@@ -1273,7 +1305,6 @@ window.addEventListener('DOMContentLoaded', () => {
             layer.history.shift();
             layer.historyIndex--;
         }
-        console.log('saveCanvasState: activeLayerIndex', activeLayerIndex, 'canvasHistory.length', layer.history.length, 'currentHistoryIndex', layer.historyIndex);
         updatePreview(layer);
     }
 
@@ -1300,7 +1331,6 @@ window.addEventListener('DOMContentLoaded', () => {
         } else {
             updatePreview(layer);
         }
-        console.log('undo: activeLayerIndex', activeLayerIndex, 'canvasHistory.length', layer.history.length, 'currentHistoryIndex', layer.historyIndex);
     }
 
     function redo() {
@@ -1316,7 +1346,6 @@ window.addEventListener('DOMContentLoaded', () => {
         } else {
             updatePreview(layer);
         }
-        console.log('redo: activeLayerIndex', activeLayerIndex, 'canvasHistory.length', layer.history.length, 'currentHistoryIndex', layer.historyIndex);
     }
 
     canvasContainer.addEventListener('mousedown', start);
@@ -1467,13 +1496,57 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     });
     
+    // Get color display elements
+    const color1Display = document.getElementById('color1-display');
+    const color2Display = document.getElementById('color2-display');
 
-    
-    // Set initial palette background to match default selected color (black)
-    colorPalette.style.backgroundColor = selectedColor;
-    
-    // Keyboard shortcuts
+    function updateColorDisplays() {
+        color1Display.style.background = color1;
+        color2Display.style.background = color2;
+        color1Display.style.borderWidth = activeColorSlot === 1 ? '3px' : '2px';
+        color2Display.style.borderWidth = activeColorSlot === 2 ? '3px' : '2px';
+        color1Display.style.borderColor = activeColorSlot === 1 ? '#333' : '#000';
+        color2Display.style.borderColor = activeColorSlot === 2 ? '#333' : '#000';
+        // Set background of color-switch-bg to match active color
+        const colorSwitchBg = document.querySelector('.color-switch-bg');
+        if (colorSwitchBg) {
+            colorSwitchBg.style.backgroundColor = activeColorSlot === 1 ? color1 : color2;
+        }
+    }
+
+    // Click on color1/color2 display to set as active
+    color1Display.addEventListener('click', () => {
+        activeColorSlot = 1;
+        selectedColor = color1;
+        updateColorDisplays();
+    });
+    color2Display.addEventListener('click', () => {
+        activeColorSlot = 2;
+        selectedColor = color2;
+        updateColorDisplays();
+    });
+
+    // Override selectColor to set color1 or color2
+    function selectColor(swatch, color) {
+        document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
+        swatch.classList.add('selected');
+        if (activeColorSlot === 1) {
+            color1 = color;
+            selectedColor = color1;
+        } else {
+            color2 = color;
+            selectedColor = color2;
+        }
+        colorPalette.style.backgroundColor = selectedColor;
+    }
+
+    // Q key swaps active color
     document.addEventListener('keydown', (e) => {
+        if (e.key.toLowerCase() === 'q' && !e.repeat) {
+            activeColorSlot = activeColorSlot === 1 ? 2 : 1;
+            selectedColor = activeColorSlot === 1 ? color1 : color2;
+            updateColorDisplays();
+        }
         // Check for Ctrl+Z (Windows) or Cmd+Z (Mac) - Undo
         if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
             e.preventDefault(); // Prevent default browser behavior
@@ -1486,6 +1559,9 @@ window.addEventListener('DOMContentLoaded', () => {
             redo();
         }
     });
+
+    // Initialize color displays on load
+    updateColorDisplays();
     
     // Edit button functionality
     editButton.addEventListener('click', () => {

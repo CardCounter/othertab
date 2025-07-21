@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d">
+    <meta name="description" content="o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d">
     <title>draw</title>
     <style>
         html.js-loading {
@@ -30,17 +30,6 @@
             <div class="left-section">
                 <div class="left-content">
                     <div class="drawing-controls">
-                        <label>canvas size</label>
-                        <select id="canvas-size">
-                            <option value="8">8</option>
-                            <option value="16" selected>16</option>
-                            <option value="32">32</option>
-                            <option value="64">64</option>
-                            <option value="128">128</option>
-                            <option value="256">256</option>
-                            <option value="512">512</option>
-                            <option value="1024">1024</option>
-                        </select>
                         <div class="brush-size-controls">
                             <label>brush size</label>
                             <div class="brush-sizes">
@@ -66,6 +55,12 @@
                         <button id="edit-button">edit</button>
                         <button id="reset-button">reset</button>
                     </div>
+                    <div class="dual-color-controls">
+                        <div class="color-switch-bg">
+                            <div id="color1-display" class="color-display"></div>
+                            <div id="color2-display" class="color-display"></div>
+                        </div>
+                    </div>
                     <div class="canvas-controls">
                         <div id="save-input-container" class="save-input-container" style="display: none;">
                             <div id="save-error" class="save-error" style="display: none;">enter a drawing name</div>
@@ -80,6 +75,19 @@
                 <div id="canvas-stack"></div>
             </div>
             <div class="right-section">
+                <div class="canvas-size-controls">
+                    <label>active canvas size</label>
+                    <select id="canvas-size">
+                        <option value="8">8</option>
+                        <option value="16" selected>16</option>
+                        <option value="32">32</option>
+                        <option value="64">64</option>
+                        <option value="128">128</option>
+                        <option value="256">256</option>
+                        <option value="512">512</option>
+                        <option value="1024">1024</option>
+                    </select>
+                </div>
                 <div class="layers-section">
                     <button id="add-layer-button">add layer</button>
                     <div id="layers-list"></div>
