@@ -63,10 +63,17 @@ window.addEventListener('DOMContentLoaded', () => {
         alphaInput.step = '0.01';
         alphaInput.value = '1';
 
+        const deleteButton = document.createElement('button');
+        deleteButton.textContent = 'X';
+        deleteButton.className = 'button layer-delete-btn';
+        deleteButton.style.marginLeft = '4px';
+        deleteButton.style.marginRight = '4px';
+
         const item = document.createElement('div');
         item.className = 'layer-item';
         item.appendChild(preview);
         item.appendChild(alphaInput);
+        item.appendChild(deleteButton);
         
         // Insert new layers at the top of the UI list (newest first)
         if (layersList.firstChild) {
@@ -96,6 +103,39 @@ window.addEventListener('DOMContentLoaded', () => {
         alphaInput.addEventListener('input', () => {
             layerCanvas.style.opacity = alphaInput.value;
             layer.alpha = parseFloat(alphaInput.value);
+        });
+        
+        // Add delete functionality
+        deleteButton.addEventListener('click', (e) => {
+            e.stopPropagation(); // Prevent layer selection when clicking delete
+            
+            const layerIndex = layers.indexOf(layer);
+            
+            // Don't delete if it's the last layer
+            if (layers.length <= 1) {
+                return;
+            }
+            
+            // Remove the layer from DOM
+            layer.canvas.remove();
+            item.remove();
+            
+            // Remove from layers array
+            layers.splice(layerIndex, 1);
+            
+            // If we deleted the active layer, select the first available layer
+            if (layerIndex === activeLayerIndex) {
+                const newActiveIndex = Math.min(layerIndex, layers.length - 1);
+                selectLayer(newActiveIndex);
+            } else if (layerIndex < activeLayerIndex) {
+                // If we deleted a layer before the active one, adjust the active index
+                activeLayerIndex--;
+            }
+            
+            // Update z-index for remaining layers
+            layers.forEach((remainingLayer, index) => {
+                remainingLayer.canvas.style.zIndex = (index + 1).toString();
+            });
         });
 
         updatePreview(layer);

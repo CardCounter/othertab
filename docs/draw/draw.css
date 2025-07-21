@@ -64,6 +64,7 @@ main {
     display: flex;
     align-items: center;
     justify-content: center;
+    margin-right: 2rem;
 }
 
 .right-section {
@@ -253,13 +254,14 @@ select:hover {
 }
 
 .layer-item.active {
-    outline: 2px solid grey;
+    background-color: grey;
+    padding: 2px;
 }
 
 .layer-preview {
     width: 40px;
     height: 40px;
-    border: 1px solid var(--text-color);
+    /* border: 1px solid var(--text-color); */
     image-rendering: pixelated;
 }
 
