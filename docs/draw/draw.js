@@ -798,9 +798,8 @@ window.addEventListener('DOMContentLoaded', () => {
         // Start with a transparent background
         tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
         
-        // Draw each layer in order (bottom layer first, top layer last)
-        // Since layers array has oldest first (index 0) and newest last, we draw in order
-        for (let i = 0; i < layers.length; i++) {
+        // Draw from bottom to top: bottom layer first, top layer last
+        for (let i = layers.length - 1; i >= 0; i--) {
             const layer = layers[i];
             
             // Apply layer opacity
