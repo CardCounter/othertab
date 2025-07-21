@@ -466,12 +466,6 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     function start(e) {
-        if (e.button === 2) {
-            saveBrushForErase();
-            if (selectedBrushType !== 'eraser') {
-                setActiveBrushType('eraser');
-            }
-        }
         drawing = true;
         const pos = getPos(e);
         lastPos = pos;
@@ -1347,7 +1341,23 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    canvasContainer.addEventListener('mousedown', start);
+    canvasContainer.addEventListener('mousedown', (e) => {
+        if (e.button === 2) { // Right click
+            if (selectedBrushType !== 'eraser') {
+                prevBrushType = selectedBrushType;
+                setActiveBrushType('eraser');
+            } else {
+                // Toggle back to previous brush
+                if (prevBrushType) {
+                    setActiveBrushType(prevBrushType);
+                    prevBrushType = null;
+                }
+            }
+            e.preventDefault();
+            return;
+        }
+        start(e);
+    });
     canvasContainer.addEventListener('mousemove', draw);
     window.addEventListener('mouseup', stop);
     canvasContainer.addEventListener('contextmenu', (e) => e.preventDefault());
