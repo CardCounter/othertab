@@ -175,15 +175,31 @@ window.addEventListener('DOMContentLoaded', () => {
         layersList.appendChild(dropZone);
 
         // Drag-and-drop for the item itself
-        item.draggable = true;
+        // Only allow drag from background or preview, not controls
+        item.draggable = false;
+        item.addEventListener('mousedown', (e) => {
+            if (e.target === item || e.target === preview) {
+                item.draggable = true;
+            } else {
+                item.draggable = false;
+            }
+        });
+        item.addEventListener('mouseup', () => {
+            item.draggable = false;
+        });
+        item.addEventListener('dragend', () => {
+            item.draggable = false;
+            item.classList.remove('dragging');
+            Array.from(layersList.querySelectorAll('.drag-over')).forEach(child => child.classList.remove('drag-over'));
+        });
         item.addEventListener('dragstart', (e) => {
+            if (!item.draggable) {
+                e.preventDefault();
+                return false;
+            }
             item.classList.add('dragging');
             e.dataTransfer.effectAllowed = 'move';
             e.dataTransfer.setData('text/plain', layers.indexOf(layer));
-        });
-        item.addEventListener('dragend', () => {
-            item.classList.remove('dragging');
-            Array.from(layersList.querySelectorAll('.drag-over')).forEach(child => child.classList.remove('drag-over'));
         });
         item.addEventListener('dragover', (e) => {
             e.preventDefault();
