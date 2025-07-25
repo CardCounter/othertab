@@ -27,9 +27,6 @@ window.addEventListener('DOMContentLoaded', () => {
     let lastPos = null; // Store the last drawing position
     let selectedColor = '#000000'; // Default color
     let editMode = false; // Track edit mode state
-    // Remove global canvasHistory and currentHistoryIndex
-    // let canvasHistory = [];
-    // let currentHistoryIndex = -1;
     let selectedBrushType = 'square'; // Default brush type
     let isFilling = false; // Flag to prevent multiple fill operations
     let prevBrushType = null; // Store previous brush when right-click erasing
@@ -42,20 +39,14 @@ window.addEventListener('DOMContentLoaded', () => {
     let color2 = '#FFFFFF'; // Default color 2 (white)
     let activeColorSlot = 1; // 1 or 2, determines which color is active
 
+    let currentBrushSizeType = '5'; // Track the current brush size type globally
+
     // Centralized brush restoration function
     function restoreBrushFromErase() {
         if (rightClickErasing && prevBrushType) {
             rightClickErasing = false;
             setActiveBrushType(prevBrushType);
             prevBrushType = null;
-        }
-    }
-
-    // Centralized brush save function for erasing
-    function saveBrushForErase() {
-        if (!rightClickErasing) {
-            rightClickErasing = true;
-            prevBrushType = selectedBrushType;
         }
     }
 
@@ -78,6 +69,12 @@ window.addEventListener('DOMContentLoaded', () => {
         preview.width = 40;
         preview.height = 40;
         preview.className = 'layer-preview';
+        // Ensure pixelated rendering for preview
+        preview.style.imageRendering = 'pixelated';
+        preview.style.imageRendering = '-moz-crisp-edges';
+        preview.style.imageRendering = 'crisp-edges';
+        const previewCtx = preview.getContext('2d');
+        previewCtx.imageSmoothingEnabled = false;
 
         const alphaInput = document.createElement('input');
         alphaInput.type = 'range';
@@ -125,7 +122,7 @@ window.addEventListener('DOMContentLoaded', () => {
             canvas: layerCanvas,
             ctx,
             preview,
-            previewCtx: preview.getContext('2d'),
+            previewCtx,
             alphaInput,
             toggleButton,
             item,
@@ -328,7 +325,12 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     function updatePreview(layer) {
+        // Fill preview background to match canvas background (light/dark mode)
+        const isDark = document.body.classList.contains('dark-mode') || document.documentElement.classList.contains('dark-mode');
+        const bg = isDark ? '#202020' : '#e0e0e0';
         layer.previewCtx.clearRect(0, 0, layer.preview.width, layer.preview.height);
+        layer.previewCtx.fillStyle = bg;
+        layer.previewCtx.fillRect(0, 0, layer.preview.width, layer.preview.height);
         layer.previewCtx.drawImage(layer.canvas, 0, 0, layer.preview.width, layer.preview.height);
     }
 
@@ -343,7 +345,7 @@ window.addEventListener('DOMContentLoaded', () => {
         canvas = layers[index].canvas;
         ctx = layers[index].ctx;
         canvasSize = layers[index].size;
-        updateBrushSize('5');
+        updateBrushSize(currentBrushSizeType);
         layers[index].canvas.style.pointerEvents = 'auto';
         layers[index].item.classList.add('active');
         canvasSizeSelect.value = canvasSize.toString();
@@ -466,16 +468,22 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     function start(e) {
-        drawing = true;
+        // Remove justExitedZoom check here, now handled in mousedown
         const pos = getPos(e);
         lastPos = pos;
-        
+
+        // If fill tool, only trigger on click, not drag
+        if (selectedBrushType === 'fill') {
+            drawFillTool(pos);
+            return;
+        }
+
+        drawing = true;
         // Store line start position for line tool
         if (selectedBrushType === 'line') {
             lineStartPos = pos;
             initGhostCanvas();
         }
-        
         drawAtPosition(pos);
         draw(e);
     }
@@ -546,14 +554,8 @@ window.addEventListener('DOMContentLoaded', () => {
             case 'line':
                 drawLineTool(pos);
                 break;
-            case 'spray':
-                drawSprayBrush(pos);
-                break;
             case 'fill':
                 drawFillTool(pos);
-                break;
-            case 'back-slash':
-                drawBackSlashBrush(pos);
                 break;
             case 'eraser':
                 drawEraser(pos);
@@ -561,7 +563,6 @@ window.addEventListener('DOMContentLoaded', () => {
             default:
                 drawSquareBrush(pos);
         }
-        // Always update preview for the active layer after drawing
         updatePreview(layers[activeLayerIndex]);
     }
 
@@ -589,39 +590,6 @@ window.addEventListener('DOMContentLoaded', () => {
         // Line tool just draws a single pixel at the current position
         // The line drawing is handled by the main draw() function calling drawLine()
         drawSquareBrush(pos);
-    }
-
-    function drawSprayBrush(pos) {
-        const radius = Math.floor(brushSize / 2);
-        const centerX = pos.x;
-        const centerY = pos.y;
-        
-        // Adjust particle count for small canvases
-        const particleCount = canvasSize <= 16 ? Math.max(3, Math.min(brushSize, 8)) : Math.max(5, brushSize);
-        
-        ctx.fillStyle = selectedColor;
-        
-        for (let i = 0; i < particleCount; i++) {
-            // Use square root distribution for more even spread
-            const angle = Math.random() * 2 * Math.PI;
-            const distance = Math.sqrt(Math.random()) * radius; // Square root for even distribution
-            
-            const x = centerX + Math.cos(angle) * distance;
-            const y = centerY + Math.sin(angle) * distance;
-            
-            // Only draw if within canvas bounds
-            if (x >= 0 && x < canvasSize && y >= 0 && y < canvasSize) {
-                // Set alpha for each individual particle
-                ctx.globalAlpha = Math.random() * 0.4 + 0.1; // Random alpha between 0.1 and 0.5
-                
-                // Smaller particle size for lighter spray
-                const particleSize = Math.random() * 1 + 0.3;
-                ctx.fillRect(x, y, particleSize, particleSize);
-            }
-        }
-        
-        // Reset global alpha to 1.0 after spray operation
-        ctx.globalAlpha = 1.0;
     }
 
     function drawFillTool(pos) {
@@ -708,6 +676,8 @@ window.addEventListener('DOMContentLoaded', () => {
         isFilling = false;
         // Always update preview for the active layer after fill
         updatePreview(layers[activeLayerIndex]);
+        // Save fill to history for undo/redo
+        saveCanvasState();
     }
 
     function hexToRgb(hex) {
@@ -890,19 +860,6 @@ window.addEventListener('DOMContentLoaded', () => {
         };
         
         img.src = objectURL;
-    }
-
-    function drawBackSlashBrush(pos) {
-        const size = brushSize;
-        const centerX = pos.x;
-        const centerY = pos.y;
-        
-        ctx.strokeStyle = selectedColor;
-        ctx.lineWidth = Math.max(1, Math.floor(size / 4));
-        ctx.beginPath();
-        ctx.moveTo(centerX + size/2, centerY - size/2);
-        ctx.lineTo(centerX - size/2, centerY + size/2);
-        ctx.stroke();
     }
 
     function drawEraser(pos) {
@@ -1277,7 +1234,7 @@ window.addEventListener('DOMContentLoaded', () => {
         layer.ctx.clearRect(0, 0, layer.canvas.width, layer.canvas.height);
         layer.ctx.putImageData(newImageData, 0, 0);
 
-        updateBrushSize('5');
+        updateBrushSize(currentBrushSizeType);
         // canvasHistory = []; // This line is no longer needed
         // currentHistoryIndex = -1; // This line is no longer needed
         saveCanvasState();
@@ -1373,7 +1330,7 @@ window.addEventListener('DOMContentLoaded', () => {
         const layer = layers[activeLayerIndex];
         resizeLayer(layer, newSize);
         canvasSize = newSize; // Update global canvas size for new layers
-        updateBrushSize('5');
+        updateBrushSize(currentBrushSizeType);
         
         // Create new initial blank state for the resized layer
         const blankImageData = layer.ctx.createImageData(newSize, newSize);
@@ -1392,6 +1349,7 @@ window.addEventListener('DOMContentLoaded', () => {
             // Add active class to clicked button
             button.classList.add('active');
             // Update brush size based on canvas size
+            currentBrushSizeType = button.dataset.size;
             updateBrushSize(button.dataset.size);
         });
     });
@@ -1551,21 +1509,80 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // Q key swaps active color
     document.addEventListener('keydown', (e) => {
-        if (e.key.toLowerCase() === 'q' && !e.repeat) {
+        // Ignore if focus is on an input, textarea, or contenteditable
+        const tag = document.activeElement.tagName.toLowerCase();
+        if (tag === 'input' || tag === 'textarea' || document.activeElement.isContentEditable) return;
+        if (e.altKey) return;
+
+        const key = e.key.toLowerCase();
+        if (key === 'q' && !e.repeat) {
+            // Quick switch colors
             activeColorSlot = activeColorSlot === 1 ? 2 : 1;
             selectedColor = activeColorSlot === 1 ? color1 : color2;
             updateColorDisplays();
+            e.preventDefault();
+            return;
         }
-        // Check for Ctrl+Z (Windows) or Cmd+Z (Mac) - Undo
-        if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
-            e.preventDefault(); // Prevent default browser behavior
+        // Brush size shortcuts
+        if (key === '1') { 
+            currentBrushSizeType = '5';
+            updateBrushSize('5'); 
+            document.querySelectorAll('.brush-size').forEach(btn => btn.classList.remove('active'));
+            const btn = document.querySelector('.brush-size[data-size="5"]');
+            if (btn) btn.classList.add('active');
+            e.preventDefault(); return; 
+        }
+        if (key === '2') { 
+            currentBrushSizeType = '10';
+            updateBrushSize('10'); 
+            document.querySelectorAll('.brush-size').forEach(btn => btn.classList.remove('active'));
+            const btn = document.querySelector('.brush-size[data-size="10"]');
+            if (btn) btn.classList.add('active');
+            e.preventDefault(); return; 
+        }
+        if (key === '3') { 
+            currentBrushSizeType = '15';
+            updateBrushSize('15'); 
+            document.querySelectorAll('.brush-size').forEach(btn => btn.classList.remove('active'));
+            const btn = document.querySelector('.brush-size[data-size="15"]');
+            if (btn) btn.classList.add('active');
+            e.preventDefault(); return; 
+        }
+        if (key === '4') { 
+            currentBrushSizeType = '25';
+            updateBrushSize('25'); 
+            document.querySelectorAll('.brush-size').forEach(btn => btn.classList.remove('active'));
+            const btn = document.querySelector('.brush-size[data-size="25"]');
+            if (btn) btn.classList.add('active');
+            e.preventDefault(); return; 
+        }
+        // Tool shortcuts
+        if (key === 'w') { setActiveBrushType('square'); e.preventDefault(); return; }
+        if (key === 'e') { setActiveBrushType('eraser'); e.preventDefault(); return; }
+        if (key === 's') { setActiveBrushType('line'); e.preventDefault(); return; }
+        if (key === 'd') { setActiveBrushType('fill'); e.preventDefault(); return; }
+
+        // Undo/redo
+        if ((e.ctrlKey || e.metaKey) && key === 'z' && !e.shiftKey) {
+            e.preventDefault();
             undo();
+            return;
         }
-        
-        // Check for Shift+Ctrl+Z (Windows) or Shift+Cmd+Z (Mac) - Redo
-        if ((e.ctrlKey || e.metaKey) && e.key === 'z' && e.shiftKey) {
-            e.preventDefault(); // Prevent default browser behavior
+        if ((e.ctrlKey || e.metaKey) && key === 'z' && e.shiftKey) {
+            e.preventDefault();
             redo();
+            return;
+        }
+        // R for undo, F for redo (no modifiers)
+        if (key === 'r' && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+            e.preventDefault();
+            undo();
+            return;
+        }
+        if (key === 'f' && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+            e.preventDefault();
+            redo();
+            return;
         }
     });
 
@@ -1663,23 +1680,10 @@ window.addEventListener('DOMContentLoaded', () => {
         // Simulate a user click on the first layer's UI item
         layers[0].item.dispatchEvent(new MouseEvent('click', {bubbles: true}));
     }
+
+    // Listen for dark mode changes and update all previews
+    document.addEventListener('darkmodechange', () => {
+        layers.forEach(layer => updatePreview(layer));
+    });
+
 });
-
-// todo:
-// add zoom
-// fix fill, make sure to only use it once like click, when click and drag calls to much and crashes
-// add quick switcher, q
-
-//// 1234
-//// qwe
-////  sd
-////  xc
-//// space
-
-// 12345
-// qwert
-//  sdf
-//  xcv
-// space
-
-/// move layers still broke
