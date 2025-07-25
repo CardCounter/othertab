@@ -314,6 +314,9 @@ window.addEventListener('DOMContentLoaded', () => {
         alphaInput.addEventListener('mouseup', () => { item.draggable = true; });
         alphaInput.addEventListener('touchend', () => { item.draggable = true; });
         alphaInput.addEventListener('blur', () => { item.draggable = true; });
+
+        // Set initial opacity slider color
+        alphaInput.style.accentColor = (document.body.classList.contains('dark-mode') || document.documentElement.classList.contains('dark-mode')) ? 'red' : 'blue';
     }
 
     function updateAddLayerButtonVisibility() {
@@ -1685,7 +1688,10 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // Listen for dark mode changes and update all previews
     document.addEventListener('darkmodechange', () => {
-        layers.forEach(layer => updatePreview(layer));
+        layers.forEach(layer => {
+            updatePreview(layer);
+            layer.alphaInput.style.accentColor = (document.body.classList.contains('dark-mode') || document.documentElement.classList.contains('dark-mode')) ? 'red' : 'blue';
+        });
     });
 
 });
