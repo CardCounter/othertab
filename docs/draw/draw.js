@@ -746,8 +746,8 @@ window.addEventListener('DOMContentLoaded', () => {
         // Sanitize filename
         const sanitizedFilename = sanitizeFilename(userInput);
         
-        // Determine output size - scale up to 1024 if canvas is smaller
-        const outputSize = canvasSize < 1024 ? 1024 : canvasSize;
+        // Determine output size - scale up to 512 if canvas is smaller
+        const outputSize = canvasSize < 512 ? 512 : canvasSize;
         
         // Create a temporary canvas with the output size
         const tempCanvas = document.createElement('canvas');
@@ -847,6 +847,8 @@ window.addEventListener('DOMContentLoaded', () => {
             // Save the layer's state
             saveCanvasState();
             
+            // Ensure the layer is active for drawing
+            selectLayer(activeLayerIndex);
             URL.revokeObjectURL(objectURL);
             loadInput.value = '';
         };
