@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d o_d">
+    <link rel="icon" href="images/draw-light.png" type="image/png" media="(prefers-color-scheme: light)">
+    <link rel="icon" href="images/draw-dark.png" type="image/png" media="(prefers-color-scheme: dark)">
+    <title>draw</title>
+    <style>
+        html.js-loading {
+          visibility: hidden;
+          opacity: 0;
+        }
+    </style>
+    <script>document.documentElement.classList.add('js-loading');</script>
+    <link rel="stylesheet" href="../css/global.css">
+    <link rel="stylesheet" href="../css/header.css">
+    <link rel="stylesheet" href="../css/link.css">
+    <link rel="stylesheet" href="../css/button.css">
+    <link rel="stylesheet" href="draw.css">
+</head>
+<body>
+    <header>
+        <button id="dark-toggle" class="page-button">dark mode</button>
+        <a href="../"><button id="home-button" class="page-button">o_t</button></a>
+        <h2>DRAW</h2>
+    </header>
+
+    <main>
+        <div class="drawing-area">
+            <div class="left-section">
+                <div class="left-content">
+                    <div class="drawing-controls">
+                        <div class="brush-size-controls">
+                            <label>brush size</label>
+                            <div class="brush-sizes">
+                                <button class="brush-size button active" data-size="5">S</button>
+                                <button class="brush-size button" data-size="10">M</button>
+                                <button class="brush-size button" data-size="15">L</button>
+                                <button class="brush-size button" data-size="25">XL</button>
+                            </div>
+                        </div>
+                        
+                        <div class="brush-types">
+                            <button class="brush-type button active" data-type="square" style="font-size: 24px;">□</button>
+                            <button class="brush-type button" data-type="eraser" style="font-size: 24px;">X</button>
+                            <button class="brush-type button" data-type="line" style="font-size: 24px;">/</button>
+                            <button class="brush-type button" data-type="fill" style="font-size: 24px;">#</button>
+                        </div>
+
+                    </div>
+                    <div class="color-palette" id="color-palette"></div>
+                    <div class="palette-controls">
+                        <button id="edit-button">edit</button>
+                        <button id="reset-button">reset</button>
+                    </div>
+                    <div class="dual-color-controls">
+                        <div class="color-switch-bg">
+                            <div id="color1-display" class="color-display"></div>
+                            <div id="color2-display" class="color-display"></div>
+                        </div>
+                    </div>
+                    <div class="canvas-controls">
+                        <div id="save-input-container" class="save-input-container" style="display: none;">
+                            <div id="save-error" class="save-error" style="display: none;">enter a drawing name</div>
+                            <input type="text" id="save-filename" placeholder="drawing" maxlength="50">
+                            <button id="save-confirm" class="page-button">y</button>
+                            <button id="save-cancel" class="page-button">n</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="center-section">
+                <div id="canvas-stack"></div>
+            </div>
+            <div class="right-section">
+                <div class="canvas-size-controls">
+                    <label>active canvas size</label>
+                    <select id="canvas-size">
+                        <option value="8">8</option>
+                        <option value="16" selected>16</option>
+                        <option value="32">32</option>
+                        <option value="64">64</option>
+                        <option value="128">128</option>
+                        <option value="256">256</option>
+                        <option value="512">512</option>
+                        <!-- <option value="1024">1024</option> -->
+                    </select>
+                </div>
+                <div class="layers-section">
+                    <button id="add-layer-button">add layer</button>
+                    <div id="layers-list"></div>
+                </div>
+            </div>
+        </div>
+        
+        <button id="save-button" class="page-button">save</button>
+        <button id="load-button" class="page-button">load</button>
+        <input id="load-input" type="file" accept="image/*" style="display: none;">
+        <button id="clear-button" class="page-button">clear</button>
+        
+    </main>
+
+    <footer>
+        <p>o_d</p>
+        <a href="controls/">controls</a>
+        <a href="../privacy/">privacy</a>
+    </footer>
+
+    <script src="../scripts/darkmode.js"></script>
+    <script src="../scripts/fouc.js"></script>
+    <script src="draw.js"></script>
+</body>
+</html>
+
+

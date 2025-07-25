@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="how to type">
-    <link rel="icon" href="../../images/help.png" type="image/png">
-    <title>all you really need to know</title>
+    <meta name="description" content="making a box tutorial">
+    <link rel="icon" href="../images/question.png" type="image/png">
+    <title>how to draw (easy)</title>
     <style>
         html.js-loading {
           visibility: hidden;
@@ -18,23 +18,20 @@
     <link rel="stylesheet" href="../../css/link.css">
 </head>
 <body>
-    <p> ↵ to reset</p>
-    <p> A to type 'a'</p>
-    <p> &c </p>
-
-    <!-- <p>punctuation: none => none, some => don't, it's, etc, a lot => Something like this.</p> -->
-    <a href="../">go back</a>
+    <p>1 => 4 == s => xl</p>
+    <p>q == colorSwitch()</p>
+    <p>w, e, s, d == □, X, /, #</p>
+    <p>rclick == switchToEraser()</p>
+    <p>r == undo</p>
+    <p>f == unundo</p>
+    <a href="javascript:history.back()">go back</a>
 </body>
 <script>
-    // Check for saved preference when page loads
     document.addEventListener('DOMContentLoaded', () => {
         const savedDarkMode = localStorage.getItem('darkMode');
-        
         if (savedDarkMode === 'true') {
             document.body.classList.add('dark-mode');
         }
-
-        // prevents fouc, hide style as loading html
         document.documentElement.classList.remove('js-loading');
     });
 </script>

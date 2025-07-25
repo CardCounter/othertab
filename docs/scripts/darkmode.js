@@ -7,6 +7,8 @@ darkToggleButton.addEventListener('click', () => {
     
     // Store user preference in localStorage
     localStorage.setItem('darkMode', isDark ? 'true' : 'false');
+    // Trigger custom event for dark mode change
+    document.dispatchEvent(new Event('darkmodechange'));
 });
 
 // Check for saved preference when page loads

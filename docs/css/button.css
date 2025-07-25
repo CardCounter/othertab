@@ -1,0 +1,17 @@
+button {
+    padding: 0 0;
+    cursor: pointer;
+    background-color: white;
+    color: black;
+    border: none;
+    font-size: 16px;
+}
+
+.dark-mode button {
+    background-color: black;
+    color: white;
+}
+
+button:hover {
+    background-color: grey;
+}
