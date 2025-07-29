@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>beat pad</title>
+    <!-- prevents fouc -->
+    <style>
+        html.js-loading {
+            visibility: hidden;
+            opacity: 0;
+        }
+    </style>
+    <script>document.documentElement.classList.add('js-loading');</script>
+    <link rel="stylesheet" href="../css/global.css">
+    <link rel="stylesheet" href="../css/header.css">
+    <link rel="stylesheet" href="../css/link.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+    <button id="dark-toggle" class="page-button">dark mode</button>
+    <a href="../"><button id="home-button" class="page-button">o_t</button></a>
+    <h2>BEAT PAD</h2>
+</header>
+<main>
+    <div id="edit-mode">
+        <div class="video-input">
+            <input type="text" id="video-url" placeholder="YouTube link">
+            <button id="load-video">load</button>
+        </div>
+        <div id="player-container">
+            <div id="player"></div>
+        </div>
+        <div class="controls">
+            <button id="set-start">set start</button>
+            <button id="set-end">set end</button>
+            <input type="text" id="key-input" placeholder="key">
+            <button id="add-mapping">add mapping</button>
+        </div>
+        <table id="mappings-table">
+            <thead>
+                <tr><th>key</th><th>start</th><th>end</th></tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+        <button id="play-mode-btn">enter play mode</button>
+    </div>
+    <div id="play-mode" style="display:none;">
+        <p>press mapped keys to play clips</p>
+        <button id="exit-play-mode">return to edit</button>
+    </div>
+</main>
+<footer>
+    <p>o_t</p>
+</footer>
+<script src="../scripts/darkmode.js"></script>
+<script src="../scripts/fouc.js"></script>
+<script src="https://www.youtube.com/iframe_api"></script>
+<script src="script.js"></script>
+</body>
+</html>
