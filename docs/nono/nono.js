@@ -64,6 +64,24 @@ class Nono {
             });
         });
 
+        const copySeedButton = document.getElementById('copy-seed');
+        if (copySeedButton) {
+            copySeedButton.addEventListener('click', () => {
+                navigator.clipboard.writeText(this.getSeed());
+            });
+        }
+
+        const loadSeedButton = document.getElementById('load-seed');
+        if (loadSeedButton) {
+            loadSeedButton.addEventListener('click', () => {
+                const seedInput = document.getElementById('seed-input');
+                if (seedInput) {
+                    const seed = seedInput.value.trim();
+                    if (this.loadSeed(seed)) seedInput.value = '';
+                }
+            });
+        }
+
         this.possibleLayout = this.getLayout(this.size);
         this.numActivatedCellsMaster = this.getNumActivatedCells(this.possibleLayout);
         this.numActivatedCells = 0;
@@ -88,9 +106,11 @@ class Nono {
         this.mainKeyActions();
     }
 
-    reset() {
+    reset(keepLayout = false) {
         this.stopTimer();
-        this.possibleLayout = this.getLayout(this.size);
+        if (!keepLayout) {
+            this.possibleLayout = this.getLayout(this.size);
+        }
         this.numActivatedCellsMaster = this.getNumActivatedCells(this.possibleLayout);
         this.numActivatedCells = 0;
 
@@ -474,6 +494,38 @@ class Nono {
         return finalList;
     }
 
+    getSeed() {
+        const bits = this.possibleLayout.toArray().flat().join('');
+        return `${this.size}:${bits}`;
+    }
+
+    loadSeed(seed) {
+        const [sizeStr, bits] = seed.split(':');
+        const size = parseInt(sizeStr, 10);
+        if (isNaN(size) || !bits || /[^01]/.test(bits) || bits.length !== size * size) {
+            return false;
+        }
+
+        const sizeButton = document.getElementById(`difficulty-${size}`);
+        if (!sizeButton) return false;
+
+        document.querySelectorAll('.difficulty-button').forEach(btn => btn.classList.remove('active'));
+        sizeButton.classList.add('active');
+        this.sizeMode = sizeButton.id;
+        localStorage.setItem('NONO-currentSize', sizeButton.id);
+        document.documentElement.style.setProperty('--num-font-size', sizeButton.dataset.font);
+        this.size = size;
+
+        const rows = [];
+        for (let i = 0; i < size; i++) {
+            const rowBits = bits.slice(i * size, (i + 1) * size).split('').map(Number);
+            rows.push(rowBits);
+        }
+        this.possibleLayout = math.matrix(rows);
+        this.reset(true);
+        return true;
+    }
+
     topNumToString(list) {
         return list.join('<br>');
     }
@@ -711,12 +763,10 @@ class Nono {
         const popup = document.getElementById('win-paste');
         const text = document.getElementById('win-text');
 
-        text.innerHTML = `${timeString}`;
+        const seed = this.getSeed();
+        text.innerHTML = `${timeString}<br>${seed}`;
 
-        const plainText = `NONO ${this.size}
-${timeString}`;
-
-// add seed later
+        const plainText = `NONO ${this.size} ${timeString} ${seed}`;
 
         const shareButton = document.getElementById('copy-button');
 
@@ -725,7 +775,7 @@ ${timeString}`;
             navigator.clipboard.writeText(plainText);
             shareButton.textContent = 'copied';
         };
-            
+
         // display popup by adding hidden class, removing active
         popup.classList.remove('hidden');
     }
@@ -738,10 +788,6 @@ window.addEventListener('DOMContentLoaded', () => {
 
 /*
 TODO
-
-add board seed, size-board in binary + some map, or similar
-add this seed to win paste
-add seed copy and load to settings pannel
 
 change typing and mines copy button to .onclick to prevent dupe
 
