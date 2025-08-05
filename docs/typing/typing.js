@@ -375,7 +375,15 @@ class Typing {
         const popup = document.getElementById('wpm-paste');
         const text = document.getElementById('wpm-text');
 
-        text.innerHTML = `wpm ${this.wpm} acc ${this.acc}%`;
+        // Check if this is the user's first time by checking localStorage
+        const hasCompletedFirstTest = localStorage.getItem('TYPING-first-test-completed');
+        const isFirstTime = !hasCompletedFirstTest;
+
+        if (isFirstTime) {
+            text.innerHTML = `press enter to reset. wpm ${this.wpm} acc ${this.acc}%`;
+        } else {
+            text.innerHTML = `wpm ${this.wpm} acc ${this.acc}%`;
+        }
 
         const plainText = `TYPING ${this.numWords}
 ${this.wpm} wpm
@@ -400,6 +408,11 @@ ${this.acc}% acc`;
         });
 
         this.updateAvg();
+
+        // Mark that the user has completed their first test
+        if (!localStorage.getItem('TYPING-first-test-completed')) {
+            localStorage.setItem('TYPING-first-test-completed', 'true');
+        }
 
         // checks best for mode
         const bestCurrentModeKey = `TYPING-best-${currentWordMode}`;
