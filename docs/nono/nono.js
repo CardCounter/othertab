@@ -117,7 +117,11 @@ class Nono {
         if (shareButton) {
             shareButton.textContent = 'share';
             shareButton.onclick = null;
+            shareButton.classList.add('hidden');
         }
+
+        const timerElement = document.getElementById('timer');
+        if (timerElement) timerElement.textContent = '0:00';
 
         const popup = document.getElementById('win-paste');
         if (popup) popup.classList.add('hidden');
@@ -681,9 +685,16 @@ class Nono {
     startTimer() {
         this.stopTimer();
         this.timer = 0;
-        
+
+        const popup = document.getElementById('win-paste');
+        const timerElement = document.getElementById('timer');
+
+        if (popup) popup.classList.remove('hidden');
+        if (timerElement) timerElement.textContent = this.formatTime(this.timer);
+
         this.timerInterval = setInterval(() => {
             this.timer++;
+            if (timerElement) timerElement.textContent = this.formatTime(this.timer);
 
         }, 1000);
     }
@@ -709,24 +720,16 @@ class Nono {
 
     showWinPopup(timeString) {
         const popup = document.getElementById('win-paste');
-        const text = document.getElementById('win-text');
-
-        text.innerHTML = `${timeString}`;
-
-        const plainText = `NONO ${this.size}
-${timeString}`;
-
-// add seed later
-
+        const timerElement = document.getElementById('timer');
+        if (timerElement) timerElement.textContent = `${timeString}`;
+        const plainText = `NONO ${this.size}", "${timeString}`;
+        // add seed later
         const shareButton = document.getElementById('copy-button');
-
-        // use onclick instead of addEventListener to prevent duplicate listeners
         shareButton.onclick = () => {
             navigator.clipboard.writeText(plainText);
             shareButton.textContent = 'copied';
         };
-            
-        // display popup by adding hidden class, removing active
+        shareButton.classList.remove('hidden');
         popup.classList.remove('hidden');
     }
 
