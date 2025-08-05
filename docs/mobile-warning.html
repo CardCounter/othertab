@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>mobile warning</title>
+    <link rel="stylesheet" href="css/global.css">
+    <link rel="stylesheet" href="css/link.css">
+    <link rel="stylesheet" href="css/button.css">
+</head>
+<body>
+    <main>
+        <p>this website is not optimized for mobile devices.</p>
+        <button id="continue" class="page-button">ok</button>
+    </main>
+    <script>
+        document.getElementById('continue').addEventListener('click', () => {
+            localStorage.setItem('mobileWarningDismissed', 'true');
+            window.location.href = 'index.html';
+        });
+    </script>
+</body>
+</html>
+
