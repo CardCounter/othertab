@@ -242,11 +242,11 @@ class Nono {
         document.querySelectorAll('.top').forEach(top => {
             top.addEventListener('click', () => {
                 this.handleIfActive(() => {
-                    if (this.firstKey) {
-                        this.firstKey = false;
-                        this.startTimer();
-                    }
                     if (top.classList.contains('complete')) {
+                        if (this.firstKey) {
+                            this.firstKey = false;
+                            this.startTimer();
+                        }
                         const col = top.dataset.col;
                         for (let row = 0; row < this.size; row++) {
                             const cell = document.getElementById(`cell-${row}-${col}`);
@@ -265,11 +265,11 @@ class Nono {
         document.querySelectorAll('.side').forEach(side => {
             side.addEventListener('click', () => {
                 this.handleIfActive(() => {
-                    if (this.firstKey) {
-                        this.firstKey = false;
-                        this.startTimer();
-                    }
                     if (side.classList.contains('complete')) {
+                        if (this.firstKey) {
+                            this.firstKey = false;
+                            this.startTimer();
+                        }
                         const row = side.dataset.row;
                         for (let col = 0; col < this.size; col++) {
                             const cell = document.getElementById(`cell-${row}-${col}`);
@@ -722,7 +722,8 @@ class Nono {
         const popup = document.getElementById('win-paste');
         const timerElement = document.getElementById('timer');
         if (timerElement) timerElement.textContent = `${timeString}`;
-        const plainText = `NONO ${this.size}", "${timeString}`;
+        const plainText = `NONO ${this.size}
+${timeString}`;
         // add seed later
         const shareButton = document.getElementById('copy-button');
         shareButton.onclick = () => {
