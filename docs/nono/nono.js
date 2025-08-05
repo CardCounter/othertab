@@ -295,17 +295,17 @@ class Nono {
             this.handleIfActive(() => {
                 if (e.repeat) return;  // prevent repeats when holding down
 
-                if ((['KeyE', 'KeyD', 'KeyC'].includes(e.code)) && this.hoveredCell) {
+                if ((['KeyW', 'KeyS', 'KeyX'].includes(e.code)) && this.hoveredCell) {
                     e.preventDefault();
                     this.actionClick();
                 }
-                else if ((['KeyW', 'KeyS', 'KeyX'].includes(e.code)) && this.hoveredCell) {
+                else if ((['KeyE', 'KeyD', 'KeyC'].includes(e.code)) && this.hoveredCell) {
                     e.preventDefault();
-                    this.actionGrey();
+                    this.actionMark();
                 }
                 else if ((['KeyR', 'KeyF', 'KeyV'].includes(e.code)) && this.hoveredCell) {
                     e.preventDefault();
-                    this.actionMark();
+                    this.actionGrey();
                 }
             });
         });
