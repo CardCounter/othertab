@@ -165,34 +165,30 @@ table tr:last-child td {
     pointer-events: none;
 }
 
-.top.highlight{
-    background-color: black;
-    color: white;
-}
-
-.top.highlight::after {
-    content: none;
-}
-
+.top.highlight,
 .side.highlight{
-    background-color: black;
+    background-color: #222;
     color: white;
+    border-color: var(--color);
 }
 
+.top.highlight::after,
 .side.highlight::after {
     content: none;
 }
 
 .top.highlight.complete,
 .side.highlight.complete {
-    background-color: black;
+    background-color: #222;
     color: blue;
+    border-color: var(--color);
 }
 
 .dark-mode .top.highlight.complete,
 .dark-mode .side.highlight.complete {
-    background-color: white;
+    background-color: #ddd;
     color: red;
+    border-color: var(--color);
 }
 
 .dark-mode .highlight {
@@ -210,20 +206,14 @@ table tr:last-child td {
     pointer-events: none;
 }
 
-.dark-mode .top.highlight{
-    background-color: white;
-    color: black;
-}
-
-.dark-mode .top.highlight::after {
-    content: none;
-}
-
+.dark-mode .top.highlight,
 .dark-mode .side.highlight{
-    background-color: white;
+    background-color: #ddd;
     color: black;
+    border-color: var(--color);
 }
 
+.dark-mode .top.highlight::after,
 .dark-mode .side.highlight::after {
     content: none;
 }
