@@ -40,9 +40,16 @@ class Nono {
             this.sizeMode = 'difficulty-15';
         }
         
-        document.getElementById(this.sizeMode).classList.add('active');
-        this.size = Number(document.getElementById(this.sizeMode).dataset.size);
-        document.documentElement.style.setProperty('--num-font-size', document.getElementById(this.sizeMode).dataset.font);
+        const initialSizeEl = document.getElementById(this.sizeMode);
+        if (initialSizeEl) {
+            initialSizeEl.classList.add('active');
+            this.size = Number(initialSizeEl.dataset.size);
+            document.documentElement.style.setProperty('--num-font-size', initialSizeEl.dataset.font);
+        } else {
+            // Fallback if size buttons not yet in DOM
+            this.size = 15;
+            document.documentElement.style.setProperty('--num-font-size', '16px');
+        }
 
         const sizeButtons = document.querySelectorAll('.difficulty-button');
         sizeButtons.forEach(button => {
@@ -56,8 +63,8 @@ class Nono {
                 // set difficulty and reset game
                 this.sizeMode = button.id;
                 localStorage.setItem('NONO-currentSize', button.id);
-                this.size = Number(document.getElementById(this.sizeMode).dataset.size);
-                document.documentElement.style.setProperty('--num-font-size', document.getElementById(this.sizeMode).dataset.font);
+                this.size = Number(document.getElementById(this.sizeMode)?.dataset.size ?? button.dataset.size);
+                document.documentElement.style.setProperty('--num-font-size', document.getElementById(this.sizeMode)?.dataset.font ?? button.dataset.font);
 
                 this.reset();
 
@@ -86,6 +93,159 @@ class Nono {
         this.syncTableSizes();
         this.mainGameActions();
         this.mainKeyActions();
+
+        // Ensure seed/load buttons exist even if not in HTML
+        this.ensureSeedLoadButtons();
+        // Seed / Load UI
+        this.initSeedControls();
+    }
+
+    ensureSeedLoadButtons() {
+        const footer = document.querySelector('footer');
+        if (!footer) return;
+        const sizeBtn = document.getElementById('settings-button');
+        let seedBtn = document.getElementById('seed-button');
+        let loadBtn = document.getElementById('load-button');
+
+        if (!seedBtn) {
+            seedBtn = document.createElement('button');
+            seedBtn.id = 'seed-button';
+            seedBtn.className = 'settings-button';
+            seedBtn.textContent = 'seed';
+            if (sizeBtn && sizeBtn.nextSibling) {
+                footer.insertBefore(seedBtn, sizeBtn.nextSibling);
+            } else {
+                footer.prepend(seedBtn);
+            }
+        }
+        if (!loadBtn) {
+            loadBtn = document.createElement('button');
+            loadBtn.id = 'load-button';
+            loadBtn.className = 'settings-button';
+            loadBtn.textContent = 'load';
+            if (seedBtn && seedBtn.nextSibling) {
+                footer.insertBefore(loadBtn, seedBtn.nextSibling);
+            } else {
+                footer.prepend(loadBtn);
+            }
+        }
+
+        // Ensure load panel exists
+        let loadPanel = document.getElementById('load-panel');
+        if (!loadPanel) {
+            loadPanel = document.createElement('div');
+            loadPanel.id = 'load-panel';
+            loadPanel.className = 'settings-panel hidden';
+            loadPanel.style.gap = '8px';
+            loadPanel.style.padding = '12px';
+            loadPanel.innerHTML = `
+                <label for="seed-input">enter seed</label>
+                <input id="seed-input" type="text" placeholder="e.g. 151234567890" style="width: 100%;" />
+                <div style="display:flex; gap:8px; justify-content:flex-end;">
+                    <button id="seed-confirm" class="settings-button">y</button>
+                    <button id="seed-cancel" class="settings-button">n</button>
+                </div>
+            `;
+            footer.appendChild(loadPanel);
+        }
+    }
+
+    initSeedControls() {
+        const seedBtn = document.getElementById('seed-button');
+        const loadBtn = document.getElementById('load-button');
+        const loadPanel = document.getElementById('load-panel');
+        const seedInput = document.getElementById('seed-input');
+        const confirmBtn = document.getElementById('seed-confirm');
+        const cancelBtn = document.getElementById('seed-cancel');
+
+        if (seedBtn) {
+            seedBtn.addEventListener('click', () => {
+                try {
+                    const seedStr = window.Seed ? window.Seed.createSeedFromLayout(this.possibleLayout, this.size) : '';
+                    if (seedStr) {
+                        navigator.clipboard.writeText(seedStr);
+                        seedBtn.textContent = 'copied';
+                        setTimeout(() => seedBtn.textContent = 'seed', 1200);
+                    }
+                } catch (e) {
+                    // ignore
+                }
+            });
+        }
+
+        if (loadBtn && loadPanel && seedInput && confirmBtn && cancelBtn) {
+            loadBtn.addEventListener('click', () => {
+                // Show the panel above buttons without hiding them
+                const isHidden = loadPanel.classList.contains('hidden');
+                if (isHidden) {
+                    loadPanel.classList.remove('hidden');
+                    seedInput.focus();
+                } else {
+                    loadPanel.classList.add('hidden');
+                }
+            });
+
+            cancelBtn.addEventListener('click', () => {
+                loadPanel.classList.add('hidden');
+                seedInput.value = '';
+            });
+
+            confirmBtn.addEventListener('click', () => {
+                const seedStr = seedInput.value.trim();
+                if (!seedStr) return;
+                try {
+                    this.loadSeed(seedStr);
+                    loadPanel.classList.add('hidden');
+                    seedInput.value = '';
+                } catch (e) {
+                    confirmBtn.textContent = 'invalid';
+                    setTimeout(() => confirmBtn.textContent = 'y', 900);
+                }
+            });
+        }
+    }
+
+    loadSeed(seedString) {
+        if (!window.Seed) throw new Error('Seed helpers not available');
+        const { size, layoutArray } = window.Seed.parseSeed(seedString);
+
+        // Map size to a difficulty button id
+        const buttonId = `difficulty-${size}`;
+        const button = document.getElementById(buttonId);
+        if (!button) throw new Error('Unsupported size in seed');
+
+        // Update size and UI font
+        this.sizeMode = buttonId;
+        localStorage.setItem('NONO-currentSize', buttonId);
+        this.size = size;
+        document.documentElement.style.setProperty('--num-font-size', button.dataset.font);
+
+        // Set layout from seed
+        this.possibleLayout = math.matrix(layoutArray);
+        this.numActivatedCellsMaster = this.getNumActivatedCells(this.possibleLayout);
+        this.numActivatedCells = 0;
+
+        let t1, t2;
+        [t1, t2] = this.getNums();
+        this.topNums = t1;
+        this.sideNums = t2;
+
+        this.hoveredCell = null;
+        this.isActionDown = false;
+        this.lastAction = null;
+        this.colCompleteFlags = new Array(this.size).fill(false);
+        this.rowCompleteFlags = new Array(this.size).fill(false);
+        this.actionedCols = new Set();
+        this.actionedRows = new Set();
+
+        this.firstKey = true;
+        this.isGameOver = false;
+        this.timer = 0;
+        this.timerInterval = null;
+
+        this.initializeTable();
+        this.syncTableSizes();
+        this.mainGameActions();
     }
 
     reset() {
@@ -675,7 +835,6 @@ class Nono {
                 side.classList.remove('highlight');
             });
 
-
             this.stopTimer();
             const timeString = this.formatTime(this.timer);
             this.showWinPopup(timeString);
@@ -721,16 +880,35 @@ class Nono {
     showWinPopup(timeString) {
         const popup = document.getElementById('win-paste');
         const timerElement = document.getElementById('timer');
+
+        // Build seed from current generated layout
+        let seedStr = '';
+        try {
+            seedStr = window.Seed ? window.Seed.createSeedFromLayout(this.possibleLayout, this.size) : '';
+        } catch (e) {
+            seedStr = '';
+        }
+
+        // Display time (keep UI minimal) – seed is included in share text below
         if (timerElement) timerElement.textContent = `${timeString}`;
-        const plainText = `NONO ${this.size}
-${timeString}`;
-        // add seed later
+
+        const plainText = `NONO ${this.size}\n${timeString}${seedStr ? `\n${seedStr}` : ''}`;
+
+
         const shareButton = document.getElementById('copy-button');
-        shareButton.onclick = () => {
-            navigator.clipboard.writeText(plainText);
-            shareButton.textContent = 'copied';
-        };
-        shareButton.classList.remove('hidden');
+        if (shareButton) shareButton.classList.remove('hidden');
+
+        // use onclick instead of addEventListener to prevent duplicate listeners
+        if (shareButton) {
+            shareButton.onclick = () => {
+                navigator.clipboard.writeText(plainText);
+                shareButton.textContent = 'copied';
+            };
+            // ensure visible
+            shareButton.classList.remove('hidden');
+        }
+            
+        // display popup by removing hidden
         popup.classList.remove('hidden');
     }
 

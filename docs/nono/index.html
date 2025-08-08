@@ -44,13 +44,23 @@
     </main>
 
     <footer>
-        <button class="settings-button" id="settings-button">size</button>
+        <div class="settings-group">
+            <button class="settings-button" id="settings-button">size</button>
+            <button class="settings-button" id="seed-button">seed</button>
+            <button class="settings-button" id="load-button">load</button>
+        </div>
         <p>o_n</p>
         <a href="controls/">controls</a>
         <a href="../privacy/">privacy</a>
         <div id="win-paste" class="win-paste hidden">
             <div id="timer" class="timer">0:00</div>
             <button id="copy-button" class="copy-button hidden">share</button>
+        </div>
+
+        <div id="load-panel" class="settings-panel hidden">
+            <input id="seed-input" type="text" placeholder="enter seed" style="width: 100%;" />
+            <button id="seed-confirm">y</button>
+            <button id="seed-cancel">n</button>
         </div>
     </footer>
 
@@ -59,6 +69,7 @@
 
     <script src="../scripts/darkmode.js"></script>
     <script src="../scripts/fouc.js"></script>
+    <script src="seed.js"></script>
     <script src="nono.js"></script>
 </body>
 </html>
