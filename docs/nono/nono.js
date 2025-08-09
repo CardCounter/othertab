@@ -243,10 +243,20 @@ class Nono {
         this.actionedCols = new Set();
         this.actionedRows = new Set();
 
+        // Ensure timer is fully reset and stopped until first interaction
+        this.stopTimer();
         this.firstKey = true;
         this.isGameOver = false;
         this.timer = 0;
         this.timerInterval = null;
+        const timerElement = document.getElementById('timer');
+        if (timerElement) timerElement.textContent = '0:00';
+        
+        // hide win popup and keep copy button hidden until game end
+        const popup = document.getElementById('win-paste');
+        if (popup) popup.classList.add('hidden');
+        const shareButton = document.getElementById('copy-button');
+        if (shareButton) shareButton.classList.add('hidden');
 
         this.initializeTable();
         this.syncTableSizes();
