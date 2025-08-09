@@ -2,14 +2,10 @@
   "use strict";
 
   /**
-   * Seed helper utilities for NONO
-   * Encoding scheme:
-   * - Flatten board (row-major) to a binary string of length size*size
-   * - Convert binary to a BigInt decimal string
-   * - Prefix two-digit size code to avoid leading zero ambiguity
-   *   - For single-digit size 5, use 50 (not 05)
-   *   - For >=10, use the two-digit value (10, 15, 20, 25, 30)
-   * The final seed is a decimal string: SS + D, where SS are two digits and D is the decimal value of the board bits
+   * Seed helper utilities for NONO (base64-only)
+   * Format: SS + 'b' + BASE64URL(bits)
+   * - SS: two-digit size prefix (5 uses 50)
+   * - bits: board flattened row-major, packed MSB-first into bytes
    */
 
   function encodeSizePrefix(boardSize) {
@@ -24,7 +20,6 @@
   }
 
   function normalizeLayoutToArray(layout) {
-    // Accept math.js matrix or plain arrays
     if (layout && typeof layout.toArray === "function") {
       return layout.toArray();
     }
@@ -37,31 +32,52 @@
     let bits = "";
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
-        const v = layoutArray[r][c];
-        bits += v ? "1" : "0";
+        bits += layoutArray[r][c] ? "1" : "0";
       }
     }
     return bits;
   }
 
-  function binaryStringToDecimalString(binStr) {
-    if (binStr.length === 0) return "0";
-    const asBigInt = BigInt("0b" + binStr);
-    return asBigInt.toString(10);
+  // Base64url helpers
+  function bytesToBase64Url(bytes) {
+    let binary = "";
+    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+    const b64 = btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+    return b64;
   }
 
-  function decimalStringToBinaryString(decStr) {
-    if (!decStr || decStr === "0") return "";
-    const asBigInt = BigInt(decStr);
-    return asBigInt.toString(2);
+  function base64UrlToBytes(b64url) {
+    const b64 = b64url.replace(/-/g, "+").replace(/_/g, "/");
+    const padLen = (4 - (b64.length % 4)) % 4;
+    const padded = b64 + "=".repeat(padLen);
+    const binary = atob(padded);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return bytes;
   }
 
-  function padBinaryLeft(binStr, targetLength) {
-    if (binStr.length >= targetLength) {
-      // If longer than expected, keep the least significant bits
-      return binStr.slice(-targetLength);
+  function bitsToBytes(binStr) {
+    const totalBits = binStr.length;
+    const byteLen = Math.ceil(totalBits / 8);
+    const bytes = new Uint8Array(byteLen);
+    for (let i = 0; i < totalBits; i++) {
+      const bit = binStr.charCodeAt(i) === 49 ? 1 : 0; // '1'
+      const byteIndex = Math.floor(i / 8);
+      const bitPos = 7 - (i % 8); // MSB-first
+      if (bit) bytes[byteIndex] |= (1 << bitPos);
     }
-    return binStr.padStart(targetLength, "0");
+    return bytes;
+  }
+
+  function bytesToBits(bytes) {
+    let bits = "";
+    for (let i = 0; i < bytes.length; i++) {
+      const b = bytes[i];
+      for (let bitPos = 7; bitPos >= 0; bitPos--) {
+        bits += ((b >> bitPos) & 1) ? "1" : "0";
+      }
+    }
+    return bits;
   }
 
   function rebuildLayoutFromBinary(binStr, size) {
@@ -77,48 +93,43 @@
     return result;
   }
 
-  /**
-   * Create a decimal seed string from a layout and size.
-   * Returns a string like: "10<decimal>" or "50<decimal>" for size 5.
-   */
+  // Create base64 seed: "SSb<base64url>"
   function createSeedFromLayout(layout, size) {
     const layoutArray = normalizeLayoutToArray(layout);
     if (!Array.isArray(layoutArray) || layoutArray.length === 0) {
       throw new Error("Invalid layout: expected a non-empty 2D array or math.js matrix");
     }
     const bits = flattenToBinaryString(layoutArray);
-    const decimal = binaryStringToDecimalString(bits);
-    const prefix = encodeSizePrefix(size);
-    return prefix + decimal;
+    const bytes = bitsToBytes(bits);
+    const b64url = bytesToBase64Url(bytes);
+    return encodeSizePrefix(size) + "b" + b64url;
   }
 
-  /**
-   * Parse a decimal seed string back into a { size, layoutArray } object.
-   * layoutArray is a 2D array of 0/1 values (row-major).
-   */
+  // Parse base64 seed only
   function parseSeed(seedString) {
-    if (typeof seedString !== "string" || seedString.length < 2) {
-      throw new Error("Invalid seed: expected at least two characters for size prefix");
+    if (typeof seedString !== "string" || seedString.length < 3) {
+      throw new Error("Invalid seed: expected 'SSb<base64url>'");
     }
     const sizePrefix = seedString.slice(0, 2);
     const size = decodeSizePrefix(sizePrefix);
-    const decimalPart = seedString.slice(2) || "0";
-
+    const rest = seedString.slice(2);
+    if (!rest.startsWith("b")) {
+      throw new Error("Invalid seed: only base64 format supported (SSb<base64url>)");
+    }
+    const b64url = rest.slice(1);
+    const bytes = base64UrlToBytes(b64url);
+    const allBits = bytesToBits(bytes);
     const totalBits = size * size;
-    const bin = decimalStringToBinaryString(decimalPart);
-    const padded = padBinaryLeft(bin, totalBits);
-
-    const layoutArray = rebuildLayoutFromBinary(padded, size);
+    let bin = allBits.slice(0, totalBits);
+    if (bin.length < totalBits) bin = bin.padStart(totalBits, "0");
+    const layoutArray = rebuildLayoutFromBinary(bin, size);
     return { size, layoutArray };
   }
 
-  // Expose as global helper
   window.Seed = {
     createSeedFromLayout,
     parseSeed,
-    // Extra utils if needed elsewhere
-    _encodeSizePrefix: encodeSizePrefix,
-    _decodeSizePrefix: decodeSizePrefix,
+    // Expose for potential testing
     _flattenToBinaryString: flattenToBinaryString,
     _rebuildLayoutFromBinary: rebuildLayoutFromBinary
   };

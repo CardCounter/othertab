@@ -165,7 +165,7 @@ class Nono {
                     if (seedStr) {
                         navigator.clipboard.writeText(seedStr);
                         seedBtn.textContent = 'copied';
-                        setTimeout(() => seedBtn.textContent = 'seed', 1200);
+                        setTimeout(() => seedBtn.textContent = 'seed', 1000);
                     }
                 } catch (e) {
                     // ignore
@@ -182,6 +182,7 @@ class Nono {
                     seedInput.focus();
                 } else {
                     loadPanel.classList.add('hidden');
+                    seedInput.value = '';
                 }
             });
 
@@ -199,7 +200,7 @@ class Nono {
                     seedInput.value = '';
                 } catch (e) {
                     confirmBtn.textContent = 'invalid';
-                    setTimeout(() => confirmBtn.textContent = 'y', 900);
+                    setTimeout(() => confirmBtn.textContent = 'y', 1000);
                 }
             });
         }
@@ -224,6 +225,10 @@ class Nono {
         this.possibleLayout = math.matrix(layoutArray);
         this.numActivatedCellsMaster = this.getNumActivatedCells(this.possibleLayout);
         this.numActivatedCells = 0;
+
+        // reset seed button text
+        const seedBtn = document.getElementById('seed-button');
+        if (seedBtn) seedBtn.textContent = 'seed';
 
         let t1, t2;
         [t1, t2] = this.getNums();
@@ -279,6 +284,10 @@ class Nono {
             shareButton.onclick = null;
             shareButton.classList.add('hidden');
         }
+
+        // reset seed button text
+        const seedBtn = document.getElementById('seed-button');
+        if (seedBtn) seedBtn.textContent = 'seed';
 
         const timerElement = document.getElementById('timer');
         if (timerElement) timerElement.textContent = '0:00';
@@ -453,9 +462,30 @@ class Nono {
     mainKeyActions(){
         document.addEventListener('keydown', (e) => {
             if (e.code === 'Enter' && !e.repeat) {
+                const activeEl = document.activeElement;
+                if (activeEl && activeEl.id === 'seed-input') {
+                    e.preventDefault();
+                    const seedInput = document.getElementById('seed-input');
+                    const loadPanel = document.getElementById('load-panel');
+                    const confirmBtn = document.getElementById('seed-confirm');
+                    const seedStr = seedInput ? seedInput.value.trim() : '';
+                    if (!seedStr) return;
+                    try {
+                        this.loadSeed(seedStr);
+                        if (loadPanel) loadPanel.classList.add('hidden');
+                        if (seedInput) seedInput.value = '';
+                    } catch (err) {
+                        if (confirmBtn) {
+                            confirmBtn.textContent = 'invalid';
+                            setTimeout(() => confirmBtn.textContent = 'y', 900);
+                        }
+                    }
+                    return;
+                }
                 this.reset();
                 return;
             }
+            
             this.handleIfActive(() => {
                 if (e.repeat) return;  // prevent repeats when holding down
 
@@ -903,6 +933,7 @@ class Nono {
             shareButton.onclick = () => {
                 navigator.clipboard.writeText(plainText);
                 shareButton.textContent = 'copied';
+                setTimeout(() => shareButton.textContent = 'share', 1000);
             };
             // ensure visible
             shareButton.classList.remove('hidden');
