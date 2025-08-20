@@ -89,6 +89,9 @@ class Nono {
         this.timer = 0;
         this.timerInterval = null;
 
+        this.history = [];
+        this.currentAction = null;
+
         this.initializeTable();
         this.syncTableSizes();
         this.mainGameActions();
@@ -375,6 +378,7 @@ class Nono {
 
                     this.updateAllCells();
                     this.checkGameEnd();
+                    this.finalizeAction();
                 });
             });
 
@@ -427,15 +431,20 @@ class Nono {
                             this.startTimer();
                         }
                         const col = top.dataset.col;
+                        this.currentAction = { cells: [] };
                         for (let row = 0; row < this.size; row++) {
                             const cell = document.getElementById(`cell-${row}-${col}`);
                             if (!cell.classList.contains('clicked')) {
+                                this.recordCellState(cell);
                                 cell.classList.remove('marked');
                                 cell.classList.add('greyed');
+                                this.actionedCols.add(col);
+                                this.actionedRows.add(row);
                             }
                         }
                         this.updateAllCells();
                         this.checkGameEnd();
+                        this.finalizeAction();
                     }
                 });
             });
@@ -450,15 +459,20 @@ class Nono {
                             this.startTimer();
                         }
                         const row = side.dataset.row;
+                        this.currentAction = { cells: [] };
                         for (let col = 0; col < this.size; col++) {
                             const cell = document.getElementById(`cell-${row}-${col}`);
                             if (!cell.classList.contains('clicked')) {
+                                this.recordCellState(cell);
                                 cell.classList.remove('marked');
                                 cell.classList.add('greyed');
+                                this.actionedCols.add(col);
+                                this.actionedRows.add(row);
                             }
                         }
                         this.updateAllCells();
                         this.checkGameEnd();
+                        this.finalizeAction();
                     }
                 });
             });
@@ -498,8 +512,11 @@ class Nono {
             
             this.handleIfActive(() => {
                 if (e.repeat) return;  // prevent repeats when holding down
-
-                if ((['KeyW', 'KeyS', 'KeyX'].includes(e.code)) && this.hoveredCell) {
+                if (e.code === 'KeyZ' && (e.ctrlKey || e.metaKey)) {
+                    e.preventDefault();
+                    this.undo();
+                }
+                else if ((['KeyW', 'KeyS', 'KeyX'].includes(e.code)) && this.hoveredCell) {
                     e.preventDefault();
                     this.actionClick();
                 }
@@ -526,6 +543,7 @@ class Nono {
 
                     this.updateAllCells();
                     this.checkGameEnd();
+                    this.finalizeAction();
                 }
             });
         });
@@ -537,12 +555,14 @@ class Nono {
                 this.lastAction = null;
                 this.updateAllCells();
                 this.checkGameEnd();
+                this.finalizeAction();
             });
         });
     }
 
     applyLastAction() {
         const cell = this.hoveredCell;
+        this.recordCellState(cell);
         switch (this.lastAction) {
             case 'clicked':
                 cell.classList.remove('marked', 'greyed');
@@ -559,6 +579,43 @@ class Nono {
                 cell.classList.toggle('marked');
                 break;
         }
+    }
+
+    recordCellState(cell) {
+        if (!this.currentAction) return;
+        const row = cell.dataset.row;
+        const col = cell.dataset.col;
+        if (this.currentAction.cells.some(c => c.row === row && c.col === col)) return;
+        let prevState = '';
+        if (cell.classList.contains('clicked')) prevState = 'clicked';
+        else if (cell.classList.contains('marked')) prevState = 'marked';
+        else if (cell.classList.contains('greyed')) prevState = 'greyed';
+        this.currentAction.cells.push({ row, col, prevState });
+    }
+
+    finalizeAction() {
+        if (this.currentAction && this.currentAction.cells.length) {
+            this.history.push(this.currentAction);
+        }
+        this.currentAction = null;
+    }
+
+    undo() {
+        if (!this.history.length) return;
+        const action = this.history.pop();
+        action.cells.forEach(({ row, col, prevState }) => {
+            const cell = document.getElementById(`cell-${row}-${col}`);
+            const wasClicked = cell.classList.contains('clicked');
+            cell.classList.remove('clicked', 'marked', 'greyed');
+            if (prevState) cell.classList.add(prevState);
+            const isClicked = cell.classList.contains('clicked');
+            if (wasClicked && !isClicked) this.numActivatedCells--;
+            else if (!wasClicked && isClicked) this.numActivatedCells++;
+            this.actionedCols.add(col);
+            this.actionedRows.add(row);
+        });
+        this.updateAllCells();
+        this.checkGameEnd();
     }
 
     handleClick(e) {
@@ -578,6 +635,8 @@ class Nono {
         }
         this.isActionDown = true;
         this.lastAction = 'clicked';
+        this.currentAction = { cells: [] };
+        this.recordCellState(this.hoveredCell);
 
         this.hoveredCell.classList.remove('marked', 'greyed');
         this.hoveredCell.classList.toggle('clicked');
@@ -593,6 +652,8 @@ class Nono {
         }
         this.isActionDown = true;
         this.lastAction = 'greyed';
+        this.currentAction = { cells: [] };
+        this.recordCellState(this.hoveredCell);
 
         this.hoveredCell.classList.remove('marked', 'clicked');
         this.hoveredCell.classList.toggle('greyed');
@@ -601,13 +662,15 @@ class Nono {
         this.checkGameEnd();
     }
 
-    actionMark() {  
+    actionMark() {
         if (this.firstKey) {
             this.firstKey = false;
             this.startTimer();
         }
         this.isActionDown = true;
         this.lastAction = 'marked';
+        this.currentAction = { cells: [] };
+        this.recordCellState(this.hoveredCell);
 
         this.hoveredCell.classList.remove('greyed', 'clicked');
         this.hoveredCell.classList.toggle('marked');
