@@ -512,7 +512,7 @@ class Nono {
             
             this.handleIfActive(() => {
                 if (e.repeat) return;  // prevent repeats when holding down
-                if (e.code === 'KeyZ' && (e.ctrlKey || e.metaKey)) {
+                if (e.code === 'Space') {
                     e.preventDefault();
                     this.undo();
                 }
