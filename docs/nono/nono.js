@@ -255,6 +255,9 @@ class Nono {
         const timerElement = document.getElementById('timer');
         if (timerElement) timerElement.textContent = '0:00';
         
+        this.history = [];
+        this.currentAction = null;
+
         // hide win popup and keep copy button hidden until game end
         const popup = document.getElementById('win-paste');
         if (popup) popup.classList.add('hidden');
@@ -290,6 +293,9 @@ class Nono {
         this.isGameOver = false;
         this.timer = 0;
         this.timerInterval = null;
+
+        this.history = [];
+        this.currentAction = null;
 
         const shareButton = document.getElementById('copy-button');
         if (shareButton) {
