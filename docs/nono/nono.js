@@ -79,6 +79,8 @@ class Nono {
         this.hoveredCell = null;
         this.isActionDown = false;
         this.lastAction = null;
+        this.dragStartCell = null;
+        this.dragDirection = null;
         this.colCompleteFlags = new Array(this.size).fill(false);
         this.rowCompleteFlags = new Array(this.size).fill(false);
         this.actionedCols = new Set();
@@ -241,6 +243,8 @@ class Nono {
         this.hoveredCell = null;
         this.isActionDown = false;
         this.lastAction = null;
+        this.dragStartCell = null;
+        this.dragDirection = null;
         this.colCompleteFlags = new Array(this.size).fill(false);
         this.rowCompleteFlags = new Array(this.size).fill(false);
         this.actionedCols = new Set();
@@ -284,6 +288,8 @@ class Nono {
         this.hoveredCell = null;
         this.isActionDown = false;
         this.lastAction = null;
+        this.dragStartCell = null;
+        this.dragDirection = null;
         this.colCompleteFlags = new Array(this.size).fill(false);
         this.rowCompleteFlags = new Array(this.size).fill(false);
         this.actionedCols = new Set();
@@ -344,8 +350,29 @@ class Nono {
 
                     // drag option across here
                     if (this.isActionDown) {
-                        this.applyLastAction();
-                        this.updateCell()
+                        const startCell = this.dragStartCell;
+                        if (startCell) {
+                            const startRow = startCell.dataset.row;
+                            const startCol = startCell.dataset.col;
+
+                            if (!this.dragDirection) {
+                                if (row === startRow && col !== startCol) {
+                                    this.dragDirection = 'row';
+                                } else if (col === startCol && row !== startRow) {
+                                    this.dragDirection = 'col';
+                                } else {
+                                    return;
+                                }
+                            }
+
+                            const sameRow = row === startRow;
+                            const sameCol = col === startCol;
+                            if ((this.dragDirection === 'row' && sameRow) ||
+                                (this.dragDirection === 'col' && sameCol)) {
+                                this.applyLastAction();
+                                this.updateCell();
+                            }
+                        }
                     }
                 });
             });
@@ -381,6 +408,8 @@ class Nono {
                 this.handleIfActive(() => {
                     this.isActionDown = false;
                     this.lastAction = null;
+                    this.dragStartCell = null;
+                    this.dragDirection = null;
 
                     this.updateAllCells();
                     this.checkGameEnd();
@@ -405,6 +434,8 @@ class Nono {
             this.handleIfActive(() => {
                 this.isActionDown = false;
                 this.lastAction = null;
+                this.dragStartCell = null;
+                this.dragDirection = null;
 
                 this.updateAllCells();
             });
@@ -414,7 +445,9 @@ class Nono {
             top.addEventListener('mouseenter', () => {
                 this.handleIfActive(() => {
                     this.isActionDown = false;
-                    this.lastAction = null; 
+                    this.lastAction = null;
+                    this.dragStartCell = null;
+                    this.dragDirection = null;
                 });
             });
         });
@@ -423,7 +456,9 @@ class Nono {
             side.addEventListener('mouseenter', () => {
                 this.handleIfActive(() => {
                     this.isActionDown = false;
-                    this.lastAction = null; 
+                    this.lastAction = null;
+                    this.dragStartCell = null;
+                    this.dragDirection = null;
                 });
             });
         });
@@ -642,6 +677,8 @@ class Nono {
         this.isActionDown = true;
         this.lastAction = 'clicked';
         this.currentAction = { cells: [] };
+        this.dragStartCell = this.hoveredCell;
+        this.dragDirection = null;
         this.recordCellState(this.hoveredCell);
 
         this.hoveredCell.classList.remove('marked', 'greyed');
@@ -659,6 +696,8 @@ class Nono {
         this.isActionDown = true;
         this.lastAction = 'greyed';
         this.currentAction = { cells: [] };
+        this.dragStartCell = this.hoveredCell;
+        this.dragDirection = null;
         this.recordCellState(this.hoveredCell);
 
         this.hoveredCell.classList.remove('marked', 'clicked');
@@ -676,6 +715,8 @@ class Nono {
         this.isActionDown = true;
         this.lastAction = 'marked';
         this.currentAction = { cells: [] };
+        this.dragStartCell = this.hoveredCell;
+        this.dragDirection = null;
         this.recordCellState(this.hoveredCell);
 
         this.hoveredCell.classList.remove('greyed', 'clicked');
