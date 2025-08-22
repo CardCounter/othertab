@@ -150,6 +150,34 @@ table tr:last-child td {
     pointer-events: none;
 }
 
+/* Drag preview styling */
+.drag-preview {
+    /* background-color: rgba(0, 0, 255, 0.3); */
+    border: 3px dashed blue;
+}
+
+.dark-mode .drag-preview {
+    /* background-color: rgba(255, 0, 0, 0.3); */
+    border: 3px dashed red;
+}
+
+/* Ensure board borders always take priority over drag preview */
+tr td.drag-preview:not(:first-child):nth-child(5n + 2) {
+    border-left: 3px solid var(--color) !important;
+}
+
+tr td.drag-preview:last-child {
+    border-right: 3px solid var(--color) !important;
+}
+
+table tr:nth-child(5n + 2) td.drag-preview {
+    border-top: 3px solid var(--color) !important;
+}
+
+table tr:last-child td.drag-preview {
+    border-bottom: 3px solid var(--color) !important;
+}
+
 .highlight {
     position: relative;
 }

@@ -77,10 +77,12 @@ class Nono {
         [this.topNums, this.sideNums] = this.getNums();
 
         this.hoveredCell = null;
+        this.lastValidDragCell = null; // Track last valid drag position
         this.isActionDown = false;
         this.lastAction = null;
         this.dragStartCell = null;
         this.dragDirection = null;
+        this.inputMethod = null; // Track whether current action is keyboard or mouse
         this.colCompleteFlags = new Array(this.size).fill(false);
         this.rowCompleteFlags = new Array(this.size).fill(false);
         this.actionedCols = new Set();
@@ -241,10 +243,12 @@ class Nono {
         this.sideNums = t2;
 
         this.hoveredCell = null;
+        this.lastValidDragCell = null; // Track last valid drag position
         this.isActionDown = false;
         this.lastAction = null;
         this.dragStartCell = null;
         this.dragDirection = null;
+        this.inputMethod = null;
         this.colCompleteFlags = new Array(this.size).fill(false);
         this.rowCompleteFlags = new Array(this.size).fill(false);
         this.actionedCols = new Set();
@@ -261,6 +265,11 @@ class Nono {
         
         this.history = [];
         this.currentAction = null;
+
+        // Clear any drag previews
+        document.querySelectorAll('.drag-preview').forEach(cell => {
+            cell.classList.remove('drag-preview');
+        });
 
         // hide win popup and keep copy button hidden until game end
         const popup = document.getElementById('win-paste');
@@ -286,10 +295,12 @@ class Nono {
         this.sideNums = t2;
 
         this.hoveredCell = null;
+        this.lastValidDragCell = null; // Track last valid drag position
         this.isActionDown = false;
         this.lastAction = null;
         this.dragStartCell = null;
         this.dragDirection = null;
+        this.inputMethod = null;
         this.colCompleteFlags = new Array(this.size).fill(false);
         this.rowCompleteFlags = new Array(this.size).fill(false);
         this.actionedCols = new Set();
@@ -302,6 +313,11 @@ class Nono {
 
         this.history = [];
         this.currentAction = null;
+
+        // Clear any drag previews
+        document.querySelectorAll('.drag-preview').forEach(cell => {
+            cell.classList.remove('drag-preview');
+        });
 
         const shareButton = document.getElementById('copy-button');
         if (shareButton) {
@@ -363,14 +379,11 @@ class Nono {
                                 } else {
                                     return;
                                 }
-                            }
-
-                            const sameRow = row === startRow;
-                            const sameCol = col === startCol;
-                            if ((this.dragDirection === 'row' && sameRow) ||
-                                (this.dragDirection === 'col' && sameCol)) {
-                                this.applyLastAction();
-                                this.updateCell();
+                                // Show initial preview when direction is determined
+                                this.showDragPreview();
+                            } else {
+                                // Always show drag preview when drag is active, regardless of cursor position
+                                this.showDragPreview();
                             }
                         }
                     }
@@ -406,14 +419,34 @@ class Nono {
 
             cell.addEventListener('mouseup', (e) => {
                 this.handleIfActive(() => {
+                    // Only apply drag actions if we actually dragged to other cells
+                    if (this.isActionDown && this.dragStartCell && this.dragDirection && this.lastValidDragCell) {
+                        // This was a drag operation that moved to other cells
+                        this.applyDragActions();
+                    }
+                    // If no dragDirection or no lastValidDragCell, it was just a single click
+                    // Single click action already applied on mousedown, just need to finalize
+                    
                     this.isActionDown = false;
                     this.lastAction = null;
                     this.dragStartCell = null;
                     this.dragDirection = null;
+                    this.inputMethod = null;
+                    this.lastValidDragCell = null;
 
-                    this.updateAllCells();
-                    this.checkGameEnd();
-                    this.finalizeAction();
+                    // For single clicks, action already applied on mousedown, but still need to update completion
+                    // For drags, applyDragActions() already handles updates and game end check
+                    if (!this.dragDirection) {
+                        // Single click - update completion status and check game end
+                        this.updateAllCells();
+                        this.checkGameEnd();
+                        this.finalizeAction();
+                    } else {
+                        // Drag operation - update all cells and check game end
+                        this.updateAllCells();
+                        this.checkGameEnd();
+                        this.finalizeAction();
+                    }
                 });
             });
 
@@ -429,25 +462,50 @@ class Nono {
             e.preventDefault();
         });
 
+        // Track mouse position for continuous drag preview
+        gameContainer.addEventListener('mousemove', (e) => {
+            this.handleIfActive(() => {
+                if (this.isActionDown && this.dragStartCell) {
+                    // Update drag preview continuously while dragging
+                    // This maintains preview even when cursor is outside grid cells
+                    this.showDragPreview();
+                }
+            });
+        });
+
         // end click and drag when leaving main container
         gameContainer.addEventListener('mouseleave', () => {
             this.handleIfActive(() => {
-                this.isActionDown = false;
-                this.lastAction = null;
-                this.dragStartCell = null;
-                this.dragDirection = null;
-
-                this.updateAllCells();
+                // Keep drag previews visible if dragging is active
+                // Only clear previews and reset drag state if not actively dragging
+                if (!this.isActionDown) {
+                    // Clear any drag previews only if not dragging
+                    document.querySelectorAll('.drag-preview').forEach(cell => {
+                        cell.classList.remove('drag-preview');
+                    });
+                    
+                    this.lastAction = null;
+                    this.dragStartCell = null;
+                    this.dragDirection = null;
+                    this.updateAllCells();
+                }
             });
         });
 
         document.querySelectorAll('.top').forEach(top => {
             top.addEventListener('mouseenter', () => {
                 this.handleIfActive(() => {
-                    this.isActionDown = false;
-                    this.lastAction = null;
-                    this.dragStartCell = null;
-                    this.dragDirection = null;
+                    // Keep drag previews visible if dragging is active
+                    if (!this.isActionDown) {
+                        // Clear any drag previews only if not dragging
+                        document.querySelectorAll('.drag-preview').forEach(cell => {
+                            cell.classList.remove('drag-preview');
+                        });
+                        
+                        this.lastAction = null;
+                        this.dragStartCell = null;
+                        this.dragDirection = null;
+                    }
                 });
             });
         });
@@ -455,10 +513,17 @@ class Nono {
         document.querySelectorAll('.side').forEach(side => {
             side.addEventListener('mouseenter', () => {
                 this.handleIfActive(() => {
-                    this.isActionDown = false;
-                    this.lastAction = null;
-                    this.dragStartCell = null;
-                    this.dragDirection = null;
+                    // Keep drag previews visible if dragging is active
+                    if (!this.isActionDown) {
+                        // Clear any drag previews only if not dragging
+                        document.querySelectorAll('.drag-preview').forEach(cell => {
+                            cell.classList.remove('drag-preview');
+                        });
+                        
+                        this.lastAction = null;
+                        this.dragStartCell = null;
+                        this.dragDirection = null;
+                    }
                 });
             });
         });
@@ -559,15 +624,15 @@ class Nono {
                 }
                 else if ((['KeyW', 'KeyS', 'KeyX'].includes(e.code)) && this.hoveredCell) {
                     e.preventDefault();
-                    this.actionClick();
+                    this.actionClickKeyboard();
                 }
                 else if ((['KeyE', 'KeyD', 'KeyC'].includes(e.code)) && this.hoveredCell) {
                     e.preventDefault();
-                    this.actionMark();
+                    this.actionMarkKeyboard();
                 }
                 else if ((['KeyR', 'KeyF', 'KeyV'].includes(e.code)) && this.hoveredCell) {
                     e.preventDefault();
-                    this.actionGrey();
+                    this.actionGreyKeyboard();
                 }
             });
         });
@@ -579,12 +644,34 @@ class Nono {
                     e.code === 'KeyR' || e.code === 'KeyF' || e.code === 'KeyV'
                 ) {
                     e.preventDefault();
+                    // Only apply drag actions if we actually dragged to other cells
+                    if (this.isActionDown && this.dragStartCell && this.dragDirection && this.lastValidDragCell) {
+                        // This was a drag operation that moved to other cells
+                        this.applyDragActions();
+                    }
+                    // If no dragDirection or no lastValidDragCell, it was just a single click
+                    // Single click action already applied on keydown, just need to finalize
+                    
                     this.isActionDown = false;
                     this.lastAction = null;
+                    this.dragStartCell = null;
+                    this.dragDirection = null;
+                    this.inputMethod = null;
+                    this.lastValidDragCell = null;
 
-                    this.updateAllCells();
-                    this.checkGameEnd();
-                    this.finalizeAction();
+                    // For single clicks, action already applied on keydown, but still need to update completion
+                    // For drags, applyDragActions() already handles updates and game end check
+                    if (!this.dragDirection) {
+                        // Single click - update completion status and check game end
+                        this.updateAllCells();
+                        this.checkGameEnd();
+                        this.finalizeAction();
+                    } else {
+                        // Drag operation - update all cells and check game end
+                        this.updateAllCells();
+                        this.checkGameEnd();
+                        this.finalizeAction();
+                    }
                 }
             });
         });
@@ -592,11 +679,34 @@ class Nono {
         // Add global mouseup event listener
         document.addEventListener('mouseup', (e) => {
             this.handleIfActive(() => {
+                // Only apply drag actions if we actually dragged to other cells
+                if (this.isActionDown && this.dragStartCell && this.dragDirection && this.lastValidDragCell) {
+                    // This was a drag operation that moved to other cells
+                    this.applyDragActions();
+                }
+                // If no dragDirection or no lastValidDragCell, it was just a single click
+                // Single click action already applied on mousedown, just need to finalize
+                
                 this.isActionDown = false;
                 this.lastAction = null;
-                this.updateAllCells();
-                this.checkGameEnd();
-                this.finalizeAction();
+                this.dragStartCell = null;
+                this.dragDirection = null;
+                this.inputMethod = null;
+                this.lastValidDragCell = null;
+
+                // For single clicks, action already applied on mousedown, but still need to update completion
+                // For drags, applyDragActions() already handles updates and game end check
+                if (!this.dragDirection) {
+                    // Single click - update completion status and check game end
+                    this.updateAllCells();
+                    this.checkGameEnd();
+                    this.finalizeAction();
+                } else {
+                    // Drag operation - update all cells and check game end
+                    this.updateAllCells();
+                    this.checkGameEnd();
+                    this.finalizeAction();
+                }
             });
         });
     }
@@ -670,6 +780,9 @@ class Nono {
     }
 
     actionClick() {
+        // Block if keyboard action is already active
+        if (this.inputMethod === 'keyboard') return;
+        
         if (this.firstKey) {
             this.firstKey = false;
             this.startTimer();
@@ -679,16 +792,23 @@ class Nono {
         this.currentAction = { cells: [] };
         this.dragStartCell = this.hoveredCell;
         this.dragDirection = null;
+        this.inputMethod = 'mouse';
+        
+        // Apply action immediately for single clicks
         this.recordCellState(this.hoveredCell);
-
         this.hoveredCell.classList.remove('marked', 'greyed');
         this.hoveredCell.classList.toggle('clicked');
-
+        
         this.updateCell();
         this.checkGameEnd();
+        
+        // Don't show preview for single clicks - only when actually dragging
     }
 
     actionGrey() {
+        // Block if keyboard action is already active
+        if (this.inputMethod === 'keyboard') return;
+        
         if (this.firstKey) {
             this.firstKey = false;
             this.startTimer();
@@ -698,16 +818,23 @@ class Nono {
         this.currentAction = { cells: [] };
         this.dragStartCell = this.hoveredCell;
         this.dragDirection = null;
+        this.inputMethod = 'mouse';
+        
+        // Apply action immediately for single clicks
         this.recordCellState(this.hoveredCell);
-
         this.hoveredCell.classList.remove('marked', 'clicked');
         this.hoveredCell.classList.toggle('greyed');
-
+        
         this.updateCell();
         this.checkGameEnd();
+        
+        // Don't show preview for single clicks - only when actually dragging
     }
 
     actionMark() {
+        // Block if keyboard action is already active
+        if (this.inputMethod === 'keyboard') return;
+        
         if (this.firstKey) {
             this.firstKey = false;
             this.startTimer();
@@ -717,13 +844,229 @@ class Nono {
         this.currentAction = { cells: [] };
         this.dragStartCell = this.hoveredCell;
         this.dragDirection = null;
+        this.inputMethod = 'mouse';
+        
+        // Apply action immediately for single clicks
         this.recordCellState(this.hoveredCell);
-
-        this.hoveredCell.classList.remove('greyed', 'clicked');
+        this.hoveredCell.classList.remove('marked', 'clicked');
         this.hoveredCell.classList.toggle('marked');
-
+        
         this.updateCell();
         this.checkGameEnd();
+        
+        // Don't show preview for single clicks - only when actually dragging
+    }
+
+    actionClickKeyboard() {
+        // Block if mouse action is already active
+        if (this.inputMethod === 'mouse') return;
+        
+        if (this.firstKey) {
+            this.firstKey = false;
+            this.startTimer();
+        }
+        this.isActionDown = true;
+        this.lastAction = 'clicked';
+        this.currentAction = { cells: [] };
+        this.dragStartCell = this.hoveredCell;
+        this.dragDirection = null;
+        this.inputMethod = 'keyboard';
+        
+        // Apply action immediately for single clicks
+        this.recordCellState(this.hoveredCell);
+        this.hoveredCell.classList.remove('marked', 'greyed');
+        this.hoveredCell.classList.toggle('clicked');
+        
+        this.updateCell();
+        this.checkGameEnd();
+        
+        // Don't show preview for single clicks - only when actually dragging
+    }
+
+    actionGreyKeyboard() {
+        // Block if mouse action is already active
+        if (this.inputMethod === 'mouse') return;
+        
+        if (this.firstKey) {
+            this.firstKey = false;
+            this.startTimer();
+        }
+        this.isActionDown = true;
+        this.lastAction = 'greyed';
+        this.currentAction = { cells: [] };
+        this.dragStartCell = this.hoveredCell;
+        this.dragDirection = null;
+        this.inputMethod = 'keyboard';
+        
+        // Apply action immediately for single clicks
+        this.recordCellState(this.hoveredCell);
+        this.hoveredCell.classList.remove('marked', 'clicked');
+        this.hoveredCell.classList.toggle('greyed');
+        
+        this.updateCell();
+        this.checkGameEnd();
+        
+        // Don't show preview for single clicks - only when actually dragging
+    }
+
+    actionMarkKeyboard() {
+        // Block if mouse action is already active
+        if (this.inputMethod === 'mouse') return;
+        
+        if (this.firstKey) {
+            this.firstKey = false;
+            this.startTimer();
+        }
+        this.isActionDown = true;
+        this.lastAction = 'marked';
+        this.currentAction = { cells: [] };
+        this.dragStartCell = this.hoveredCell;
+        this.dragDirection = null;
+        this.inputMethod = 'keyboard';
+        
+        // Apply action immediately for single clicks
+        this.recordCellState(this.hoveredCell);
+        this.hoveredCell.classList.remove('greyed', 'clicked');
+        this.hoveredCell.classList.toggle('marked');
+        
+        this.updateCell();
+        this.checkGameEnd();
+        
+        // Don't show preview for single clicks - only when actually dragging
+    }
+
+    showDragPreview() {
+        // Show visual feedback only during actual drag operations
+        // Don't show preview for single clicks
+        if (this.dragStartCell && this.dragDirection) {
+            // Clear previous previews
+            document.querySelectorAll('.drag-preview').forEach(cell => {
+                cell.classList.remove('drag-preview');
+            });
+            
+            // Use hoveredCell if available, otherwise use lastValidDragCell
+            const currentCell = this.hoveredCell || this.lastValidDragCell;
+            
+            // If we have a direction and a current cell (hovered or last valid), show the full path
+            if (currentCell) {
+                const startRow = this.dragStartCell.dataset.row;
+                const startCol = this.dragStartCell.dataset.col;
+                const currentRow = currentCell.dataset.row;
+                const currentCol = currentCell.dataset.col;
+                
+                // Update lastValidDragCell if we have a hoveredCell
+                if (this.hoveredCell) {
+                    this.lastValidDragCell = this.hoveredCell;
+                }
+                
+                // Show preview for the entire drag path
+                if (this.dragDirection === 'row') {
+                    const startIdx = Math.min(startCol, currentCol);
+                    const endIdx = Math.max(startCol, currentCol);
+                    for (let col = startIdx; col <= endIdx; col++) {
+                        const cell = document.getElementById(`cell-${startRow}-${col}`);
+                        if (cell) {
+                            cell.classList.add('drag-preview');
+                        }
+                    }
+                } else if (this.dragDirection === 'col') {
+                    const startIdx = Math.min(startRow, currentRow);
+                    const endIdx = Math.max(startRow, currentRow);
+                    for (let row = startIdx; row <= endIdx; row++) {
+                        const cell = document.getElementById(`cell-${row}-${startCol}`);
+                        if (cell) {
+                            cell.classList.add('drag-preview');
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    applyDragActions() {
+        // Apply the drag action to all cells that currently have drag-preview class
+        if (!this.lastAction) return;
+        
+        // Find all cells with drag-preview class and apply the action
+        const previewCells = document.querySelectorAll('.drag-preview');
+        previewCells.forEach(cell => {
+            // Skip the drag start cell if it already has the action applied
+            // This prevents double-application for single clicks
+            if (cell === this.dragStartCell) {
+                // Just mark it for updates without re-applying the action
+                const row = cell.dataset.row;
+                const col = cell.dataset.col;
+                this.actionedCols.add(col);
+                this.actionedRows.add(row);
+                return;
+            }
+            
+            this.recordCellState(cell);
+            this.applyLastActionToCell(cell);
+            
+            // Mark the affected row and column for updates
+            const row = cell.dataset.row;
+            const col = cell.dataset.col;
+            this.actionedCols.add(col);
+            this.actionedRows.add(row);
+        });
+        
+        // Clear all drag preview classes
+        previewCells.forEach(cell => {
+            cell.classList.remove('drag-preview');
+        });
+        
+        // Update the affected cells
+        this.updateAllCells();
+    }
+
+    applyLastActionToCell(cell) {
+        // Apply the last action to a specific cell with toggle behavior
+        const wasClicked = cell.classList.contains('clicked');
+        const wasMarked = cell.classList.contains('marked');
+        const wasGreyed = cell.classList.contains('greyed');
+        
+        // Remove all existing states
+        cell.classList.remove('clicked', 'marked', 'greyed');
+        
+        switch (this.lastAction) {
+            case 'clicked':
+                if (wasClicked) {
+                    // If cell was already clicked, make it empty (toggle off)
+                    if (wasClicked) {
+                        this.numActivatedCells--;
+                    }
+                } else {
+                    // If cell wasn't clicked, make it clicked
+                    cell.classList.add('clicked');
+                    this.numActivatedCells++;
+                }
+                break;
+            case 'greyed':
+                if (wasGreyed) {
+                    // If cell was already greyed, make it empty (toggle off)
+                    // No change to numActivatedCells since greyed cells don't count
+                } else {
+                    // If cell wasn't greyed, make it greyed
+                    cell.classList.add('greyed');
+                    if (wasClicked) {
+                        this.numActivatedCells--;
+                    }
+                }
+                break;
+            case 'marked':
+                if (wasMarked) {
+                    // If cell was already marked, make it empty (toggle off)
+                    // No change to numActivatedCells since marked cells don't count
+                } else {
+                    // If cell wasn't marked, make it marked
+                    cell.classList.add('marked');
+                    if (wasClicked) {
+                        this.numActivatedCells--;
+                    }
+                }
+                break;
+        }
     }
 
     getLayout(size) {
@@ -886,9 +1229,16 @@ class Nono {
         const id = `top-${col}`
         const workingCol = document.getElementById(id);
 
+        // For zero columns, check if they're actually empty
         if (this.topNums[col].length === 1 && this.topNums[col][0] === 0) {
-            this.colCompleteFlags[col] = true;
-            workingCol.classList.add('complete');
+            // Only mark as complete if there are no filled cells
+            if (this.isColComplete(col)) {
+                this.colCompleteFlags[col] = true;
+                workingCol.classList.add('complete');
+            } else {
+                this.colCompleteFlags[col] = false;
+                workingCol.classList.remove('complete');
+            }
         } else if (this.isColComplete(col)) {
             this.colCompleteFlags[col] = true;
             workingCol.classList.add('complete');
@@ -902,10 +1252,16 @@ class Nono {
         const id = `side-${row}`;
         const workingRow = document.getElementById(id);
 
-        // preserve completion for zero rows
+        // For zero rows, check if they're actually empty
         if (this.sideNums[row].length === 1 && this.sideNums[row][0] === 0) {
-            this.rowCompleteFlags[row] = true;
-            workingRow.classList.add('complete');
+            // Only mark as complete if there are no filled cells
+            if (this.isRowComplete(row)) {
+                this.rowCompleteFlags[row] = true;
+                workingRow.classList.add('complete');
+            } else {
+                this.rowCompleteFlags[row] = false;
+                workingRow.classList.remove('complete');
+            }
         } else if (this.isRowComplete(row)) {
             // set correspoding rowflag to true
             this.rowCompleteFlags[row] = true;
@@ -947,7 +1303,8 @@ class Nono {
         for (let row=0; row<this.size; row++){
             let id = `cell-${row}-${COL}`;
             const cell = document.getElementById(id);
-            slice[row] = cell.classList.contains('clicked') ? 1 : 0; // just use row as a incrementor
+            // Only clicked cells count for completion - greyed and marked are just hints
+            slice[row] = cell.classList.contains('clicked') ? 1 : 0;
         }
 
         return slice
@@ -959,6 +1316,7 @@ class Nono {
         for (let col=0; col<this.size; col++){
             let id = `cell-${ROW}-${col}`;
             const cell = document.getElementById(id);
+            // Only clicked cells count for completion - greyed and marked are just hints
             slice[col] = cell.classList.contains('clicked') ? 1 : 0;
         }
 
