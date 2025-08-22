@@ -591,7 +591,7 @@ class Nono {
     // can be called everytime in reset()
     mainKeyActions(){
         document.addEventListener('keydown', (e) => {
-            if (e.code === 'Enter' && !e.repeat) {
+            if ((e.code === 'Enter' || e.code === 'NumpadEnter') && !e.repeat) {
                 const activeEl = document.activeElement;
                 if (activeEl && activeEl.id === 'seed-input') {
                     e.preventDefault();
