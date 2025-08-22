@@ -676,6 +676,25 @@ class Nono {
             });
         });
 
+        // Prevent right-click context menu globally except on links and home button
+        document.addEventListener('contextmenu', (e) => {
+            // Allow context menu on links (a tags)
+            if (e.target.tagName === 'A' || e.target.closest('a')) {
+                return;
+            }
+            
+            // Allow context menu on home button (check for common home button identifiers)
+            if (e.target.id === 'home-button' || 
+                e.target.classList.contains('home-button') ||
+                e.target.closest('#home-button') ||
+                e.target.closest('.home-button')) {
+                return;
+            }
+            
+            // Prevent context menu everywhere else
+            e.preventDefault();
+        });
+
         // Add global mouseup event listener
         document.addEventListener('mouseup', (e) => {
             this.handleIfActive(() => {
