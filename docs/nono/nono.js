@@ -276,6 +276,8 @@ class Nono {
         if (popup) popup.classList.add('hidden');
         const shareButton = document.getElementById('copy-button');
         if (shareButton) shareButton.classList.add('hidden');
+        const resetHint = document.getElementById('reset-hint');
+        if (resetHint) resetHint.classList.add('hidden');
 
         this.initializeTable();
         this.syncTableSizes();
@@ -335,6 +337,8 @@ class Nono {
 
         const popup = document.getElementById('win-paste');
         if (popup) popup.classList.add('hidden');
+        const resetHint = document.getElementById('reset-hint');
+        if (resetHint) resetHint.classList.add('hidden');
 
         this.initializeTable();
         this.syncTableSizes();
@@ -1414,6 +1418,19 @@ class Nono {
     showWinPopup(timeString) {
         const popup = document.getElementById('win-paste');
         const timerElement = document.getElementById('timer');
+        const resetHint = document.getElementById('reset-hint');
+
+        const hasCompletedFirstBoard = localStorage.getItem('NONO-first-board-completed');
+        const isFirstTime = !hasCompletedFirstBoard;
+
+        if (isFirstTime && resetHint) {
+            resetHint.textContent = 'press enter or click the corner of the board to reset.';
+            resetHint.classList.remove('hidden');
+        } else if (resetHint) {
+            resetHint.classList.add('hidden');
+        }
+
+        localStorage.setItem('NONO-first-board-completed', 'true');
 
         // Build seed from current generated layout
         let seedStr = '';
