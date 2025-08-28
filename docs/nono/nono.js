@@ -633,15 +633,15 @@ class Nono {
                     e.preventDefault();
                     this.undo();
                 }
-                else if ((['KeyW', 'KeyS', 'KeyX'].includes(e.code)) && this.hoveredCell) {
+                else if ((['KeyW'].includes(e.code)) && this.hoveredCell) {
                     e.preventDefault();
                     this.actionClickKeyboard();
                 }
-                else if ((['KeyE', 'KeyD', 'KeyC'].includes(e.code)) && this.hoveredCell) {
+                else if ((['KeyE'].includes(e.code)) && this.hoveredCell) {
                     e.preventDefault();
                     this.actionMarkKeyboard();
                 }
-                else if ((['KeyR', 'KeyF', 'KeyV'].includes(e.code)) && this.hoveredCell) {
+                else if ((['KeyR'].includes(e.code)) && this.hoveredCell) {
                     e.preventDefault();
                     this.actionGreyKeyboard();
                 }
@@ -650,10 +650,7 @@ class Nono {
 
         document.addEventListener('keyup', (e) => {
             this.handleIfActive(() => {
-                if (e.code === 'KeyW' || e.code === 'KeyS' || e.code === 'KeyX' ||
-                    e.code === 'KeyE' || e.code === 'KeyD' || e.code === 'KeyC' ||
-                    e.code === 'KeyR' || e.code === 'KeyF' || e.code === 'KeyV'
-                ) {
+                if (e.code === 'KeyW' || e.code === 'KeyE' || e.code === 'KeyR') {
                     e.preventDefault();
                     // Only apply drag actions if we actually dragged to other cells
                     if (this.isActionDown && this.dragStartCell && this.dragDirection && this.lastValidDragCell) {
