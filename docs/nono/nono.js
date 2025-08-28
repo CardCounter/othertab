@@ -583,6 +583,13 @@ class Nono {
                 });
             });
         });
+
+        const corner = document.getElementById('corner');
+        if (corner) {
+            corner.addEventListener('click', () => {
+                this.reset();
+            });
+        }
     }
 
     // separated per cell logic and key logic becaues when reseting using the enter key, reset would call 
