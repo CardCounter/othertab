@@ -28,15 +28,9 @@ main {
     --button-active: #2a2a2a;
 }
 
-body {
-    margin: 0;
-    background-color: white;
-    color: black;
-    text-align: center;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    min-height: 100vh;
+.mines-main {
+    align-items: stretch;
+    gap: var(--page-section-gap);
 }
 
 button {
@@ -65,7 +59,9 @@ button:hover {
 
 .difficulty-buttons {
     display: flex;
-    justify-content: space-evenly;
+    flex-wrap: wrap;
+    gap: clamp(0.5rem, 3vw, 1rem);
+    justify-content: center;
 }
 
 .difficulty-buttons button.active:hover {
@@ -77,12 +73,12 @@ button:hover {
 }
 
 .stats {
-    display: flex;
-    align-items: center;
-    justify-content: space-evenly;
-    gap: 2rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 0.5rem;
     margin: 0.2rem 0;
     font-size: 18px;
+    text-align: center;
 }
 
 /* .top-bar {
@@ -99,6 +95,8 @@ button:hover {
     display: flex;
     justify-content: center;
     align-items: center;
+    max-width: 100%;
+    overflow: auto;
 }
 
 .win-border {
@@ -174,11 +172,14 @@ button:hover {
 .dark-mode .color-8 { color: #cccccc; }
 
 .controls {
-    display: flex;
     justify-content: center;
-    margin-top: 2px;
-    margin-bottom: 2px;
-    align-items: center;
+}
+
+.top-bar {
+    display: flex;
+    flex-direction: column;
+    gap: clamp(0.75rem, 4vw, 1.5rem);
+    align-items: stretch;
 }
 
 .checkbox-wrapper {
@@ -190,6 +191,28 @@ button:hover {
 
 .dark-mode .checkbox-wrapper {
     accent-color: red;
+}
+
+@media (min-width: 720px) {
+    .top-bar {
+        flex-direction: row;
+        align-items: center;
+    }
+
+    .top-bar > * {
+        flex: 1;
+    }
+
+    .difficulty-buttons {
+        justify-content: flex-start;
+    }
+
+    .stats {
+        display: flex;
+        justify-content: flex-end;
+        gap: 2rem;
+        text-align: right;
+    }
 }
 
 .win-popup {

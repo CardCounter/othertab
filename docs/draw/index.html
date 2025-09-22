@@ -16,18 +16,19 @@
     <script>document.documentElement.classList.add('js-loading');</script>
     <link rel="stylesheet" href="../css/global.css">
     <link rel="stylesheet" href="../css/header.css">
+    <link rel="stylesheet" href="../css/layout.css">
     <link rel="stylesheet" href="../css/link.css">
     <link rel="stylesheet" href="../css/button.css">
     <link rel="stylesheet" href="draw.css">
 </head>
-<body>
-    <header>
+<body class="page">
+    <header class="page-header">
         <button id="dark-toggle" class="page-button">dark mode</button>
         <a href="../"><button id="home-button" class="page-button">o_t</button></a>
         <h2>DRAW</h2>
     </header>
 
-    <main>
+    <main class="page-main draw-main">
         <div class="drawing-area">
             <div class="left-section">
                 <div class="left-content">
@@ -94,15 +95,15 @@
                 </div>
             </div>
         </div>
-        
-        <button id="save-button" class="page-button">save</button>
-        <button id="load-button" class="page-button">load</button>
-        <input id="load-input" type="file" accept="image/*" style="display: none;">
-        <button id="clear-button" class="page-button">clear</button>
-        
+        <div class="canvas-action-row cluster" data-stack-align="center">
+            <button id="save-button" class="page-button">save</button>
+            <button id="load-button" class="page-button">load</button>
+            <input id="load-input" type="file" accept="image/*" style="display: none;">
+            <button id="clear-button" class="page-button">clear</button>
+        </div>
     </main>
 
-    <footer>
+    <footer class="page-footer">
         <p>o_d</p>
         <a href="controls/">controls</a>
         <a href="../privacy/">privacy</a>

@@ -17,49 +17,72 @@
             text-align: center;
             vertical-align: middle;
         }
+        #bestStatsTable {
+            width: min(100%, 420px);
+            margin: 0 auto;
+            border-collapse: collapse;
+        }
+        .table-wrapper {
+            width: 100%;
+            overflow-x: auto;
+        }
+        .stats-heading,
+        .stats-subheading {
+            margin: 0;
+        }
+        .stats-subheading {
+            margin-top: 0.5rem;
+        }
     </style>
     <script>document.documentElement.classList.add('js-loading');</script>
     <link rel="stylesheet" href="../../css/global.css">
     <link rel="stylesheet" href="../../css/header.css">
+    <link rel="stylesheet" href="../../css/layout.css">
     <link rel="stylesheet" href="../../css/link.css">
 </head>
 
-<body>
-    <h3 style="margin-bottom: 0px; margin-top: 1px;">rolling avg of last 100 tests</h3>
+<body class="page">
+    <main class="page-main text-center">
+        <h3 class="stats-heading">rolling avg of last 100 tests</h3>
 
-    <p style="margin-top: 1px;" id="avgStats">avg wpm NA avg acc NA%</p>
+        <p class="stats-subheading" id="avgStats">avg wpm NA avg acc NA%</p>
 
-    <h3 style="margin-bottom: 0px;">your best</h3>
+        <h3 class="stats-heading">your best</h3>
 
-    <table border="1" style="margin-top: 8px; margin-bottom: 18.72px;" id="bestStatsTable">
-        <thead>
-            <tr>
-                <th></th>
-                <th>10</th>
-                <th>25</th>
-                <th>50</th>
-                <th>100</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr>
-                <th>wpm</th>
-                <td id="wpm-10">NA</td>
-                <td id="wpm-25">NA</td>
-                <td id="wpm-50">NA</td>
-                <td id="wpm-100">NA</td>
-            </tr>
-            <tr>
-                <th>acc</th>
-                <td id="acc-10">NA</td>
-                <td id="acc-25">NA</td>
-                <td id="acc-50">NA</td>
-                <td id="acc-100">NA</td>
-            </tr>
-        </tbody>
-    </table>
+        <div class="table-wrapper">
+            <table border="1" id="bestStatsTable">
+                <thead>
+                    <tr>
+                        <th></th>
+                        <th>10</th>
+                        <th>25</th>
+                        <th>50</th>
+                        <th>100</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <th>wpm</th>
+                        <td id="wpm-10">NA</td>
+                        <td id="wpm-25">NA</td>
+                        <td id="wpm-50">NA</td>
+                        <td id="wpm-100">NA</td>
+                    </tr>
+                    <tr>
+                        <th>acc</th>
+                        <td id="acc-10">NA</td>
+                        <td id="acc-25">NA</td>
+                        <td id="acc-50">NA</td>
+                        <td id="acc-100">NA</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
 
-    <a href="javascript:history.back()">go back</a>
+    <footer class="page-footer">
+        <a href="javascript:history.back()">go back</a>
+    </footer>
 </body>
 
 <script src="../../scripts/darkmode-check.js"></script>

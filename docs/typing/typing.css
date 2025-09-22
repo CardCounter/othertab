@@ -1,30 +1,18 @@
 :root {
     font-size: 16px;
-    --typing-font-size: 2.5rem;
+    --typing-font-size: clamp(1.25rem, 6vw, 2.5rem);
 }
 
-body {
-    margin: 0;
-    background-color: white;
-    color: black;
-    text-align: center;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    min-height: 100vh;
+.typing-main {
+    align-items: stretch;
+    gap: var(--page-section-gap);
 }
 
 button {
-    /* padding: 1rem 0; */
     cursor: pointer;
-    /* margin-left: 5px;
-    margin-right: 5px;
-    margin-top: 5px;
-    margin-bottom: 5px; */
-    margin: 1rem 0;
-    padding: 0, 0;
+    margin: 0;
+    padding: 0 0;
     font-size: 16px;
-    /* call --bg from global */
     background-color: var(--bg-color);
     color: var(--text-color);
     border: none;
@@ -39,40 +27,31 @@ button:focus {
     box-shadow: none;
 }
 
-.top-bar{
-    display: flex;
-    flex-direction: row;
-    margin: 1rem 0;
-    align-content: center;
-    align-items: center;
-    justify-content: space-between;
+.top-bar {
+    width: 100%;
 }
 
 .wpm-paste{
-    display: flex;
-    flex-direction: row;
-    /* margin: 1rem 0; */
     align-items: center;
 }
 
 .copy-button{
     cursor: pointer;
-    margin: 0 0.3rem;
-    padding: 0 0; /* change this for vertical bars on mode buttons */
+    padding: 0 0;
     font-size: 16px;
-    background-color: var(--bg-color); /* call --bg from global */
+    background-color: var(--bg-color);
     color: var(--text-color);
-    border: none; 
+    border: none;
 }
 
 .mode-button{
     cursor: pointer;
     margin: 0;
-    padding: 0 0; /* change this for vertical bars on mode buttons */
+    padding: 0 0;
     font-size: 16px;
-    background-color: var(--bg-color); /* call --bg from global */
+    background-color: var(--bg-color);
     color: var(--text-color);
-    border: none; 
+    border: none;
 }
 
 .mode-button.active{
@@ -140,18 +119,21 @@ button:focus {
     display: none;
 }
 
+.game-container {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    padding: clamp(1rem, 4vw, 2.5rem);
+    box-sizing: border-box;
+}
+
 .typing-wrapper {
-    /* display: flex; focus on this later, want it so that when user zooms in the block stays good */
     text-align: left;
     position: relative;
-    /* width: 1000px; */
     width: 100%;
     max-width: 1000px;
-    height: 200px;
-    font-size: 24px;
-
-    /* height: calc(1.2em * 3); */
-    height: auto;
+    min-height: clamp(10rem, 40vw, 16rem);
+    font-size: var(--typing-font-size);
     line-height: 1.2;
 }
 

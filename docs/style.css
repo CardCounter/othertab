@@ -1,21 +1,10 @@
-body {
-    margin: 0;
-    background-color: white;
-    color: black;
-    text-align: center;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    min-height: 100vh;
-}
-
 /* card grid  */
 .card-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    max-width: 800px;
+    width: min(100%, 800px);
     gap: 1.5rem;
-    margin: auto;
+    margin: 0 auto;
     padding: 1rem;
     justify-content: center;
     justify-items: center;

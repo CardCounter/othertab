@@ -15,16 +15,21 @@
     <script>document.documentElement.classList.add('js-loading');</script>
     <link rel="stylesheet" href="../../css/global.css">
     <link rel="stylesheet" href="../../css/header.css">
+    <link rel="stylesheet" href="../../css/layout.css">
     <link rel="stylesheet" href="../../css/link.css">
 </head>
-<body>
-    <p>1 => 4 == s => xl</p>
-    <p>q == colorSwitch()</p>
-    <p>w, e, s, d == □, X, /, #</p>
-    <p>rclick == switchToEraser()</p>
-    <p>r == undo</p>
-    <p>f == unundo</p>
-    <a href="javascript:history.back()">go back</a>
+<body class="page">
+    <main class="page-main text-center">
+        <p>1 =&gt; 4 == s =&gt; xl</p>
+        <p>q == colorSwitch()</p>
+        <p>w, e, s, d == □, X, /, #</p>
+        <p>rclick == switchToEraser()</p>
+        <p>r == undo</p>
+        <p>f == unundo</p>
+    </main>
+    <footer class="page-footer">
+        <a href="javascript:history.back()">go back</a>
+    </footer>
 </body>
 <script>
     document.addEventListener('DOMContentLoaded', () => {

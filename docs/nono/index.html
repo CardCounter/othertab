@@ -17,18 +17,21 @@
     <script>document.documentElement.classList.add('js-loading');</script>
     <link rel="stylesheet" href="../css/global.css">
     <link rel="stylesheet" href="../css/header.css">
+    <link rel="stylesheet" href="../css/layout.css">
     <link rel="stylesheet" href="../css/link.css">
     <link rel="stylesheet" href="nono.css">
 </head>
-<body>
-    <header>
+<body class="page">
+    <header class="page-header">
         <a href="../"><button id="home-button" class="page-button">o_t</button></a>
         <h2>NONO</h2>
         <button id="dark-toggle" class="page-button">dark mode</button>
     </header>
 
-    <main>
-        <table border="1" id="game-container" class="game-container"></table>
+    <main class="page-main nono-main">
+        <div class="board-wrapper">
+            <table border="1" id="game-container" class="game-container"></table>
+        </div>
 
         <div id="settings-panel" class="settings-panel hidden">
             <div id="difficulty-buttons-grid" class="difficulty-buttons-grid">
@@ -43,8 +46,8 @@
 
     </main>
 
-    <footer>
-        <div class="settings-group">
+    <footer class="page-footer">
+        <div class="settings-group cluster" data-stack-align="center">
             <button class="settings-button" id="settings-button">size</button>
             <button class="settings-button" id="seed-button">seed</button>
             <button class="settings-button" id="load-button">load</button>

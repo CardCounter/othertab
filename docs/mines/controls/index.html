@@ -15,17 +15,22 @@
     <script>document.documentElement.classList.add('js-loading');</script>
     <link rel="stylesheet" href="../../css/global.css">
     <link rel="stylesheet" href="../../css/header.css">
+    <link rel="stylesheet" href="../../css/layout.css">
     <link rel="stylesheet" href="../../css/link.css">
 </head>
-<body>
-    <p>
-    left click to dig
-    right click to flag
-    middle click or left and right click to chord 
-    space to flag or chord 
-    w or e or r to reset 
-    </p>
-    <a href="javascript:history.back()">go back</a>
+<body class="page">
+    <main class="page-main text-center">
+        <p>
+        left click to dig<br>
+        right click to flag<br>
+        middle click or left and right click to chord<br>
+        space to flag or chord<br>
+        w or e or r to reset
+        </p>
+    </main>
+    <footer class="page-footer">
+        <a href="javascript:history.back()">go back</a>
+    </footer>
 </body>
 <script>
     // Check for saved preference when page loads

@@ -10,37 +10,23 @@
     --color: white;
 }
 
-body {
-    margin: 0;
-    background-color: var(--bg-color);
-    color: var(--color);
-    text-align: center;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
+.nono-main {
     align-items: center;
-    min-height: 100vh;
+    gap: var(--page-section-gap);
 }
 
-.top-bar{
+.board-wrapper {
+    width: 100%;
+    overflow: auto;
     display: flex;
-    flex-direction: row;
-    margin: 1rem 0;
-    align-content: center;
-    align-items: center;
-    justify-content: space-between;
-}
-
-main {
-    flex: 1;
-    display: flex;
-    align-items: center;
     justify-content: center;
 }
 
 .game-container {
     min-width: 85vmin;
     min-height: 85vmin;
+    width: max-content;
+    max-width: 100%;
     /* table-layout: fixed; */
     border-collapse: collapse;
     background-color: var(--bg-color);
@@ -269,7 +255,7 @@ table tr:last-child td.drag-preview {
 
 .difficulty-buttons-grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
     gap: 0.5rem;
 }
 
@@ -322,16 +308,14 @@ button:hover {
 }
 
 .settings-button {
-    position: absolute;
-    left: calc(1rem + 4px);
+    position: static;
 }
 
 .win-paste {
     display: flex;
-    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
     gap: 0.5rem;
-    position: absolute;
-    right: calc(1rem + 4px);
 }
 
 /* .top .highlight{
@@ -360,17 +344,10 @@ button:hover {
 }
 
 .settings-group {
-    position: absolute;
-    left: calc(1rem + 4px);
     display: flex;
-    flex-direction: row;
+    flex-wrap: wrap;
     align-items: center;
     gap: 0.5rem; /* matches win-paste gap */
-}
-
-/* When buttons are inside the group, don't absolutely position each button */
-.settings-group .settings-button {
-    position: static;
 }
 
 .settings-panel{
