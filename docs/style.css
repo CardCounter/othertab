@@ -9,14 +9,32 @@ body {
     min-height: 100vh;
 }
 
+body.home-page {
+    --home-inline-padding-left: max(1rem, env(safe-area-inset-left, 0px));
+    --home-inline-padding-right: max(1rem, env(safe-area-inset-right, 0px));
+}
+
+body.home-page header,
+body.home-page main {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+body.home-page header {
+    position: relative;
+}
+
 /* card grid  */
 .card-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     max-width: 800px;
+    width: 100%;
     gap: 1.5rem;
     margin: auto;
     padding: 1rem;
+    padding-left: var(--home-inline-padding-left, 1rem);
+    padding-right: var(--home-inline-padding-right, 1rem);
     justify-content: center;
     justify-items: center;
 }
@@ -43,3 +61,11 @@ body {
 .dark-mode .card {
     background-color: black;
 }
+
+body.home-page #dark-toggle {
+    position: absolute;
+    top: calc(1rem + 4px);
+    right: calc(var(--home-inline-padding-right, 1rem) + 4px);
+    margin: 0;
+}
+
