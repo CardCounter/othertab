@@ -13,8 +13,8 @@
         (typeof window !== 'undefined' && window.OTHERTAB_MOBILE_MESSAGE) ||
         defaultMessage;
 
-    // Prefer capability + media features over UA sniffing
-    const isTouchDevice = navigator.maxTouchPoints > 1 || 'ontouchstart' in window || 'onpointerdown' in window;
+    // Prefer capability + media features over UA sniffing, and only treat devices with genuine touch support as touch
+    const isTouchDevice = navigator.maxTouchPoints > 0 || 'ontouchstart' in window;
     const isCoarsePointer = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
     const noHover = window.matchMedia && window.matchMedia('(hover: none)').matches;
     // UA-CH when available (Chromium), fallback to UA regex for Safari/others
