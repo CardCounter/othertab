@@ -101,6 +101,8 @@
         darkToggle.style.fontFamily = "'Times New Roman', Times, serif";
         darkToggle.style.fontSize = '16px';
         darkToggle.style.cursor = 'pointer';
+        darkToggle.style.border = 'none';
+        darkToggle.style.outline = 'none';
 
         // --- Dark mode wiring (self-contained, compatible with darkmode.js / darkmode-check.js) ---
         function getCurrentMode() {
@@ -110,9 +112,22 @@
             if (dm === 'true' || dm === 'false') return dm === 'true' ? 'dark' : 'light';
             return (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
         }
+
+        function setThemeColor(color) {
+            let meta = document.querySelector('meta[name="theme-color"]');
+            if (!meta) {
+                meta = document.createElement('meta');
+                meta.setAttribute('name', 'theme-color');
+                document.head.appendChild(meta);
+            }
+            meta.setAttribute('content', color);
+        }
+
         function applyOverlayTheme(mode) {
             overlay.style.backgroundColor = mode === 'dark' ? '#000000' : '#ffffff';
             overlay.style.color = mode === 'dark' ? '#ffffff' : '#000000';
+            setThemeColor(mode === 'dark' ? '#000000' : '#ffffff');
+            darkToggle.style.color = mode === 'dark' ? '#ffffff' : '#000000';
             darkToggle.textContent = mode === 'dark' ? 'light mode' : 'dark mode';
         }
         function applyMode(mode) {
