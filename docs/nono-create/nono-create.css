@@ -108,6 +108,7 @@ main {
   background: var(--bg-color);
   bottom: 0;
   width: 100%;
+
 }
 
 .footer-left,
@@ -119,9 +120,9 @@ main {
 }
 
 /* left aligns to start, center is centered, right aligns to end */
-.footer-left { justify-self: start; }
-.footer-center { justify-self: center; }
-.footer-right { justify-self: end; }
+.footer-left { justify-self: start; margin-left: 20px; margin-bottom: 16px; }
+.footer-center { justify-self: center; margin-bottom: 16px; }
+.footer-right { justify-self: end; margin-right: 20px; margin-bottom: 16px; }
 
 /* brand + links */
 .footer-brand {
