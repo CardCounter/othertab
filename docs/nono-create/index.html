@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="design your own nono boards and share them with friends">
+    <meta name="description" content="o_n_c">
     <link rel="icon" href="../nono/images/nono.png?v=2" type="image/png" media="(prefers-color-scheme: light)">
     <link rel="icon" href="../nono/images/nono-dark.png?v=2" type="image/png" media="(prefers-color-scheme: dark)">
-    <title>nono create</title>
+    <title>nono_create</title>
     <!-- prevents fouc, hide style as loading html -->
     <style>
         html.js-loading {
@@ -23,7 +23,7 @@
 <body>
     <header>
         <a href="../"><button id="home-button" class="page-button">o_t</button></a>
-        <h2>NONO_CREATE</h2>
+        <h2>NONO-CREATE</h2>
         <button id="dark-toggle" class="page-button">dark mode</button>
     </header>
 
@@ -43,22 +43,22 @@
         </div>
     </main>
 
-    <footer>
-        <div class="footer-left">
-            <div class="settings-group">
-                <button class="settings-button" id="settings-button" aria-haspopup="true" aria-expanded="false">size</button>
-                <button class="settings-button" id="seed-button">seed</button>
-            </div>
+    <footer role="contentinfo" class="footer">
+      <div class="footer-left">
+        <div class="settings-group">
+          <button class="settings-button" id="settings-button" aria-haspopup="true" aria-expanded="false">size</button>
+          <button class="settings-button" id="seed-button">seed</button>
         </div>
-        <div class="footer-center">
-            <p>o_n</p>
-            <a href="../nono/controls/">controls</a>
-            <a href="../privacy/">privacy</a>
-        </div>
-        <div class="footer-right">
-            <input type="file" id="upload-input" accept="image/*" class="file-input-hidden">
-            <button class="settings-button" id="upload-button">upload</button>
-        </div>
+      </div>
+      <div class="footer-center">
+        <p class="footer-brand">o_n</p>
+        <a href="../nono/controls/" class="footer-link">controls</a>
+        <a href="../privacy/" class="footer-link">privacy</a>
+      </div>
+      <div class="footer-right">
+        <input type="file" id="upload-input" accept="image/*" class="file-input-hidden">
+        <button class="settings-button" id="upload-button">upload</button>
+      </div>
     </footer>
 
     <script src="../scripts/mobile-block.js" data-header="NONO_CREATE" data-message="nono create really needs a bigger screen"></script>
