@@ -138,11 +138,6 @@ main {
   text-decoration: underline;
 }
 
-/* keep native file input hidden in footer context */
-.footer .file-input-hidden {
-  display: none;
-}
-
 /* normalize button sizing within footer */
 .footer .settings-button,
 .footer .page-button {

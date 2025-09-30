@@ -15,8 +15,6 @@
     const settingsPanel = document.getElementById("settings-panel");
     const sizeButtons = Array.from(document.querySelectorAll(".difficulty-button"));
     const seedButton = document.getElementById("seed-button");
-    const uploadButton = document.getElementById("upload-button");
-    const uploadInput = document.getElementById("upload-input");
 
     if (!boardElement || !settingsButton || !settingsPanel) {
       return;
@@ -259,70 +257,5 @@
       });
     }
 
-    function applyBoardFromImageData(imageData, width, height) {
-      const newBoard = createEmptyBoard(size);
-      for (let r = 0; r < size; r++) {
-        for (let c = 0; c < size; c++) {
-          const sampleX = Math.floor((c / size) * width);
-          const sampleY = Math.floor((r / size) * height);
-          const clampedX = clamp(sampleX, 0, width - 1);
-          const clampedY = clamp(sampleY, 0, height - 1);
-          const idx = (clampedY * width + clampedX) * 4;
-          const red = imageData[idx];
-          const green = imageData[idx + 1];
-          const blue = imageData[idx + 2];
-          const alpha = imageData[idx + 3] / 255;
-          const brightness = (red + green + blue) / 3;
-          const value = alpha < 0.1 ? 0 : brightness < 128 ? 1 : 0;
-          newBoard[r][c] = value;
-        }
-      }
-      board = newBoard;
-      buildBoard();
-    }
-
-    function handleFile(file) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-          const img = new Image();
-          img.onload = () => {
-            const canvas = document.createElement("canvas");
-            canvas.width = size;
-            canvas.height = size;
-            const ctx = canvas.getContext("2d");
-            if (!ctx) {
-              reject(new Error("Canvas context not available"));
-              return;
-            }
-            ctx.drawImage(img, 0, 0, size, size);
-            const imageData = ctx.getImageData(0, 0, size, size);
-            resolve({ data: imageData.data, width: imageData.width, height: imageData.height });
-          };
-          img.onerror = () => reject(new Error("Unable to load image"));
-          img.src = reader.result;
-        };
-        reader.onerror = () => reject(new Error("Unable to read file"));
-        reader.readAsDataURL(file);
-      });
-    }
-
-    if (uploadButton && uploadInput) {
-      uploadButton.addEventListener("click", () => {
-        uploadInput.value = "";
-        uploadInput.click();
-      });
-
-      uploadInput.addEventListener("change", async () => {
-        const file = uploadInput.files?.[0];
-        if (!file) return;
-        try {
-          const { data, width, height } = await handleFile(file);
-          applyBoardFromImageData(data, width, height);
-        } catch (error) {
-          console.error(error);
-        }
-      });
-    }
   });
 })();
