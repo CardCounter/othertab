@@ -1,0 +1,214 @@
+:root {
+    --bg-color: white;
+    --color: black;
+    --board-length: min(85vmin, 85vh);
+    --creator-size: 15;
+    user-select: none;
+}
+
+.dark-mode {
+    --bg-color: black;
+    --color: white;
+}
+
+body {
+    margin: 0;
+    background-color: var(--bg-color);
+    color: var(--color);
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+}
+
+main {
+    position: relative;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+}
+
+.board-area {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    padding: 1rem;
+}
+
+.creator-board {
+    border-collapse: collapse;
+    width: var(--board-length);
+    height: var(--board-length);
+    background-color: var(--bg-color);
+    color: var(--color);
+    table-layout: fixed;
+}
+
+.creator-board tr {
+    padding: 0;
+    margin: 0;
+}
+
+.creator-cell {
+    width: calc(var(--board-length) / var(--creator-size));
+    height: calc(var(--board-length) / var(--creator-size));
+    border: 1px solid var(--color);
+    padding: 0;
+    margin: 0;
+    background-color: var(--bg-color);
+    transition: background-color 0.1s ease;
+    cursor: pointer;
+}
+
+.creator-cell:hover {
+    background-color: rgba(128, 128, 128, 0.2);
+}
+
+.creator-cell.filled {
+    background-color: blue;
+}
+
+.dark-mode .creator-cell.filled {
+    background-color: red;
+}
+
+.creator-board tr:first-child .creator-cell {
+    border-top-width: 3px;
+}
+
+.creator-board tr:nth-child(5n + 1) .creator-cell {
+    border-top-width: 3px;
+}
+
+.creator-board tr:last-child .creator-cell {
+    border-bottom-width: 3px;
+}
+
+.creator-board .creator-cell:first-child {
+    border-left-width: 3px;
+}
+
+.creator-board .creator-cell:nth-child(5n + 1) {
+    border-left-width: 3px;
+}
+
+.creator-board .creator-cell:last-child {
+    border-right-width: 3px;
+}
+
+footer {
+    width: min(85vmin, 95vw);
+    margin-bottom: 1.5rem;
+}
+
+.footer-left,
+.footer-right {
+    flex: 1;
+    display: flex;
+    align-items: center;
+}
+
+.footer-left {
+    justify-content: flex-start;
+}
+
+.footer-right {
+    justify-content: flex-end;
+}
+
+.footer-center {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.footer-center a {
+    display: inline-block;
+}
+
+.settings-group {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.settings-button,
+.difficulty-button,
+button {
+    cursor: pointer;
+    margin: 0;
+    padding: 0;
+    font-size: 16px;
+    background-color: var(--bg-color);
+    color: var(--color);
+    border: none;
+}
+
+.settings-button:hover,
+.difficulty-button:hover,
+button:hover {
+    background-color: grey;
+}
+
+.settings-panel {
+    position: fixed;
+    left: calc(50% - (var(--board-length) / 2));
+    bottom: 5.5rem;
+    background: var(--bg-color);
+    color: var(--color);
+    padding: 1rem;
+    border: 1px solid var(--color);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    z-index: 1000;
+}
+
+.settings-panel.hidden {
+    display: none;
+}
+
+.difficulty-buttons-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.5rem;
+}
+
+.difficulty-button {
+    border: 1px solid var(--color);
+    padding: 0.25rem 0.5rem;
+}
+
+.difficulty-button.active {
+    background-color: blue;
+    color: white;
+}
+
+.dark-mode .difficulty-button.active {
+    background-color: red;
+    color: black;
+}
+
+.hidden {
+    display: none;
+}
+
+.file-input-hidden {
+    position: absolute;
+    width: 0.1px;
+    height: 0.1px;
+    opacity: 0;
+    overflow: hidden;
+    z-index: -1;
+}
+
+@media (max-width: 768px) {
+    .settings-panel {
+        left: 1rem;
+        right: 1rem;
+    }
+}
