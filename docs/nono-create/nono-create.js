@@ -15,6 +15,7 @@
     const settingsPanel = document.getElementById("settings-panel");
     const sizeButtons = Array.from(document.querySelectorAll(".difficulty-button"));
     const seedButton = document.getElementById("seed-button");
+    const clearButton = document.getElementById("clear-button");
 
     if (!boardElement || !settingsButton || !settingsPanel) {
       return;
@@ -94,6 +95,11 @@
       setCell(row, col, board[row][col] ? 0 : 1);
     }
 
+    function clearBoard() {
+      board = createEmptyBoard(size);
+      updateBoardUI();
+    }
+
     function handlePointerDown(event) {
       const target = event.target.closest(".creator-cell");
       if (!target) return;
@@ -161,6 +167,10 @@
       if (event.key && event.key.toLowerCase() === "w" && hoverCell) {
         event.preventDefault();
         toggleCell(hoverCell.row, hoverCell.col);
+      }
+      if (event.key === "Enter") {
+        event.preventDefault();
+        clearBoard();
       }
     });
 
@@ -230,6 +240,10 @@
     }
 
     buildBoard();
+
+    if (clearButton) {
+      clearButton.addEventListener("click", clearBoard);
+    }
 
     if (seedButton) {
       seedButton.addEventListener("click", async () => {
