@@ -3,20 +3,32 @@
 
   /**
    * Seed helper utilities for NONO (base64-only)
-   * Format: SS + 'b' + BASE64URL(bits)
-   * - SS: two-digit size prefix (5 uses 50)
+   * Format: XX + BASE64URL(bits)
+   * - XX: two-letter size code (ca, tz, de, is, al, sg)
    * - bits: board flattened row-major, packed MSB-first into bytes
    */
 
+  // Size code mapping
+  const sizeCodeMap = {
+    ca: 30,
+    tz: 25,
+    de: 20,
+    is: 15,
+    al: 10,
+    sg: 5
+  };
+  const codeFromSize = Object.fromEntries(Object.entries(sizeCodeMap).map(([k,v]) => [v, k]));
+
   function encodeSizePrefix(boardSize) {
-    if (boardSize < 10) return String(boardSize * 10).padStart(2, "0");
-    return String(boardSize).padStart(2, "0");
+    const code = codeFromSize[boardSize];
+    if (!code) throw new Error("Unsupported board size for seed encoding: " + boardSize);
+    return code;
   }
 
   function decodeSizePrefix(prefix) {
-    const code = Number(prefix);
-    if (Number.isNaN(code)) throw new Error("Invalid seed: size prefix is not a number");
-    return code === 50 ? 5 : code;
+    const size = sizeCodeMap[prefix];
+    if (!size) throw new Error("Invalid seed: unknown size prefix '" + prefix + "'");
+    return size;
   }
 
   function normalizeLayoutToArray(layout) {
@@ -102,21 +114,17 @@
     const bits = flattenToBinaryString(layoutArray);
     const bytes = bitsToBytes(bits);
     const b64url = bytesToBase64Url(bytes);
-    return encodeSizePrefix(size) + "b" + b64url;
+    return encodeSizePrefix(size) + b64url;
   }
 
   // Parse base64 seed only
   function parseSeed(seedString) {
-    if (typeof seedString !== "string" || seedString.length < 3) {
-      throw new Error("Invalid seed: expected 'SSb<base64url>'");
+    if (typeof seedString !== "string" || seedString.length < 2) {
+      throw new Error("Invalid seed: expected '<XX><base64url>'");
     }
     const sizePrefix = seedString.slice(0, 2);
     const size = decodeSizePrefix(sizePrefix);
-    const rest = seedString.slice(2);
-    if (!rest.startsWith("b")) {
-      throw new Error("Invalid seed: only base64 format supported (SSb<base64url>)");
-    }
-    const b64url = rest.slice(1);
+    const b64url = seedString.slice(2);
     const bytes = base64UrlToBytes(b64url);
     const allBits = bytesToBits(bytes);
     const totalBits = size * size;
