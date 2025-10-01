@@ -2,10 +2,19 @@
 document.addEventListener('DOMContentLoaded', () => {
     const settingsButton = document.getElementById('settings-button');
     const settingsPanel = document.getElementById('settings-panel');
+    const loadPanel = document.getElementById('load-panel');
 
     settingsButton.addEventListener('click', (e) => {
-        settingsPanel.classList.toggle('hidden');
-        e.stopPropagation(); 
+        const isHidden = settingsPanel.classList.contains('hidden');
+        if (isHidden) {
+            settingsPanel.classList.remove('hidden');
+            if (loadPanel) {
+                loadPanel.classList.add('hidden');
+            }
+        } else {
+            settingsPanel.classList.add('hidden');
+        }
+        e.stopPropagation();
     });
 
     document.addEventListener('click', (e) => {
@@ -51,6 +60,7 @@ class Nono {
             document.documentElement.style.setProperty('--num-font-size', '16px');
         }
 
+        const settingsPanelEl = document.getElementById('settings-panel');
         const sizeButtons = document.querySelectorAll('.difficulty-button');
         sizeButtons.forEach(button => {
             button.addEventListener('click', () => {
@@ -67,6 +77,8 @@ class Nono {
                 document.documentElement.style.setProperty('--num-font-size', document.getElementById(this.sizeMode)?.dataset.font ?? button.dataset.font);
 
                 this.reset();
+
+                settingsPanelEl?.classList.add('hidden');
 
             });
         });
@@ -191,6 +203,8 @@ class Nono {
                     loadPanel.classList.add('hidden');
                     seedInput.value = '';
                 }
+                const settingsPanel = document.getElementById('settings-panel');
+                settingsPanel?.classList.add('hidden');
             });
 
             cancelBtn.addEventListener('click', () => {

@@ -257,20 +257,8 @@ table tr:last-child td.drag-preview {
 }
 
 .settings-panel {
-    position: absolute;
-    margin-left: 0.2rem;
-    flex: 1;
-    padding: 1rem;
     background-color: var(--bg-color);
-    left: 0;
     font-size: 1rem;
-    max-width: 90vw;
-}
-
-.difficulty-buttons-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 0.5rem;
 }
 
 .difficulty-button{
@@ -321,11 +309,6 @@ button:hover {
     background-color: grey;
 }
 
-.settings-button {
-    position: absolute;
-    left: calc(1rem + 4px);
-}
-
 .win-paste {
     display: flex;
     flex-direction: row;
@@ -359,6 +342,23 @@ button:hover {
     /* color: red; */
 }
 
+#settings-panel {
+    position: absolute;
+    left: calc(1rem + 4px);
+    bottom: 2.8rem;
+    display: none;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    border: 1px solid var(--color);
+    border-radius: 4px;
+    z-index: 1000;
+    align-items: center;
+}
+
+#settings-panel:not(.hidden) {
+    display: flex;
+}
+
 .settings-group {
     position: absolute;
     left: calc(1rem + 4px);
@@ -371,10 +371,6 @@ button:hover {
 /* When buttons are inside the group, don't absolutely position each button */
 .settings-group .settings-button {
     position: static;
-}
-
-.settings-panel{
-    padding: 1rem;
 }
 
 #load-panel{
