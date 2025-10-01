@@ -85,6 +85,10 @@ table tr:last-child td {
     font-size: var(--num-font-size);
     /* line-height: 0.9;  */
     line-height: 1.1;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-user-drag: none;
+    -webkit-touch-callout: none;
 }
 
 .top.wrong {
@@ -102,6 +106,10 @@ table tr:last-child td {
     /* min-height: 1rem; */
     font-size: var(--num-font-size);
     line-height: 0.9; 
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-user-drag: none;
+    -webkit-touch-callout: none;
 }
 
 .clicked {
