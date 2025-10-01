@@ -28,12 +28,6 @@
     </header>
 
     <main>
-        <section class="uploader" aria-label="image uploader">
-            <h3 class="uploader-title">upload image</h3>
-            <p class="uploader-instructions">convert an image into a black and white nono layout using k=2 clustering.</p>
-            <input type="file" id="image-upload-input" class="file-input-hidden" accept="image/*">
-            <p class="uploader-status" id="image-upload-status" role="status" aria-live="polite"></p>
-        </section>
         <div class="board-area">
             <table id="creator-board" class="creator-board" aria-label="nono board designer grid"></table>
         </div>
@@ -54,8 +48,10 @@
             </div>
           </div>
           <button class="settings-button" id="image-upload-button">upload</button>
+          <input type="file" id="image-upload-input" class="file-input-hidden" accept="image/*" aria-hidden="true" tabindex="-1">
           <button class="settings-button" id="seed-button">seed</button>
         </div>
+        <p id="image-upload-status" class="uploader-status" role="status" aria-live="polite" aria-atomic="true"></p>
       </div>
       <div class="footer-center">
         <p class="footer-brand">o_n-c</p>
