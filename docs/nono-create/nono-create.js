@@ -158,6 +158,9 @@
       event.preventDefault();
     }, { passive: false });
     boardElement.addEventListener("mouseleave", handlePointerLeave);
+    boardElement.addEventListener("contextmenu", (event) => {
+      event.preventDefault();
+    });
 
     document.addEventListener("mouseup", stopPainting);
     document.addEventListener("touchend", stopPainting);
