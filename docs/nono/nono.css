@@ -256,31 +256,60 @@ table tr:last-child td.drag-preview {
     content: none;
 }
 
+
 .settings-panel {
     position: absolute;
-    margin-left: 0.2rem;
-    flex: 1;
-    padding: 1rem;
-    background-color: var(--bg-color);
+    bottom: calc(100% + 0.75rem);
     left: 0;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--bg-color);
     font-size: 1rem;
-    max-width: 90vw;
+    width: max-content;
+    max-width: min(26rem, calc(100vw - 2rem));
+    padding: 0 0;
+}
+
+.settings-panel.hidden {
+    display: none;
 }
 
 .difficulty-buttons-grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 0.5rem;
+    grid-template-columns: repeat(6, max-content);
+    column-gap: 0.5rem;
+    row-gap: 0.5rem;
+    justify-items: start;
+    align-items: center;
 }
 
 .difficulty-button{
     cursor: pointer;
     margin: 0;
-    padding: 0 0; /* change this for vertical bars on mode buttons */
+    padding: 0;
     font-size: 16px;
     background-color: var(--bg-color); /* call --bg from global */
     color: var(--text-color);
-    border: none; 
+    border: none;
+    display: inline-block;
+    width: auto;
+    inline-size: max-content;
+    justify-self: start;
+}
+
+@media (max-width: 768px) {
+    .settings-panel {
+        left: 50%;
+        transform: translateX(-50%);
+    }
+}
+
+@media (max-width: 540px) {
+    .difficulty-buttons-grid {
+        grid-template-columns: repeat(3, max-content);
+        column-gap: 0.5rem;
+        row-gap: 0.5rem;
+    }
 }
 
 .difficulty-button.active{
@@ -371,10 +400,6 @@ button:hover {
 /* When buttons are inside the group, don't absolutely position each button */
 .settings-group .settings-button {
     position: static;
-}
-
-.settings-panel{
-    padding: 1rem;
 }
 
 #load-panel{
