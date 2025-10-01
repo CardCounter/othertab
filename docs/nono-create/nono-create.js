@@ -271,7 +271,7 @@
       });
     }
 
-    const uploadBridge = {
+    const uploadBridge = Object.freeze({
       getSize: () => size,
       applyBinaryGrid(binaryGrid) {
         if (!Array.isArray(binaryGrid)) {
@@ -292,9 +292,21 @@
         stopPainting();
         updateBoardUI();
       },
-    };
+    });
 
-    window.NonoCreateBoard = uploadBridge;
+    // Freeze the bridge on window to guard against accidental tampering.
+    try {
+      Object.defineProperty(window, "NonoCreateBoard", {
+        configurable: false,
+        enumerable: false,
+        writable: false,
+        value: uploadBridge,
+      });
+    } catch (error) {
+      if (window.NonoCreateBoard !== uploadBridge) {
+        console.warn("NonoCreateBoard already defined; existing reference retained.");
+      }
+    }
     document.dispatchEvent(new CustomEvent("nono-create-board-ready", { detail: uploadBridge }));
 
   });
