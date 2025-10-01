@@ -190,16 +190,11 @@ button:hover {
     left: 0;
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
-    padding: 0.75rem;
     background-color: var(--bg-color);
-    border: 1px solid var(--color);
-    border-radius: 0.75rem;
-    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.25);
     font-size: 1rem;
     width: max-content;
     max-width: min(26rem, calc(100vw - 2rem));
-    z-index: 50;
+    padding: 0 0;
 }
 
 .settings-panel.hidden {
@@ -213,10 +208,6 @@ button:hover {
   bottom: 9rem;
   background: var(--bg-color);
   color: var(--color);
-  padding: 0.75rem;
-  border: 1px solid var(--color);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  z-index: 1000;
 }
 
 .load-panel.hidden {
@@ -225,24 +216,29 @@ button:hover {
 
 .difficulty-buttons-grid {
     display: grid;
-    grid-template-columns: repeat(6, minmax(2.75rem, 1fr));
-    gap: 0.5rem;
-    width: 100%;
+    grid-template-columns: repeat(6, max-content); /* columns hug content */
+    column-gap: 0.5rem;  /* small space between buttons */
+    row-gap: 0.5rem;
+    justify-items: start; /* items don’t stretch */
+    align-items: center;
 }
 
 .difficulty-button {
-    border: 1px solid var(--color);
-    padding: 0.25rem 0.5rem;
+    padding: 0;
+    display: inline-block;
+    width: auto;
+    inline-size: max-content; /* shrink to content width */
+    justify-self: start;      /* do not stretch within grid cell */
 }
 
 .difficulty-button.active {
     background-color: blue;
-    color: white;
+    color: blue;
 }
 
 .dark-mode .difficulty-button.active {
     background-color: red;
-    color: black;
+    color: red;
 }
 
 .hidden {
@@ -267,6 +263,8 @@ button:hover {
 
 @media (max-width: 540px) {
     .difficulty-buttons-grid {
-        grid-template-columns: repeat(3, minmax(3rem, 1fr));
+        grid-template-columns: repeat(3, max-content); /* still hug content on small screens */
+        column-gap: 0.5rem;
+        row-gap: 0.5rem;
     }
 }
