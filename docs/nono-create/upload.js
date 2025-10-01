@@ -98,17 +98,6 @@
     return grid;
   }
 
-  function setUploadStatus(statusElement, message, state) {
-    if (!statusElement) {
-      return;
-    }
-    statusElement.textContent = message;
-    statusElement.classList.remove("processing", "success", "error");
-    if (state) {
-      statusElement.classList.add(state);
-    }
-  }
-
   async function convertFileToBinaryGrid(file, targetSize) {
     const resource = await loadImageResource(file);
     const canvas = document.createElement("canvas");
@@ -148,7 +137,6 @@
     adoptBoardInterface(window.NonoCreateBoard);
     const fileInput = document.getElementById("image-upload-input");
     const uploadButton = document.getElementById("image-upload-button");
-    const statusElement = document.getElementById("image-upload-status");
 
     if (!fileInput || !uploadButton) {
       return;
@@ -165,7 +153,7 @@
       }
 
       if (file.type && !file.type.startsWith("image/")) {
-        setUploadStatus(statusElement, "please select an image file", "error");
+        console.warn("nono-create: rejected non-image upload", file.type);
         fileInput.value = "";
         return;
       }
@@ -173,26 +161,23 @@
       adoptBoardInterface(window.NonoCreateBoard);
       const activeBoard = boardInterface;
       if (!activeBoard || typeof activeBoard.getSize !== "function" || typeof activeBoard.applyBinaryGrid !== "function") {
-        setUploadStatus(statusElement, "board not ready", "error");
+        console.warn("nono-create: upload attempted before board ready");
         fileInput.value = "";
         return;
       }
 
       const targetSize = Number(activeBoard.getSize());
       if (!Number.isFinite(targetSize) || targetSize <= 0) {
-        setUploadStatus(statusElement, "board size unavailable", "error");
+        console.warn("nono-create: invalid board size", targetSize);
         fileInput.value = "";
         return;
       }
 
-      setUploadStatus(statusElement, "processing image…", "processing");
       try {
         const binaryGrid = await convertFileToBinaryGrid(file, targetSize);
         activeBoard.applyBinaryGrid(binaryGrid);
-        setUploadStatus(statusElement, "", null);
       } catch (error) {
         console.error("Unable to process image", error);
-        setUploadStatus(statusElement, "unable to load image", "error");
       } finally {
         fileInput.value = "";
       }
