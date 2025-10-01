@@ -4,7 +4,7 @@
   /**
    * Seed helper utilities for NONO (base64-only)
    * Format: XX + BASE64URL(bits)
-   * - XX: two-letter size code (ca, tz, de, is, al, sg)
+   * - XX: two-letter size code (ca, tz, de, kr, al, sg)
    * - bits: board flattened row-major, packed MSB-first into bytes
    */
 
@@ -13,7 +13,7 @@
     ca: 30,
     tz: 25,
     de: 20,
-    is: 15,
+    kr: 15,
     al: 10,
     sg: 5
   };
