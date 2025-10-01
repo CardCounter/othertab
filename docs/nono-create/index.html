@@ -31,7 +31,13 @@
         <div class="board-area">
             <table id="creator-board" class="creator-board" aria-label="nono board designer grid"></table>
         </div>
-        <div id="settings-panel" class="settings-panel hidden" aria-hidden="true">
+    </main>
+
+    <footer role="contentinfo" class="footer">
+      <div class="footer-left">
+        <div class="settings-group">
+          <button class="settings-button" id="settings-button" aria-haspopup="true" aria-expanded="false">size</button>
+          <div id="settings-panel" class="settings-panel hidden" aria-hidden="true">
             <div class="difficulty-buttons-grid">
                 <button class="difficulty-button" id="create-size-5" data-size="5">5</button>
                 <button class="difficulty-button" id="create-size-10" data-size="10">10</button>
@@ -40,13 +46,7 @@
                 <button class="difficulty-button" id="create-size-25" data-size="25">25</button>
                 <button class="difficulty-button" id="create-size-30" data-size="30">30</button>
             </div>
-        </div>
-    </main>
-
-    <footer role="contentinfo" class="footer">
-      <div class="footer-left">
-        <div class="settings-group">
-          <button class="settings-button" id="settings-button" aria-haspopup="true" aria-expanded="false">size</button>
+          </div>
           <button class="settings-button" id="seed-button">seed</button>
         </div>
       </div>

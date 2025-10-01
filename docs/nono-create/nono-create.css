@@ -163,6 +163,7 @@ main {
   flex-direction: row;
   align-items: center;
   gap: 0.5rem;
+  position: relative;
 }
 
 .settings-button,
@@ -185,17 +186,20 @@ button:hover {
 
 .settings-panel {
     position: absolute;
-    margin-left: 0.2rem;
-    flex: 1;
-    padding: 1rem;
-    background-color: var(--bg-color);
+    bottom: calc(100% + 0.75rem);
     left: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    background-color: var(--bg-color);
+    border: 1px solid var(--color);
+    border-radius: 0.75rem;
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.25);
     font-size: 1rem;
-    max-width: 90vw;
-}
-
-.settings-panel {
-    padding: 1rem;
+    width: max-content;
+    max-width: min(26rem, calc(100vw - 2rem));
+    z-index: 50;
 }
 
 .settings-panel.hidden {
@@ -221,8 +225,9 @@ button:hover {
 
 .difficulty-buttons-grid {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(6, minmax(2.75rem, 1fr));
     gap: 0.5rem;
+    width: 100%;
 }
 
 .difficulty-button {
@@ -255,7 +260,13 @@ button:hover {
 
 @media (max-width: 768px) {
     .settings-panel {
-        left: 1rem;
-        right: 1rem;
+        left: 50%;
+        transform: translateX(-50%);
+    }
+}
+
+@media (max-width: 540px) {
+    .difficulty-buttons-grid {
+        grid-template-columns: repeat(3, minmax(3rem, 1fr));
     }
 }
