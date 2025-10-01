@@ -222,6 +222,10 @@ class Nono {
         const button = document.getElementById(buttonId);
         if (!button) throw new Error('Unsupported size in seed');
 
+        // Update selected size button in the UI
+        document.querySelectorAll('.difficulty-button').forEach(btn => btn.classList.remove('active'));
+        button.classList.add('active');
+
         // Update size and UI font
         this.sizeMode = buttonId;
         localStorage.setItem('NONO-currentSize', buttonId);
