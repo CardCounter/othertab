@@ -271,5 +271,31 @@
       });
     }
 
+    const uploadBridge = {
+      getSize: () => size,
+      applyBinaryGrid(binaryGrid) {
+        if (!Array.isArray(binaryGrid)) {
+          return;
+        }
+        const sanitized = createEmptyBoard(size);
+        for (let r = 0; r < size; r++) {
+          const sourceRow = binaryGrid[r];
+          if (!Array.isArray(sourceRow)) {
+            continue;
+          }
+          for (let c = 0; c < size; c++) {
+            sanitized[r][c] = sourceRow[c] ? 1 : 0;
+          }
+        }
+        board = sanitized;
+        hoverCell = null;
+        stopPainting();
+        updateBoardUI();
+      },
+    };
+
+    window.NonoCreateBoard = uploadBridge;
+    document.dispatchEvent(new CustomEvent("nono-create-board-ready", { detail: uploadBridge }));
+
   });
 })();
