@@ -458,13 +458,9 @@ button:hover {
 }
 
 #load-panel input {
-    color: black;
+    color: var(--color);
     background-color: var(--bg-color);
-    /* border-width: 2px;
-    border-style: solid; */
     border: none;
-    /* border-color: black white white black; */
-    border-radius: 2px;
     caret-color: blue;
     font-size: 16px;
 }
@@ -481,7 +477,6 @@ button:hover {
 .dark-mode #load-panel input {
     background-color: black;
     color: white;
-    /* border-color: black white white black; */
     caret-color: red;
 }
 

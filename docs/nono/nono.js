@@ -168,8 +168,6 @@ class Nono {
             loadPanel.style.padding = '0.5rem';
             loadPanel.innerHTML = `
                 <input id="seed-input" type="text" placeholder="enter seed" style="width: 100%;" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
-                <button id="seed-confirm" class="settings-button">y</button>
-                <button id="seed-cancel" class="settings-button">n</button>
             `;
         }
 
@@ -185,8 +183,6 @@ class Nono {
         const loadBtn = document.getElementById('load-button');
         const loadPanelEl = document.getElementById('load-panel');
         const seedInput = document.getElementById('seed-input');
-        const confirmBtn = document.getElementById('seed-confirm');
-        const cancelBtn = document.getElementById('seed-cancel');
         const sizeBtn = document.getElementById('settings-button');
         let copyResetTimer = null;
 
@@ -202,11 +198,17 @@ class Nono {
             });
         };
 
+        const hideLoadPanel = () => {
+            if (!loadPanelEl || !seedInput) return;
+            loadPanelEl.classList.add('hidden');
+            seedInput.value = '';
+        };
+
         if (seedBtn) {
             seedBtn.addEventListener('click', async () => {
                 const settingsPanel = document.getElementById('settings-panel');
                 settingsPanel?.classList.add('hidden');
-                loadPanelEl?.classList.add('hidden');
+                hideLoadPanel();
                 try {
                     const seedStr = window.Seed ? window.Seed.createSeedFromLayout(this.possibleLayout, this.size) : '';
                     if (!seedStr) return;
@@ -237,7 +239,7 @@ class Nono {
             });
         }
 
-        if (loadBtn && loadPanelEl && seedInput && confirmBtn && cancelBtn) {
+        if (loadBtn && loadPanelEl && seedInput) {
             loadBtn.addEventListener('click', () => {
                 // Show the panel above buttons without hiding them
                 const isHidden = loadPanelEl.classList.contains('hidden');
@@ -245,29 +247,38 @@ class Nono {
                     loadPanelEl.classList.remove('hidden');
                     seedInput.focus();
                 } else {
-                    loadPanelEl.classList.add('hidden');
-                    seedInput.value = '';
+                    hideLoadPanel();
                 }
                 const settingsPanel = document.getElementById('settings-panel');
                 settingsPanel?.classList.add('hidden');
             });
 
-            cancelBtn.addEventListener('click', () => {
-                loadPanelEl.classList.add('hidden');
-                seedInput.value = '';
+            seedInput.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    const seedStr = seedInput.value.trim();
+                    if (!seedStr) {
+                        hideLoadPanel();
+                        return;
+                    }
+                    try {
+                        this.loadSeed(seedStr);
+                        hideLoadPanel();
+                    } catch (e) {
+                        // invalid seed; leave panel open for correction
+                    }
+                } else if (event.key === 'Escape') {
+                    event.preventDefault();
+                    hideLoadPanel();
+                }
             });
 
-            confirmBtn.addEventListener('click', () => {
-                const seedStr = seedInput.value.trim();
-                if (!seedStr) return;
-                try {
-                    this.loadSeed(seedStr);
-                    loadPanelEl.classList.add('hidden');
-                    seedInput.value = '';
-                } catch (e) {
-                    confirmBtn.textContent = 'invalid';
-                    setTimeout(() => confirmBtn.textContent = 'y', 1000);
-                }
+            seedInput.addEventListener('blur', () => {
+                setTimeout(() => {
+                    if (!loadPanelEl.contains(document.activeElement)) {
+                        hideLoadPanel();
+                    }
+                }, 0);
             });
         }
     }
@@ -668,22 +679,6 @@ class Nono {
             if ((e.code === 'Enter' || e.code === 'NumpadEnter') && !e.repeat) {
                 const activeEl = document.activeElement;
                 if (activeEl && activeEl.id === 'seed-input') {
-                    e.preventDefault();
-                    const seedInput = document.getElementById('seed-input');
-                    const loadPanel = document.getElementById('load-panel');
-                    const confirmBtn = document.getElementById('seed-confirm');
-                    const seedStr = seedInput ? seedInput.value.trim() : '';
-                    if (!seedStr) return;
-                    try {
-                        this.loadSeed(seedStr);
-                        if (loadPanel) loadPanel.classList.add('hidden');
-                        if (seedInput) seedInput.value = '';
-                    } catch (err) {
-                        if (confirmBtn) {
-                            confirmBtn.textContent = 'invalid';
-                            setTimeout(() => confirmBtn.textContent = 'y', 900);
-                        }
-                    }
                     return;
                 }
                 this.reset();

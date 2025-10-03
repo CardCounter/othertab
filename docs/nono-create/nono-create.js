@@ -16,6 +16,7 @@
     const sizeButtons = Array.from(document.querySelectorAll(".difficulty-button"));
     const seedButton = document.getElementById("seed-button");
     const clearButton = document.getElementById("clear-button");
+    const invertButton = document.getElementById("invert-button");
 
     if (!boardElement || !settingsButton || !settingsPanel) {
       return;
@@ -97,6 +98,16 @@
 
     function clearBoard() {
       board = createEmptyBoard(size);
+      updateBoardUI();
+    }
+
+    function invertBoard() {
+      stopPainting();
+      for (let r = 0; r < size; r++) {
+        for (let c = 0; c < size; c++) {
+          board[r][c] = board[r][c] ? 0 : 1;
+        }
+      }
       updateBoardUI();
     }
 
@@ -246,6 +257,10 @@
 
     if (clearButton) {
       clearButton.addEventListener("click", clearBoard);
+    }
+
+    if (invertButton) {
+      invertButton.addEventListener("click", invertBoard);
     }
 
     if (seedButton) {
