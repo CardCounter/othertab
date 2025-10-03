@@ -161,7 +161,7 @@ main {
     border-right-width: 3px;
 }
 
-/* --- footer (nono-style) --- */
+/* ---  (nono-style) --- */
 .footer {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
@@ -181,10 +181,10 @@ main {
   gap: 10px;
 }
 
-/* left aligns to start, center is centered, right aligns to end */
-.footer-left { justify-self: start; margin-left: 20px; margin-bottom: 16px; }
+/* janky keep this */
+.footer-left { justify-self: start; margin-left: 28px; margin-bottom: 17px; }
 .footer-center { justify-self: center; margin-bottom: 16px; }
-.footer-right { justify-self: end; margin-right: 20px; margin-bottom: 16px; }
+.footer-right { justify-self: end; margin-right: 28px; margin-bottom: 17px; }
 
 /* brand + links */
 .footer-brand {
@@ -249,7 +249,7 @@ button:hover {
 
 .settings-panel {
     position: absolute;
-    bottom: calc(100% + 0.75rem);
+    bottom: calc(100% + 4px);
     left: 0;
     display: flex;
     flex-direction: column;
