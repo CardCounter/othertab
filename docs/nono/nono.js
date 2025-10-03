@@ -240,12 +240,35 @@ class Nono {
         }
 
         if (loadBtn && loadPanelEl && seedInput) {
+            let suppressNextOpen = false;
+
+            const markToggleIntent = () => {
+                suppressNextOpen = !loadPanelEl.classList.contains('hidden');
+            };
+
+            loadBtn.addEventListener('pointerdown', markToggleIntent);
+            loadBtn.addEventListener('mousedown', markToggleIntent);
+            loadBtn.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    markToggleIntent();
+                }
+            });
+
             loadBtn.addEventListener('click', () => {
                 // Show the panel above buttons without hiding them
+                if (suppressNextOpen) {
+                    suppressNextOpen = false;
+                    hideLoadPanel();
+                    return;
+                }
                 const isHidden = loadPanelEl.classList.contains('hidden');
                 if (isHidden) {
                     loadPanelEl.classList.remove('hidden');
-                    seedInput.focus();
+                    try {
+                        seedInput.focus({ preventScroll: true });
+                    } catch (_) {
+                        seedInput.focus();
+                    }
                 } else {
                     hideLoadPanel();
                 }
