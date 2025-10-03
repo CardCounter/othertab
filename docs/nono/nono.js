@@ -121,86 +121,131 @@ class Nono {
 
     ensureSeedLoadButtons() {
         const footer = document.querySelector('footer');
-        if (!footer) return;
-        const sizeBtn = document.getElementById('settings-button');
-        let seedBtn = document.getElementById('seed-button');
-        let loadBtn = document.getElementById('load-button');
+        const settingsGroup = footer?.querySelector('.settings-group');
+        if (!footer || !settingsGroup) return;
 
+        const sizeAnchor = settingsGroup.querySelector('.panel-anchor');
+
+        let seedBtn = document.getElementById('seed-button');
         if (!seedBtn) {
             seedBtn = document.createElement('button');
             seedBtn.id = 'seed-button';
             seedBtn.className = 'settings-button';
             seedBtn.textContent = 'seed';
-            if (sizeBtn && sizeBtn.nextSibling) {
-                footer.insertBefore(seedBtn, sizeBtn.nextSibling);
+            if (sizeAnchor?.nextSibling) {
+                settingsGroup.insertBefore(seedBtn, sizeAnchor.nextSibling);
             } else {
-                footer.prepend(seedBtn);
+                settingsGroup.appendChild(seedBtn);
             }
         }
+
+        let loadBtn = document.getElementById('load-button');
+        let loadAnchor = loadBtn?.closest('.panel-anchor') ?? null;
         if (!loadBtn) {
+            loadAnchor = document.createElement('div');
+            loadAnchor.className = 'panel-anchor';
             loadBtn = document.createElement('button');
             loadBtn.id = 'load-button';
             loadBtn.className = 'settings-button';
             loadBtn.textContent = 'load';
-            if (seedBtn && seedBtn.nextSibling) {
-                footer.insertBefore(loadBtn, seedBtn.nextSibling);
-            } else {
-                footer.prepend(loadBtn);
-            }
+            loadAnchor.appendChild(loadBtn);
+            settingsGroup.appendChild(loadAnchor);
+        } else if (!loadAnchor) {
+            loadAnchor = document.createElement('div');
+            loadAnchor.className = 'panel-anchor';
+            loadBtn.replaceWith(loadAnchor);
+            loadAnchor.appendChild(loadBtn);
+            settingsGroup.appendChild(loadAnchor);
         }
 
-        // Ensure load panel exists
+        // Ensure load panel exists and is inside the anchor
         let loadPanel = document.getElementById('load-panel');
         if (!loadPanel) {
             loadPanel = document.createElement('div');
             loadPanel.id = 'load-panel';
             loadPanel.className = 'settings-panel hidden';
-            loadPanel.style.gap = '8px';
-            loadPanel.style.padding = '12px';
+            loadPanel.style.gap = '0.5rem';
+            loadPanel.style.padding = '0.5rem';
             loadPanel.innerHTML = `
-                <label for="seed-input">enter seed</label>
-                <input id="seed-input" type="text" placeholder="e.g. 151234567890" style="width: 100%;" />
-                <div style="display:flex; gap:8px; justify-content:flex-end;">
-                    <button id="seed-confirm" class="settings-button">y</button>
-                    <button id="seed-cancel" class="settings-button">n</button>
-                </div>
+                <input id="seed-input" type="text" placeholder="enter seed" style="width: 100%;" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+                <button id="seed-confirm" class="settings-button">y</button>
+                <button id="seed-cancel" class="settings-button">n</button>
             `;
-            footer.appendChild(loadPanel);
+        }
+
+        if (loadAnchor) {
+            loadAnchor.appendChild(loadPanel);
+        } else {
+            settingsGroup.appendChild(loadPanel);
         }
     }
 
     initSeedControls() {
         const seedBtn = document.getElementById('seed-button');
         const loadBtn = document.getElementById('load-button');
-        const loadPanel = document.getElementById('load-panel');
+        const loadPanelEl = document.getElementById('load-panel');
         const seedInput = document.getElementById('seed-input');
         const confirmBtn = document.getElementById('seed-confirm');
         const cancelBtn = document.getElementById('seed-cancel');
+        const sizeBtn = document.getElementById('settings-button');
+        let copyResetTimer = null;
+
+        const setCopyInterlock = (locked) => {
+            [sizeBtn, loadBtn].forEach(btn => {
+                if (!btn) return;
+                btn.disabled = locked;
+                if (locked) {
+                    btn.setAttribute('aria-disabled', 'true');
+                } else {
+                    btn.removeAttribute('aria-disabled');
+                }
+            });
+        };
 
         if (seedBtn) {
-            seedBtn.addEventListener('click', () => {
+            seedBtn.addEventListener('click', async () => {
+                const settingsPanel = document.getElementById('settings-panel');
+                settingsPanel?.classList.add('hidden');
+                loadPanelEl?.classList.add('hidden');
                 try {
                     const seedStr = window.Seed ? window.Seed.createSeedFromLayout(this.possibleLayout, this.size) : '';
-                    if (seedStr) {
-                        navigator.clipboard.writeText(seedStr);
-                        seedBtn.textContent = 'copied';
-                        setTimeout(() => seedBtn.textContent = 'seed', 1000);
+                    if (!seedStr) return;
+
+                    if (!navigator.clipboard || !navigator.clipboard.writeText) {
+                        return;
                     }
+                    setCopyInterlock(true);
+                    if (copyResetTimer) {
+                        clearTimeout(copyResetTimer);
+                        copyResetTimer = null;
+                    }
+                    await navigator.clipboard.writeText(seedStr);
+                    seedBtn.textContent = 'copied';
+                    copyResetTimer = setTimeout(() => {
+                        seedBtn.textContent = 'seed';
+                        setCopyInterlock(false);
+                        copyResetTimer = null;
+                    }, 1000);
                 } catch (e) {
-                    // ignore
+                    if (copyResetTimer) {
+                        clearTimeout(copyResetTimer);
+                        copyResetTimer = null;
+                    }
+                    seedBtn.textContent = 'seed';
+                    setCopyInterlock(false);
                 }
             });
         }
 
-        if (loadBtn && loadPanel && seedInput && confirmBtn && cancelBtn) {
+        if (loadBtn && loadPanelEl && seedInput && confirmBtn && cancelBtn) {
             loadBtn.addEventListener('click', () => {
                 // Show the panel above buttons without hiding them
-                const isHidden = loadPanel.classList.contains('hidden');
+                const isHidden = loadPanelEl.classList.contains('hidden');
                 if (isHidden) {
-                    loadPanel.classList.remove('hidden');
+                    loadPanelEl.classList.remove('hidden');
                     seedInput.focus();
                 } else {
-                    loadPanel.classList.add('hidden');
+                    loadPanelEl.classList.add('hidden');
                     seedInput.value = '';
                 }
                 const settingsPanel = document.getElementById('settings-panel');
@@ -208,7 +253,7 @@ class Nono {
             });
 
             cancelBtn.addEventListener('click', () => {
-                loadPanel.classList.add('hidden');
+                loadPanelEl.classList.add('hidden');
                 seedInput.value = '';
             });
 
@@ -217,7 +262,7 @@ class Nono {
                 if (!seedStr) return;
                 try {
                     this.loadSeed(seedStr);
-                    loadPanel.classList.add('hidden');
+                    loadPanelEl.classList.add('hidden');
                     seedInput.value = '';
                 } catch (e) {
                     confirmBtn.textContent = 'invalid';

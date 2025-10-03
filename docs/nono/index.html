@@ -32,34 +32,43 @@
 
     </main>
 
-    <footer>
-        <div id="settings-panel" class="settings-panel hidden">
-            <button class="difficulty-button" id="difficulty-5" data-size="5" data-font="16px">5</button>
-            <button class="difficulty-button" id="difficulty-10" data-size="10" data-font="16px">10</button>
-            <button class="difficulty-button" id="difficulty-15" data-size="15" data-font="16px">15</button>
-            <button class="difficulty-button" id="difficulty-20" data-size="20" data-font="16px">20</button>
-            <button class="difficulty-button" id="difficulty-25" data-size="25" data-font="16px">25</button>
-            <button class="difficulty-button" id="difficulty-30" data-size="30" data-font="16px">30</button>
+    <footer role="contentinfo" class="footer">
+        <div class="footer-left">
+            <div class="settings-group">
+                <div class="panel-anchor">
+                    <button class="settings-button" id="settings-button">size</button>
+                    <div id="settings-panel" class="settings-panel hidden">
+                        <button class="difficulty-button" id="difficulty-5" data-size="5" data-font="16px">5</button>
+                        <button class="difficulty-button" id="difficulty-10" data-size="10" data-font="16px">10</button>
+                        <button class="difficulty-button" id="difficulty-15" data-size="15" data-font="16px">15</button>
+                        <button class="difficulty-button" id="difficulty-20" data-size="20" data-font="16px">20</button>
+                        <button class="difficulty-button" id="difficulty-25" data-size="25" data-font="16px">25</button>
+                        <button class="difficulty-button" id="difficulty-30" data-size="30" data-font="16px">30</button>
+                    </div>
+                </div>
+                <button class="settings-button" id="seed-button">seed</button>
+                <div class="panel-anchor">
+                    <button class="settings-button" id="load-button">load</button>
+                    <div id="load-panel" class="settings-panel hidden">
+                        <input id="seed-input" type="text" placeholder="enter seed" style="width: 100%;" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+                        <button id="seed-confirm">y</button>
+                        <button id="seed-cancel">n</button>
+                    </div>
+                </div>
+            </div>
         </div>
-        <div class="settings-group">
-            <button class="settings-button" id="settings-button">size</button>
-            <button class="settings-button" id="seed-button">seed</button>
-            <button class="settings-button" id="load-button">load</button>
+        <div class="footer-center">
+            <p class="footer-brand">o_n</p>
+            <a href="controls/" class="footer-link">controls</a>
+            <a href="../nono-create/" class="footer-link">create</a>
+            <a href="../privacy/" class="footer-link">privacy</a>
         </div>
-        <p>o_n</p>
-        <a href="controls/">controls</a>
-        <a href="../nono-create/">create</a>
-        <a href="../privacy/">privacy</a>
-        <div id="win-paste" class="win-paste hidden">
-            <div id="reset-hint" class="reset-hint hidden"></div>
-            <div id="timer" class="timer">0:00</div>
-            <button id="copy-button" class="copy-button hidden">share</button>
-        </div>
-
-        <div id="load-panel" class="settings-panel hidden">
-            <input id="seed-input" type="text" placeholder="enter seed" style="width: 100%;" />
-            <button id="seed-confirm">y</button>
-            <button id="seed-cancel">n</button>
+        <div class="footer-right">
+            <div id="win-paste" class="win-paste hidden">
+                <div id="reset-hint" class="reset-hint hidden"></div>
+                <div id="timer" class="timer">0:00</div>
+                <button id="copy-button" class="copy-button hidden">share</button>
+            </div>
         </div>
     </footer>
 
