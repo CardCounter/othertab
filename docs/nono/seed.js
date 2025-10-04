@@ -54,12 +54,12 @@
   function bytesToBase64Url(bytes) {
     let binary = "";
     for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-    const b64 = btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+    const b64 = btoa(binary).replace(/\+/g, "-").replace(/\//g, "!").replace(/=+$/g, "");
     return b64;
   }
 
   function base64UrlToBytes(b64url) {
-    const b64 = b64url.replace(/-/g, "+").replace(/_/g, "/");
+    const b64 = b64url.replace(/-/g, "+").replace(/!/g, "/");
     const padLen = (4 - (b64.length % 4)) % 4;
     const padded = b64 + "=".repeat(padLen);
     const binary = atob(padded);
