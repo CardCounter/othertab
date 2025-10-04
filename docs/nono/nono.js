@@ -908,6 +908,7 @@ class Nono {
         this.hoveredCell.classList.toggle('clicked');
         
         this.updateCell();
+        this.updateAllCells();
         this.checkGameEnd();
         
         // Don't show preview for single clicks - only when actually dragging
@@ -934,6 +935,7 @@ class Nono {
         this.hoveredCell.classList.toggle('greyed');
         
         this.updateCell();
+        this.updateAllCells();
         this.checkGameEnd();
         
         // Don't show preview for single clicks - only when actually dragging
@@ -956,10 +958,11 @@ class Nono {
         
         // Apply action immediately for single clicks
         this.recordCellState(this.hoveredCell);
-        this.hoveredCell.classList.remove('marked', 'clicked');
+        this.hoveredCell.classList.remove('greyed', 'clicked');
         this.hoveredCell.classList.toggle('marked');
         
         this.updateCell();
+        this.updateAllCells();
         this.checkGameEnd();
         
         // Don't show preview for single clicks - only when actually dragging
@@ -986,6 +989,7 @@ class Nono {
         this.hoveredCell.classList.toggle('clicked');
         
         this.updateCell();
+        this.updateAllCells();
         this.checkGameEnd();
         
         // Don't show preview for single clicks - only when actually dragging
@@ -1012,6 +1016,7 @@ class Nono {
         this.hoveredCell.classList.toggle('greyed');
         
         this.updateCell();
+        this.updateAllCells();
         this.checkGameEnd();
         
         // Don't show preview for single clicks - only when actually dragging
@@ -1038,6 +1043,7 @@ class Nono {
         this.hoveredCell.classList.toggle('marked');
         
         this.updateCell();
+        this.updateAllCells();
         this.checkGameEnd();
         
         // Don't show preview for single clicks - only when actually dragging
