@@ -19,6 +19,28 @@
   };
   const codeFromSize = Object.fromEntries(Object.entries(sizeCodeMap).map(([k,v]) => [v, k]));
 
+  const sizeCodeBitMasks = {
+    ca: "01001",
+    tz: "11100",
+    de: "00111",
+    kr: "10010",
+    al: "01110",
+    sg: "10101"
+  };
+
+  function applySizeBitMask(bits, sizeCode) {
+    const mask = sizeCodeBitMasks[sizeCode];
+    if (!mask) throw new Error("Unsupported board size for seed masking: " + sizeCode);
+    const maskLen = mask.length;
+    let masked = "";
+    for (let i = 0; i < bits.length; i++) {
+      const bit = bits.charCodeAt(i) === 49 ? 1 : 0;
+      const maskBit = mask.charCodeAt(i % maskLen) === 49 ? 1 : 0;
+      masked += (bit ^ maskBit) ? "1" : "0";
+    }
+    return masked;
+  }
+
   function encodeSizePrefix(boardSize) {
     const code = codeFromSize[boardSize];
     if (!code) throw new Error("Unsupported board size for seed encoding: " + boardSize);
@@ -112,9 +134,11 @@
       throw new Error("Invalid layout: expected a non-empty 2D array or math.js matrix");
     }
     const bits = flattenToBinaryString(layoutArray);
-    const bytes = bitsToBytes(bits);
+    const sizeCode = encodeSizePrefix(size);
+    const maskedBits = applySizeBitMask(bits, sizeCode);
+    const bytes = bitsToBytes(maskedBits);
     const b64url = bytesToBase64Url(bytes);
-    return encodeSizePrefix(size) + b64url;
+    return sizeCode + b64url;
   }
 
   // Parse base64 seed only
@@ -125,8 +149,9 @@
     const sizePrefix = seedString.slice(0, 2);
     const size = decodeSizePrefix(sizePrefix);
     const b64url = seedString.slice(2);
-    const bytes = base64UrlToBytes(b64url);
-    const allBits = bytesToBits(bytes);
+    const maskedBytes = base64UrlToBytes(b64url);
+    const maskedBits = bytesToBits(maskedBytes);
+    const allBits = applySizeBitMask(maskedBits, sizePrefix);
     const totalBits = size * size;
     let bin = allBits.slice(0, totalBits);
     if (bin.length < totalBits) bin = bin.padStart(totalBits, "0");
