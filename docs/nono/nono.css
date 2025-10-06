@@ -1,7 +1,8 @@
 :root {
     --bg-color: white;
     --color: black;
-    --num-font-size: '16px';
+    --num-font-size: 16px;
+    --clue-font-size: 16px;
     --clue-header-size: 1.75rem;
     --cell-size: 2.5rem;
     --board-size: min(85vmin, 95vw);
@@ -149,7 +150,7 @@ table tr:last-child td {
     width: var(--cell-size);
     min-width: var(--cell-size);
     height: var(--clue-header-size);
-    font-size: var(--num-font-size);
+    font-size: var(--clue-font-size);
     /* line-height: 0.9;  */
     line-height: 1.1;
     -webkit-user-select: none;
@@ -199,7 +200,7 @@ table tr:last-child td {
     font-weight: bold;
     padding: 0 0.25rem 0 0.25rem;
     /* border-radius: 4px; */
-    font-size: var(--num-font-size);
+    font-size: var(--clue-font-size);
     white-space: normal;
     text-align: left;
     max-width: min(16rem, 40vw);
@@ -255,7 +256,7 @@ table tr:last-child td {
     min-width: var(--clue-header-size);
     height: var(--cell-size);
     min-height: var(--cell-size);
-    font-size: var(--num-font-size);
+    font-size: var(--clue-font-size);
     line-height: 0.9; 
     -webkit-user-select: none;
     user-select: none;
