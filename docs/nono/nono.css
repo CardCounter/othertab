@@ -97,14 +97,15 @@ main {
     display: flex;
     align-items: center;
     justify-content: center;
-    overflow: auto;
 }
 
 .game-container {
     /* min-width: 85vmin;
     min-height: 85vmin; */
-    min-width: clamp(85vmin, min(1200px, 95vw));
-    min-height: clamp(85vmin, min(1200px, 95vw));
+    /* min-width: clamp(85vmin, min(1200px, 95vw));
+    min-height: clamp(85vmin, min(1200px, 95vw)); */
+    min-width: clamp(85vmin, 85vmin, 100vmin);
+    min-height: clamp(85vmin, 85vmin, 100vmin);
     /* max-inline-size: min(1200px, 95vw);
     max-block-size: min(1200px, 95vw); */
     /* table-layout: fixed; */
@@ -155,6 +156,74 @@ table tr:last-child td {
     user-select: none;
     -webkit-user-drag: none;
     -webkit-touch-callout: none;
+}
+
+.clue-text {
+    display: inline-block;
+    width: 100%;
+    text-align: inherit;
+}
+
+.clue-indicator {
+    display: none;
+    line-height: inherit;
+}
+
+.top.clue-overflow .clue-text,
+.side.clue-overflow .clue-text {
+    display: none;
+}
+
+.top.clue-overflow .clue-indicator,
+.side.clue-overflow .clue-indicator {
+    display: inline-block;
+    width: 100%;
+    text-align: center;
+}
+
+.top.clue-overflow,
+.side.clue-overflow {
+    position: relative;
+    cursor: help;
+    overflow: visible;
+}
+
+.clue-tooltip {
+    position: absolute;
+    background-color: var(--bg-color);
+    color: var(--color);
+    font-family: 'Times New Roman', Times, serif;
+    font-weight: bold;
+    padding: 0 0.25rem 0 0.25rem;
+    /* border-radius: 4px; */
+    font-size: var(--num-font-size);
+    white-space: normal;
+    text-align: left;
+    max-width: min(16rem, 40vw);
+    /* box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25); */
+    pointer-events: none;
+    z-index: 10;
+    opacity: 0;
+    visibility: hidden;
+    /* transition: opacity 0.1s ease; */
+    border: 2px solid var(--color);
+}
+
+.clue-tooltip.visible {
+    opacity: 1;
+    visibility: visible;
+}
+
+.clue-tooltip.complete {
+    background-color: blue;
+    border-color: var(--color);
+    color: var(--color);
+}
+
+.dark-mode .clue-tooltip.complete {
+    background-color: red;
+    border-color: var(--color);
+    color: var(--color);
 }
 
 .top.wrong {
@@ -454,7 +523,7 @@ button:hover {
 
 /* keep this, janky */
 #load-panel {
-    z-index: 1000;
+    /* z-index: 1000; */
     background: var(--bg-color);
     min-width: 9rem;
     left: -4.5rem;

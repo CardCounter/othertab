@@ -108,6 +108,20 @@ class Nono {
         this.history = [];
         this.currentAction = null;
 
+        this.clueOverflowFrame = null;
+        this.activeClueCell = null;
+        this.clueTooltipEl = null;
+        this.ensureClueTooltipElement();
+        this.boundHandleResize = () => {
+            this.scheduleClueOverflowCheck();
+            this.updateClueTooltipPosition();
+        };
+        this.boundHandleScroll = () => {
+            this.updateClueTooltipPosition();
+        };
+        window.addEventListener('resize', this.boundHandleResize);
+        window.addEventListener('scroll', this.boundHandleScroll, { passive: true });
+
         this.initializeTable();
         this.syncTableSizes();
         this.mainGameActions();
@@ -362,6 +376,7 @@ class Nono {
         
         this.history = [];
         this.currentAction = null;
+        this.hideClueTooltip();
 
         // Clear any drag previews
         document.querySelectorAll('.drag-preview').forEach(cell => {
@@ -412,6 +427,7 @@ class Nono {
 
         this.history = [];
         this.currentAction = null;
+        this.hideClueTooltip();
 
         // Clear any drag previews
         document.querySelectorAll('.drag-preview').forEach(cell => {
@@ -1261,6 +1277,9 @@ class Nono {
         const sideNums = this.sideNums;
         const gameElement = document.getElementById('game-container');
 
+        const wrapClueContent = (content) => `<span class="clue-text">${content}</span><span class="clue-indicator" aria-hidden="true">*</span>`;
+        const getTooltip = (list) => list.join(' ');
+
         let html = '';
 
         // top row
@@ -1274,7 +1293,9 @@ class Nono {
                     this.colCompleteFlags[col] = true;
                 }
             }
-            html += `<td class="${topClass}" id="top-${col}" data-col="${col}">${topNumValue}</td>`;
+            const expectedLines = Math.max(1, topNums[col].length);
+            const tooltip = getTooltip(topNums[col]);
+            html += `<td class="${topClass}" id="top-${col}" data-col="${col}" data-expected-lines="${expectedLines}" data-clue-tooltip="${tooltip}">${wrapClueContent(topNumValue)}</td>`;
         }
         html += '</tr>';
 
@@ -1289,7 +1310,8 @@ class Nono {
                         sideClass = 'side complete';
                         if (this.rowCompleteFlags) this.rowCompleteFlags[row] = true;
                     }
-                    html += `<td class="${sideClass}" id="side-${row}" data-row="${row}">${sideNumValue}</td>`;
+                    const tooltip = getTooltip(sideNums[row]);
+                    html += `<td class="${sideClass}" id="side-${row}" data-row="${row}" data-expected-lines="1" data-clue-tooltip="${tooltip}">${wrapClueContent(sideNumValue)}</td>`;
                 }
                 else {
                     html += `<td class="cell" id="cell-${row}-${col - 1}" data-row="${row}" data-col="${col - 1}"></td>`; // -1 side offset
@@ -1300,6 +1322,244 @@ class Nono {
         }
 
         gameElement.innerHTML = html;
+        this.attachClueTooltipHandlers();
+        this.scheduleClueOverflowCheck();
+    }
+
+    ensureClueTooltipElement() {
+        if (this.clueTooltipEl && document.body.contains(this.clueTooltipEl)) {
+            return;
+        }
+
+        let tooltipEl = document.getElementById('clue-tooltip');
+        if (!tooltipEl) {
+            tooltipEl = document.createElement('div');
+            tooltipEl.id = 'clue-tooltip';
+            tooltipEl.className = 'clue-tooltip';
+            tooltipEl.setAttribute('role', 'tooltip');
+            tooltipEl.setAttribute('aria-hidden', 'true');
+            document.body.appendChild(tooltipEl);
+        } else {
+            tooltipEl.classList.add('clue-tooltip');
+            tooltipEl.setAttribute('role', 'tooltip');
+            tooltipEl.setAttribute('aria-hidden', 'true');
+        }
+
+        tooltipEl.classList.remove('visible');
+        tooltipEl.textContent = '';
+        this.clueTooltipEl = tooltipEl;
+    }
+
+    attachClueTooltipHandlers() {
+        const clueCells = document.querySelectorAll('.top, .side');
+        clueCells.forEach(cell => {
+            cell.addEventListener('mouseenter', () => this.handleClueTooltipEnter(cell));
+            cell.addEventListener('mouseleave', () => this.handleClueTooltipLeave(cell));
+            cell.addEventListener('focus', () => this.handleClueTooltipEnter(cell));
+            cell.addEventListener('blur', () => this.handleClueTooltipLeave(cell));
+        });
+    }
+
+    handleClueTooltipEnter(cell) {
+        if (!cell.classList.contains('clue-overflow')) {
+            this.hideClueTooltip();
+            return;
+        }
+
+        this.activeClueCell = cell;
+        this.showClueTooltip(cell);
+    }
+
+    handleClueTooltipLeave(cell) {
+        if (this.activeClueCell === cell) {
+            this.hideClueTooltip();
+        }
+    }
+
+    showClueTooltip(cell) {
+        this.ensureClueTooltipElement();
+        if (!this.clueTooltipEl) return;
+
+        const tooltip = cell.dataset.clueTooltip || cell.querySelector('.clue-text')?.textContent.trim() || '';
+        this.clueTooltipEl.textContent = tooltip;
+        if (cell.classList.contains('complete')) {
+            this.clueTooltipEl.classList.add('complete');
+        } else {
+            this.clueTooltipEl.classList.remove('complete');
+        }
+        this.positionClueTooltip(cell);
+        this.clueTooltipEl.classList.add('visible');
+        this.clueTooltipEl.setAttribute('aria-hidden', 'false');
+        this.adjustClueTooltipForViewport();
+    }
+
+    positionClueTooltip(cell) {
+        if (!this.clueTooltipEl) return;
+
+        const board = document.getElementById('game-container');
+        if (!board) return;
+
+        const boardRect = board.getBoundingClientRect();
+        const cellRect = cell.getBoundingClientRect();
+
+        const offset = 16;
+        const scrollLeft = window.scrollX || window.pageXOffset || 0;
+        const scrollTop = window.scrollY || window.pageYOffset || 0;
+
+        const isTopClue = cell.classList.contains('top');
+        this.clueTooltipEl.style.whiteSpace = isTopClue ? 'nowrap' : 'normal';
+        this.clueTooltipEl.style.maxWidth = isTopClue ? 'calc(100vw - 32px)' : '';
+
+        const tooltipWidth = this.clueTooltipEl.offsetWidth;
+        const tooltipHeight = this.clueTooltipEl.offsetHeight;
+
+        let left = boardRect.left - offset - tooltipWidth + scrollLeft;
+        let positionSide = 'left';
+        if (left < 8) {
+            left = boardRect.right + offset + scrollLeft;
+            positionSide = 'right';
+        }
+
+        let top;
+        if (isTopClue) {
+            top = cellRect.bottom + offset + scrollTop;
+        } else {
+            top = cellRect.top + (cellRect.height - tooltipHeight) / 2 + scrollTop;
+        }
+
+        const minTop = scrollTop + 8;
+        const maxTop = scrollTop + window.innerHeight - tooltipHeight - 8;
+        top = Math.min(Math.max(top, minTop), maxTop);
+
+        this.clueTooltipEl.style.transform = 'none';
+        this.clueTooltipEl.style.left = `${left}px`;
+        this.clueTooltipEl.style.top = `${top}px`;
+        this.clueTooltipEl.dataset.position = positionSide;
+    }
+
+    adjustClueTooltipForViewport() {
+        if (!this.clueTooltipEl || !this.clueTooltipEl.classList.contains('visible')) {
+            return;
+        }
+
+        const board = document.getElementById('game-container');
+        if (!board) return;
+
+        const boardRect = board.getBoundingClientRect();
+        const scrollLeft = window.scrollX || window.pageXOffset || 0;
+        const scrollTop = window.scrollY || window.pageYOffset || 0;
+        const offset = 16;
+
+        let tooltipRect = this.clueTooltipEl.getBoundingClientRect();
+
+        if (tooltipRect.left < 8 && this.clueTooltipEl.dataset.position !== 'right') {
+            const adjustedLeft = boardRect.right + offset + scrollLeft;
+            this.clueTooltipEl.style.left = `${adjustedLeft}px`;
+            this.clueTooltipEl.dataset.position = 'right';
+            tooltipRect = this.clueTooltipEl.getBoundingClientRect();
+        } else if (this.clueTooltipEl.dataset.position === 'right') {
+            const desiredLeft = boardRect.left - offset - tooltipRect.width + scrollLeft;
+            if (desiredLeft >= 8) {
+                this.clueTooltipEl.style.left = `${desiredLeft}px`;
+                this.clueTooltipEl.dataset.position = 'left';
+                tooltipRect = this.clueTooltipEl.getBoundingClientRect();
+            }
+        }
+
+        if (tooltipRect.right > window.innerWidth - 8) {
+            const clampedLeft = window.innerWidth - tooltipRect.width - 8 + scrollLeft;
+            this.clueTooltipEl.style.left = `${Math.max(8, clampedLeft)}px`;
+            tooltipRect = this.clueTooltipEl.getBoundingClientRect();
+        }
+
+        const tooltipHeight = tooltipRect.height;
+        const minTop = scrollTop + 8;
+        const maxTop = scrollTop + window.innerHeight - tooltipHeight - 8;
+        let top = parseFloat(this.clueTooltipEl.style.top || '0');
+        if (!Number.isFinite(top)) top = tooltipRect.top + scrollTop;
+        if (top < minTop) top = minTop;
+        if (top > maxTop) top = maxTop;
+        this.clueTooltipEl.style.top = `${top}px`;
+    }
+
+    updateClueTooltipPosition() {
+        if (!this.activeClueCell || !this.clueTooltipEl || !this.clueTooltipEl.classList.contains('visible')) {
+            return;
+        }
+
+        if (!document.body.contains(this.activeClueCell)) {
+            this.hideClueTooltip();
+            return;
+        }
+
+        this.positionClueTooltip(this.activeClueCell);
+        this.adjustClueTooltipForViewport();
+    }
+
+    hideClueTooltip() {
+        if (!this.clueTooltipEl) return;
+
+        this.clueTooltipEl.classList.remove('visible');
+        this.clueTooltipEl.setAttribute('aria-hidden', 'true');
+        this.clueTooltipEl.textContent = '';
+        this.clueTooltipEl.classList.remove('complete');
+        this.activeClueCell = null;
+    }
+
+    scheduleClueOverflowCheck() {
+        const raf = window.requestAnimationFrame ?? (callback => window.setTimeout(callback, 16));
+        const caf = window.cancelAnimationFrame ?? window.clearTimeout;
+
+        if (this.clueOverflowFrame) {
+            caf(this.clueOverflowFrame);
+        }
+
+        this.clueOverflowFrame = raf(() => {
+            this.applyClueOverflowIndicators();
+            this.clueOverflowFrame = null;
+            this.updateClueTooltipPosition();
+        });
+    }
+
+    applyClueOverflowIndicators() {
+        const clueCells = document.querySelectorAll('.top, .side');
+        let activeStillOverflow = false;
+
+        clueCells.forEach(cell => {
+            cell.classList.remove('clue-overflow');
+            cell.removeAttribute('aria-label');
+            cell.removeAttribute('tabindex');
+
+            const textEl = cell.querySelector('.clue-text');
+            if (!textEl) return;
+
+            const styles = window.getComputedStyle(textEl);
+            let lineHeight = parseFloat(styles.lineHeight);
+            if (!Number.isFinite(lineHeight) || lineHeight <= 0) {
+                const fontSize = parseFloat(styles.fontSize);
+                lineHeight = Number.isFinite(fontSize) && fontSize > 0 ? fontSize * 1.2 : 1;
+            }
+
+            if (lineHeight <= 0) return;
+
+            const actualLines = textEl.scrollHeight / lineHeight;
+            const expectedLines = Number(cell.dataset.expectedLines) || 1;
+
+            if (actualLines - expectedLines > 0.5) {
+                const tooltip = cell.dataset.clueTooltip || textEl.textContent.trim();
+                cell.dataset.clueTooltip = tooltip;
+                cell.classList.add('clue-overflow');
+                cell.setAttribute('aria-label', tooltip);
+                cell.setAttribute('tabindex', '0');
+                if (cell === this.activeClueCell) {
+                    activeStillOverflow = true;
+                }
+            }
+        });
+
+        if (this.activeClueCell && !activeStillOverflow) {
+            this.hideClueTooltip();
+        }
     }
 
     syncTableSizes() {
