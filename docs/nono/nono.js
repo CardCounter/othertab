@@ -1648,6 +1648,13 @@ class Nono {
             boardSize = maxBoardSize;
         }
 
+        const rootStyles = getComputedStyle(document.documentElement);
+        const baseFont = parseFloat(rootStyles.getPropertyValue('--num-font-size')) || 16;
+        const maxFontFromCell = cellSize * 0.95;
+        const maxFontFromClue = clueSize * 0.9;
+        const computedFont = Math.max(8, Math.min(baseFont, maxFontFromCell, maxFontFromClue));
+
+        document.documentElement.style.setProperty('--clue-font-size', `${computedFont}px`);
         document.documentElement.style.setProperty('--clue-header-size', `${clueSize}px`);
         document.documentElement.style.setProperty('--cell-size', `${cellSize}px`);
         document.documentElement.style.setProperty('--board-size', `${boardSize}px`);
