@@ -101,10 +101,12 @@ main {
 }
 
 .game-container {
-    width: clamp(85vmin, max-content, min(1200px, 95vw));
-    height: clamp(85vmin, max-content, min(1200px, 95vw));
-    max-inline-size: min(1200px, 95vw);
-    max-block-size: min(1200px, 95vw);
+    /* min-width: 85vmin;
+    min-height: 85vmin; */
+    min-width: clamp(85vmin, min(1200px, 95vw));
+    min-height: clamp(85vmin, min(1200px, 95vw));
+    /* max-inline-size: min(1200px, 95vw);
+    max-block-size: min(1200px, 95vw); */
     /* table-layout: fixed; */
     border-collapse: collapse;
     background-color: var(--bg-color);
