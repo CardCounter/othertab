@@ -113,6 +113,7 @@ class Nono {
         this.clueTooltipEl = null;
         this.ensureClueTooltipElement();
         this.boundHandleResize = () => {
+            this.syncTableSizes();
             this.scheduleClueOverflowCheck();
             this.updateClueTooltipPosition();
         };
@@ -1564,14 +1565,92 @@ class Nono {
 
     syncTableSizes() {
         const corner = document.getElementById('corner');
-        const height = corner.offsetHeight;
-        const width = corner.offsetWidth;
+        if (!corner) {
+            return;
+        }
 
-        const bestSize = Math.max(height, width);
+        const measureMax = (selector, dimension) => {
+            let maxValue = 0;
+            document.querySelectorAll(selector).forEach(el => {
+                const scrollValue = dimension === 'height' ? el.scrollHeight : el.scrollWidth;
+                const offsetValue = dimension === 'height' ? el.offsetHeight : el.offsetWidth;
+                const value = Math.max(scrollValue, offsetValue);
+                if (value > maxValue) {
+                    maxValue = value;
+                }
+            });
+            return maxValue;
+        };
 
-        corner.style.height = bestSize + 'px';
-        corner.style.width = bestSize + 'px';
+        const topContentHeight = measureMax('.top .clue-text', 'height');
+        const sideContentWidth = measureMax('.side .clue-text', 'width');
 
+        const cornerRect = corner.getBoundingClientRect();
+        const fallbackSize = Math.max(cornerRect.height, cornerRect.width, 0);
+
+        const padding = 4; // breathing room for borders/padding rounding
+        const minClueSize = 24;
+        const minCellSize = this.size <= 20 ? 12 : 9;
+
+        const fallbackViewport = 520;
+        const viewportWidth = window.innerWidth || document.documentElement.clientWidth || fallbackViewport;
+        const viewportHeight = window.innerHeight || document.documentElement.clientHeight || fallbackViewport;
+        const viewportMin = Math.min(viewportWidth, viewportHeight);
+
+        let maxBoardSize = viewportMin * 0.85;
+        if (!Number.isFinite(maxBoardSize) || maxBoardSize <= 0) {
+            maxBoardSize = fallbackViewport * 0.8;
+        }
+
+        const minBoardSize = minClueSize + minCellSize * this.size;
+        maxBoardSize = Math.max(maxBoardSize, minBoardSize);
+
+        const measuredClueSize = Math.max(topContentHeight, sideContentWidth);
+        const hasMeasuredClue = Number.isFinite(measuredClueSize) && measuredClueSize > 0;
+        let baseClueSize = hasMeasuredClue ? measuredClueSize : Math.max(fallbackSize, minClueSize);
+        if (!Number.isFinite(baseClueSize) || baseClueSize <= 0) {
+            baseClueSize = minClueSize;
+        }
+
+        let clueSize = hasMeasuredClue ? baseClueSize + padding : baseClueSize;
+        clueSize = Math.ceil(clueSize);
+        const maxClueSize = Math.max(Math.floor(maxBoardSize * 0.32), minClueSize);
+        clueSize = Math.min(Math.max(clueSize, minClueSize), maxClueSize);
+
+        let cellSize = Math.floor((maxBoardSize - clueSize) / this.size);
+        if (!Number.isFinite(cellSize) || cellSize <= 0) {
+            cellSize = minCellSize;
+        }
+
+        if (cellSize < minCellSize) {
+            cellSize = minCellSize;
+        }
+
+        let boardSize = clueSize + cellSize * this.size;
+
+        if (boardSize > maxBoardSize) {
+            const maxCells = Math.floor((maxBoardSize - minClueSize) / this.size);
+            if (maxCells >= minCellSize) {
+                cellSize = Math.min(cellSize, maxCells);
+            } else {
+                cellSize = minCellSize;
+            }
+            boardSize = clueSize + cellSize * this.size;
+
+            if (boardSize > maxBoardSize) {
+                clueSize = Math.max(minClueSize, Math.floor(maxBoardSize - cellSize * this.size));
+                boardSize = clueSize + cellSize * this.size;
+            }
+        }
+
+        boardSize = Math.min(boardSize, maxBoardSize);
+        if (!Number.isFinite(boardSize) || boardSize <= 0) {
+            boardSize = maxBoardSize;
+        }
+
+        document.documentElement.style.setProperty('--clue-header-size', `${clueSize}px`);
+        document.documentElement.style.setProperty('--cell-size', `${cellSize}px`);
+        document.documentElement.style.setProperty('--board-size', `${boardSize}px`);
     }
 
     updateAllCells() {
