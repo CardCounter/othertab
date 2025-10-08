@@ -153,13 +153,12 @@ table tr:last-child td {
     .drag-preview::after {
         content: '';
         position: absolute;
-        inset: -3px;
+        inset: -2px;
         border: 3px dashed blue;
         background-color: inherit;
         pointer-events: none;
         box-sizing: border-box;
     }
-
     .dark-mode .drag-preview::after {
         border-color: red;
         background-color: inherit;
