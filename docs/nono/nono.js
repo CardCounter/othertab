@@ -1903,9 +1903,6 @@ window.addEventListener('DOMContentLoaded', () => {
 /*
 TODO
 
-add board seed, size-board in binary + some map, or similar
-add this seed to win paste
-add seed copy and load to settings pannel
 
 change typing and mines copy button to .onclick to prevent dupe
 

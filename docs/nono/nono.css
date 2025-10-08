@@ -138,6 +138,24 @@ table tr:last-child td {
     border-bottom: 3px solid var(--color);
 }
 
+@-moz-document url-prefix() {
+    /* Force consistent border color in Firefox when clue headers change text color */
+    .game-container td:not(.drag-preview) {
+        border-color: var(--color) !important;
+    }
+
+    .drag-preview {
+        border: 2px solid blue !important;
+        outline: 4px dashed blue !important;
+        outline-offset: -2px;
+    }
+
+    .dark-mode .drag-preview {
+        border-color: red !important;
+        outline-color: red !important;
+    }
+}
+
 .corner {
     width: var(--clue-header-size);
     height: var(--clue-header-size);
