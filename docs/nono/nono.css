@@ -139,20 +139,30 @@ table tr:last-child td {
 }
 
 @-moz-document url-prefix() {
-    /* Force consistent border color in Firefox when clue headers change text color */
+    /* force consistent border color in firefox when clue headers change text color */
     .game-container td:not(.drag-preview) {
         border-color: var(--color) !important;
     }
 
     .drag-preview {
-        border: 2px solid blue !important;
-        outline: 4px dashed blue !important;
-        outline-offset: -2px;
+        position: relative;
+        border: 1px solid var(--bg-color) !important;
+        outline: none !important;
     }
 
-    .dark-mode .drag-preview {
-        border-color: red !important;
-        outline-color: red !important;
+    .drag-preview::after {
+        content: '';
+        position: absolute;
+        inset: -3px;
+        border: 3px dashed blue;
+        background-color: inherit;
+        pointer-events: none;
+        box-sizing: border-box;
+    }
+
+    .dark-mode .drag-preview::after {
+        border-color: red;
+        background-color: inherit;
     }
 }
 
