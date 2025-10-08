@@ -22,6 +22,15 @@ html {
     opacity: 1;
 }
 
+html.js-loading {
+    visibility: hidden;
+    opacity: 0;
+}
+
+html.js-loading body {
+    visibility: hidden;
+}
+
 body {
     background-color: white;
     color: black;
