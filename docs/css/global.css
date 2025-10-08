@@ -31,6 +31,18 @@ html.js-loading body {
     visibility: hidden;
 }
 
+html.js-loading[data-fouc-theme="dark"],
+html.js-loading[data-fouc-theme="dark"] body {
+    background-color: #000000;
+    color: #ffffff;
+}
+
+html.js-loading[data-fouc-theme="light"],
+html.js-loading[data-fouc-theme="light"] body {
+    background-color: #ffffff;
+    color: #000000;
+}
+
 body {
     background-color: white;
     color: black;

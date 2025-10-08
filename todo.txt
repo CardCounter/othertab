@@ -1,0 +1,4 @@
+divide files into dev and prod
+add github action that when pr obvuscates code and adds it to prod
+make repo private
+move to vercel
