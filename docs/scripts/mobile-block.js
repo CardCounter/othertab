@@ -88,7 +88,7 @@
 
         const darkToggle = document.createElement('button');
         darkToggle.id = 'dark-toggle';
-        darkToggle.textContent = 'dark mode';
+        darkToggle.textContent = 'd_m';
         darkToggle.setAttribute('aria-label', 'Toggle dark mode');
         darkToggle.style.position = 'absolute';
         darkToggle.style.right = 'calc(env(safe-area-inset-right, 0px) + 12px)';
@@ -128,7 +128,7 @@
             overlay.style.color = mode === 'dark' ? '#ffffff' : '#000000';
             setThemeColor(mode === 'dark' ? '#000000' : '#ffffff');
             darkToggle.style.color = mode === 'dark' ? '#ffffff' : '#000000';
-            darkToggle.textContent = mode === 'dark' ? 'light mode' : 'dark mode';
+            darkToggle.textContent = mode === 'dark' ? 'l_m' : 'd_m';
         }
         function applyMode(mode) {
             document.documentElement.setAttribute('data-theme', mode);

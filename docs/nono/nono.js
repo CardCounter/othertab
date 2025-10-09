@@ -1846,6 +1846,7 @@ class Nono {
     }
 
     showWinPopup(timeString) {
+        const currentGame = this;
         const popup = document.getElementById('win-paste');
         const timerElement = document.getElementById('timer');
         const resetHint = document.getElementById('reset-hint');
@@ -1865,7 +1866,7 @@ class Nono {
         // build seed from current generated layout
         let seedStr = '';
         try {
-            seedStr = window.Seed ? window.Seed.createSeedFromLayout(this.possibleLayout, this.size) : '';
+            seedStr = window.Seed ? window.Seed.createSeedFromLayout(currentGame.possibleLayout, currentGame.size) : '';
         } catch (e) {
             seedStr = '';
         }
@@ -1873,8 +1874,8 @@ class Nono {
         // display time (keep ui minimal), seed is included in share text below
         if (timerElement) timerElement.textContent = `${timeString}`;
 
-        const plainText = `NONO ${this.size}\n${timeString}${seedStr ? `\n${seedStr}` : ''}`;
-
+        const sizeLabel = currentGame.size < 10 ? `0${currentGame.size}` : `${currentGame.size}`;
+        const plainText = `NONO_${sizeLabel} => ${timeString}${seedStr ? `\n${seedStr}` : ''}`;
 
         const shareButton = document.getElementById('copy-button');
         if (shareButton) shareButton.classList.remove('hidden');

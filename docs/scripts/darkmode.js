@@ -3,7 +3,7 @@ const darkToggleButton = document.getElementById('dark-toggle');
 darkToggleButton.addEventListener('click', () => {
     document.body.classList.toggle('dark-mode');
     const isDark = document.body.classList.contains('dark-mode');
-    darkToggleButton.textContent = isDark ? 'light mode' : 'dark mode';
+    darkToggleButton.textContent = isDark ? 'l_m' : 'd_m';
     
     // Store user preference in localStorage
     localStorage.setItem('darkMode', isDark ? 'true' : 'false');
@@ -17,7 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     if (savedDarkMode === 'true') {
         document.body.classList.add('dark-mode');
-        darkToggleButton.textContent = 'light mode';
+        darkToggleButton.textContent = 'l_m';
     }
 });
 
@@ -28,7 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // function updateDarkModeUI(isDark) {
 //     document.body.classList.toggle('dark-mode', isDark);
 //     darkToggleButtons.forEach(btn => {
-//         btn.textContent = isDark ? 'light mode' : 'dark mode';
+//         btn.textContent = isDark ? 'l_m' : 'd_m';
 //     });
 // }
 
