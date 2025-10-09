@@ -104,6 +104,7 @@ class Nono {
         this.isGameOver = false;
         this.timer = 0;
         this.timerInterval = null;
+        this.maxTimerSeconds = (99 * 3600) + (59 * 60) + 59;
 
         this.history = [];
         this.currentAction = null;
@@ -1820,9 +1821,14 @@ class Nono {
         if (timerElement) timerElement.textContent = this.formatTime(this.timer);
 
         this.timerInterval = setInterval(() => {
+            if (this.timer >= this.maxTimerSeconds) {
+                this.timer = this.maxTimerSeconds;
+                if (timerElement) timerElement.textContent = this.formatTime(this.timer);
+                this.stopTimer();
+                return;
+            }
             this.timer++;
             if (timerElement) timerElement.textContent = this.formatTime(this.timer);
-
         }, 1000);
     }
     

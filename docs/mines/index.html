@@ -27,47 +27,60 @@
     </header>
 
     <main>
-        <div class="top-bar">
-            <div class="difficulty-buttons">
-                <button id="easy" class="difficulty">easy</button>
-                <button id="medium" class="difficulty">medium</button>
-                <button id="hard" class="difficulty">hard</button>
+        <div class="board-wrapper">
+            <div class="top-bar hidden">
+                <div class="flags-display">flags: <span id="flag-count"></span></div>
+                <div class="time-share">
+                    <span id="timer">0:00</span>
+                    <button id="copy-button" class="copy-button hidden">share</button>
+                </div>
             </div>
-
-            <div class="stats">
-                <div>mines: <span id="mine-count"><!--will be auto filled when calling stats--></span></div>
-                <div>flags: <span id="flag-count"></span></div>
-                <div>time: <span id="timer"></span></div>
+    
+            <div class="grid-wrapper">
+                <div id="game-container" class="game-container">
+                        <div id="grid" class="grid"></div>
+                </div>
             </div>
-        </div>
-
-        <div id="game-container" class="game-container">
-                <div id="grid" class="grid"></div>
-
-            <!-- hidden popup called when game win -->
-            <div id="win-popup" class="win-popup hidden">
-                <div id="win-text" class="win-text"></div>
-                <button id="copy-button" class="copy-button">share</button>
-            </div>
-        </div>
-        
-        <div class="controls">
-            <button id="new-game">new game</button>
-            <span class="checkbox-wrapper">
-                <input type="checkbox" id="auto-restart-mode">
-                <label for="auto-restart-mode">auto-restart</label>
-            </span>
         </div>
     </main>
 
-    <footer>
-            <p>o_m</p>
-            <a href="controls/">controls</a>
-            <a href="../privacy/">privacy</a>
-            <a href="https://ko-fi.com/othertab">support</a>
+    <footer role="contentinfo" class="footer">
+        <div class="footer-left">
+            <div class="settings-group">
+                <div class="panel-anchor">
+                    <button id="mode-button" class="settings-button" aria-haspopup="true" aria-expanded="false">mode</button>
+                    <div id="mode-panel" class="settings-panel hidden" aria-hidden="true">
+                        <div class="difficulty-buttons-grid">
+                            <button id="easy" class="difficulty-button difficulty">easy</button>
+                            <button id="medium" class="difficulty-button difficulty">medium</button>
+                            <button id="hard" class="difficulty-button difficulty">hard</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer-center">
+            <p class="footer-brand">o_m</p>
+            <a href="controls/" class="link">controls</a>
+            <a href="../privacy/" class="footer-link">privacy</a>
+            <a href="https://ko-fi.com/othertab" class="footer-link">support</a>
+        </div>
+
+        <div class="footer-right">
+            <button id="new-game" class="settings-button">new game</button>
+        </div>
     </footer>
 
     <script src="../scripts/mobile-block.js" data-header="MINES" data-message="mines controls are tricky on mobile, try it on desktop instead"></script>
     <script src="mines.js"></script>
 </body>
 </html>
+
+<!-- TODO
+chagne number colours to be nicer
+change everything in terms of rem, make header and footer standard, add to global css
+
+add seed
+change mines win paste to new
+-->
