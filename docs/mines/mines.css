@@ -5,6 +5,7 @@
     --cell-bg: lightgrey;
     --cell-revealed-bg: white;
     --button-active: grey;
+    --color: black;
     --top-bar-height: 1rem;
     --top-bar-gap: 0.5rem;
 
@@ -18,6 +19,7 @@
     --cell-bg: rgb(46, 46, 46);
     --cell-revealed-bg: black;
     --button-active: grey;
+    --color: white;
 }
 
 body {
@@ -303,6 +305,27 @@ button:hover {
 
 .settings-panel .difficulty {
     padding: 0;
+}
+
+.settings-panel input {
+    width: 12rem;
+    box-sizing: border-box;
+    padding: 0.25rem 0.5rem;
+    border: 1px solid var(--text-color);
+    background-color: var(--bg-color);
+    color: var(--text-color);
+}
+
+.settings-panel input:focus {
+    outline: 2px solid var(--text-color);
+}
+
+.start-cell {
+    color: var(--color);
+}
+
+.locked-cell {
+    cursor: not-allowed;
 }
 
 .footer-right .settings-button {

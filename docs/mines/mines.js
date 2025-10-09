@@ -38,6 +38,10 @@ class Minesweeper {
         this.isWin = false;
         this.isMouseDown = false;
         this.currentShareText = '';
+        this.currentSeed = '';
+        this.isSeedLoadedGame = false;
+        this.seedLockActive = false;
+        this.seedStartCell = null;
         this.shareButton = document.getElementById('copy-button');
         this.shareButtonResetTimeout = null;
         if (this.shareButton) {
@@ -58,6 +62,10 @@ class Minesweeper {
                 }, 1000);
             };
         }
+
+        this.loadButton = document.getElementById('load-button');
+        this.loadPanel = document.getElementById('load-panel');
+        this.seedInput = document.getElementById('seed-input');
 
         this.modeButton = document.getElementById('mode-button');
         this.modePanel = document.getElementById('mode-panel');
@@ -85,6 +93,7 @@ class Minesweeper {
         this.initializeGrid();
         this.renderGrid();
         this.updateStats();
+        this.initializeLoadControls();
 
         // difficulty buttons
         const difficultyButtons = document.querySelectorAll('.difficulty-button');
@@ -169,10 +178,217 @@ class Minesweeper {
         document.getElementById('flag-count').textContent = this.flagsRemaining;
         document.getElementById('timer').textContent = this.formatTime(this.timer);
     }
-    
+
+    initializeLoadControls() {
+        if (!this.loadButton || !this.loadPanel || !this.seedInput) {
+            return;
+        }
+
+        const hidePanel = () => {
+            this.loadPanel.classList.add('hidden');
+            this.loadPanel.setAttribute('aria-hidden', 'true');
+            this.loadButton.setAttribute('aria-expanded', 'false');
+            this.seedInput.value = '';
+        };
+
+        const showPanel = () => {
+            this.loadPanel.classList.remove('hidden');
+            this.loadPanel.setAttribute('aria-hidden', 'false');
+            this.loadButton.setAttribute('aria-expanded', 'true');
+            try {
+                this.seedInput.focus({ preventScroll: true });
+            } catch (_) {
+                this.seedInput.focus();
+            }
+        };
+
+        hidePanel();
+
+        let suppressNextOpen = false;
+        const markToggleIntent = () => {
+            suppressNextOpen = !this.loadPanel.classList.contains('hidden');
+        };
+
+        this.loadButton.addEventListener('pointerdown', markToggleIntent);
+        this.loadButton.addEventListener('mousedown', markToggleIntent);
+        this.loadButton.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+                markToggleIntent();
+            }
+        });
+
+        this.loadButton.addEventListener('click', () => {
+            if (suppressNextOpen) {
+                suppressNextOpen = false;
+                hidePanel();
+                return;
+            }
+            const isHidden = this.loadPanel.classList.contains('hidden');
+            if (isHidden) {
+                showPanel();
+            } else {
+                hidePanel();
+            }
+            if (this.modePanel) {
+                this.modePanel.classList.add('hidden');
+                this.modePanel.setAttribute('aria-hidden', 'true');
+            }
+            if (this.modeButton) {
+                this.modeButton.setAttribute('aria-expanded', 'false');
+            }
+        });
+
+        this.seedInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                const seedStr = this.seedInput.value.trim();
+                if (!seedStr) {
+                    hidePanel();
+                    return;
+                }
+                try {
+                    this.loadSeed(seedStr);
+                    hidePanel();
+                } catch (error) {
+                    return;
+                }
+            } else if (event.key === 'Escape') {
+                event.preventDefault();
+                hidePanel();
+            }
+        });
+
+        this.seedInput.addEventListener('blur', () => {
+            setTimeout(() => {
+                if (this.loadPanel && !this.loadPanel.contains(document.activeElement)) {
+                    hidePanel();
+                }
+            }, 0);
+        });
+
+        document.addEventListener('click', (event) => {
+            if (!this.loadPanel || this.loadPanel.classList.contains('hidden')) {
+                return;
+            }
+            const target = event.target;
+            if (this.loadPanel.contains(target) || this.loadButton.contains(target)) {
+                return;
+            }
+            hidePanel();
+        });
+    }
+
+    loadSeed(seedString) {
+        if (!window.MinesSeed) {
+            return;
+        }
+        const parsed = window.MinesSeed.parseSeed(seedString);
+        this.stopTimer();
+        this.difficulty = parsed.mode;
+        this.setDifficultySettings(this.difficulty);
+        document.querySelectorAll('.difficulty-button').forEach(btn => btn.classList.remove('active'));
+        const difficultyButton = document.getElementById(this.difficulty);
+        if (difficultyButton) {
+            difficultyButton.classList.add('active');
+        }
+
+        this.rows = parsed.rows;
+        this.cols = parsed.cols;
+        this.initializeGrid();
+        let mineCount = 0;
+        for (let row = 0; row < this.rows; row++) {
+            for (let col = 0; col < this.cols; col++) {
+                const isMine = parsed.layout[row][col];
+                if (isMine) {
+                    this.grid[row][col].isMine = true;
+                    mineCount++;
+                } else {
+                    this.grid[row][col].isMine = false;
+                }
+                this.grid[row][col].isRevealed = false;
+                this.grid[row][col].isFlagged = false;
+                this.grid[row][col].value = 0;
+                delete this.grid[row][col].isSafe;
+            }
+        }
+        for (let row = 0; row < this.rows; row++) {
+            for (let col = 0; col < this.cols; col++) {
+                if (!this.grid[row][col].isMine) {
+                    this.grid[row][col].value = this.countAdjacentMines(row, col);
+                }
+            }
+        }
+
+        this.mines = mineCount;
+        this.flagsRemaining = this.mines;
+        this.revealed = 0;
+        this.gameOver = false;
+        this.firstClick = true;
+        this.isWin = false;
+        this.isSeedLoadedGame = true;
+        this.seedLockActive = true;
+        this.seedStartCell = { row: parsed.startRow, col: parsed.startCol };
+        this.currentSeed = parsed.seed;
+        this.currentShareText = '';
+
+        this.timer = 0;
+        document.getElementById('timer').textContent = this.formatTime(this.timer);
+
+        if (this.shareButton) {
+            this.shareButton.textContent = 'share';
+            this.shareButton.classList.add('hidden');
+        }
+        if (this.shareButtonResetTimeout) {
+            clearTimeout(this.shareButtonResetTimeout);
+            this.shareButtonResetTimeout = null;
+        }
+
+        this.renderGrid();
+        this.updateStats();
+    }
+
+    isCellLocked(row, col) {
+        if (!this.seedLockActive) {
+            return false;
+        }
+        if (!this.seedStartCell) {
+            return true;
+        }
+        return !(row === this.seedStartCell.row && col === this.seedStartCell.col);
+    }
+
+    refreshSeedLockState() {
+        const cells = document.querySelectorAll('.cell');
+        cells.forEach(cell => {
+            const row = parseInt(cell.dataset.row, 10);
+            const col = parseInt(cell.dataset.col, 10);
+            this.updateCellAppearance(cell, row, col);
+        });
+    }
+
+    prepareSeed(row, col) {
+        if (!window.MinesSeed) {
+            this.currentSeed = '';
+            return;
+        }
+        this.isSeedLoadedGame = false;
+        try {
+            this.currentSeed = window.MinesSeed.createSeed({
+                mode: this.difficulty,
+                grid: this.grid,
+                rows: this.rows,
+                cols: this.cols,
+                startRow: row,
+                startCol: col
+            });
+        } catch (error) {
+            this.currentSeed = '';
+        }
+    }
+
     initializeGrid() {
         // create empty grid
-        this.grid = Array(this.rows).fill().map(() => 
+        this.grid = Array(this.rows).fill().map(() =>
             Array(this.cols).fill().map(() => ({
                 isMine: false,
                 isRevealed: false,
@@ -197,41 +413,53 @@ class Minesweeper {
 
                 // middle click or both buttons for chord
                 cell.addEventListener('mousedown', (e) => {
+                    if (this.isCellLocked(row, col) || this.gameOver) {
+                        return;
+                    }
                     this.isMouseDown = true;
                     if (!(e.button == 2)){
-                        if (!cell.classList.contains('revealed') && !this.gameOver) {
+                        if (!cell.classList.contains('revealed')) {
                             cell.style.backgroundColor = '#999999';
                         }
                     }
 
                     // middle click or left right, note button vs buttons
-                    if ((e.button === 1 || (e.buttons === 3)) && !this.gameOver && this.grid[row][col].isRevealed) {
+                    if ((e.button === 1 || (e.buttons === 3)) && this.grid[row][col].isRevealed) {
                         this.chord(row, col);
-                    } 
+                    }
                 });
-                
+
                 cell.addEventListener('mouseup', (e) => {
                     this.isMouseDown = false;
+                    if (this.isCellLocked(row, col) || this.gameOver) {
+                        return;
+                    }
                     if (!(e.button == 2)){
                         if (!cell.classList.contains('revealed')) {
                             cell.style.backgroundColor = '';
                         }
 
-                        if (!this.gameOver && !this.grid[row][col].isFlagged) {
+                        if (!this.grid[row][col].isFlagged) {
                             this.reveal(row, col);
                         }
                     }
                 });
-                
+
                 cell.addEventListener('contextmenu', (e) => {
                     e.preventDefault();
-                    if (!this.gameOver && !this.grid[row][col].isRevealed) {
+                    if (this.isCellLocked(row, col) || this.gameOver) {
+                        return;
+                    }
+                    if (!this.grid[row][col].isRevealed) {
                         this.toggleFlag(row, col);
                     }
                 });
 
-                cell.addEventListener('mouseover', () => { 
-                    if (this.isMouseDown && !cell.classList.contains('revealed') && !this.gameOver) {
+                cell.addEventListener('mouseover', () => {
+                    if (this.isCellLocked(row, col) || this.gameOver) {
+                        return;
+                    }
+                    if (this.isMouseDown && !cell.classList.contains('revealed')) {
                         cell.style.backgroundColor = '#999999';
                     }
 
@@ -303,13 +531,23 @@ class Minesweeper {
     }
     
     reveal(row, col) {
+        if (this.isCellLocked(row, col)) {
+            return;
+        }
         // handle first click
         if (this.firstClick) {
             this.firstClick = false;
-            this.placeMines(row, col);
-            this.startTimer();
+            if (this.seedLockActive) {
+                this.seedLockActive = false;
+                this.startTimer();
+                this.refreshSeedLockState();
+            } else {
+                this.placeMines(row, col);
+                this.prepareSeed(row, col);
+                this.startTimer();
+            }
         }
-        
+
         const cell = this.grid[row][col];
         
         // skip if already revealed or flagged
@@ -353,8 +591,14 @@ class Minesweeper {
     }
     
     toggleFlag(row, col) {
+        if (this.seedLockActive) {
+            return;
+        }
+        if (this.isCellLocked(row, col)) {
+            return;
+        }
         const cell = this.grid[row][col];
-        
+
         if (!cell.isRevealed) {
             if (cell.isFlagged) {
                 cell.isFlagged = false;
@@ -398,14 +642,24 @@ class Minesweeper {
         const cellData = this.grid[row][col];
         
         // first clear existing classes that might be present
-        cell.classList.remove('revealed', 'mine', 'flag');
+        cell.classList.remove('revealed', 'mine', 'flag', 'start-cell', 'locked-cell');
         cell.textContent = '';
-        
+
         // remove all color classes
         for (let i = 1; i <= 8; i++) {
             cell.classList.remove(`color-${i}`);
         }
-        
+
+        if (this.seedLockActive) {
+            if (this.seedStartCell && row === this.seedStartCell.row && col === this.seedStartCell.col) {
+                cell.textContent = 'X';
+                cell.classList.add('start-cell');
+            } else {
+                cell.classList.add('locked-cell');
+            }
+            return;
+        }
+
         if (cellData.isRevealed) {
             cell.classList.add('revealed');
             
@@ -538,7 +792,11 @@ class Minesweeper {
             }
         })();
 
-        this.currentShareText = `MINES_${difficultyLabel} => ${timerValue}`;
+        let shareText = `MINES_${difficultyLabel} => ${timerValue}`;
+        if (this.currentSeed) {
+            shareText += `\n${this.currentSeed}`;
+        }
+        this.currentShareText = shareText;
         if (this.shareButtonResetTimeout) {
             clearTimeout(this.shareButtonResetTimeout);
             this.shareButtonResetTimeout = null;
@@ -549,14 +807,19 @@ class Minesweeper {
     
     resetGame() {
         this.stopTimer();
+        this.setDifficultySettings(this.difficulty);
         this.grid = [];
         this.revealed = 0;
         this.gameOver = false;
         this.firstClick = true;
+        this.isSeedLoadedGame = false;
+        this.seedLockActive = false;
+        this.seedStartCell = null;
+        this.currentSeed = '';
         this.flagsRemaining = this.mines;
         this.timer = 0;
         this.isWin = false;
-        
+
         // reset timer display
         document.getElementById('timer').textContent = this.formatTime(this.timer);
 
@@ -570,7 +833,7 @@ class Minesweeper {
             clearTimeout(this.shareButtonResetTimeout);
             this.shareButtonResetTimeout = null;
         }
-        
+
         this.initializeGrid();
         this.renderGrid();
         this.updateStats();
