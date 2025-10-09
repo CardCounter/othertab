@@ -2,6 +2,26 @@
     font-family: "Times New Roman", Times, serif;
 }
 
+:root {
+    --page-background-color: white;
+    --scrollbar-thumb-color: blue;
+}
+
+:root:has(body.dark-mode) {
+    --page-background-color: black;
+    --scrollbar-thumb-color: red;
+}
+
+html[data-fouc-theme="dark"] {
+    --page-background-color: black;
+    --scrollbar-thumb-color: red;
+}
+
+html[data-fouc-theme="light"] {
+    --page-background-color: white;
+    --scrollbar-thumb-color: blue;
+}
+
 /* used for fouc in combination with:
 
 <style>
@@ -20,6 +40,9 @@ might break pages that dont use it, but most/all pages should use it*/
 html {
     visibility: visible;
     opacity: 1;
+    background-color: var(--page-background-color);
+    color: black;
+    scrollbar-color: var(--scrollbar-thumb-color) var(--page-background-color);
 }
 
 html.js-loading {
@@ -44,13 +67,54 @@ html.js-loading[data-fouc-theme="light"] body {
 }
 
 body {
-    background-color: white;
-    color: black;
+    background-color: var(--page-background-color);
+    color: inherit;
+}
+
+body::-webkit-scrollbar {
+    width: 0.75rem;
+}
+
+body::-webkit-scrollbar-track {
+    background-color: var(--page-background-color);
+    border: none;
+    box-shadow: none;
+}
+
+body::-webkit-scrollbar-thumb {
+    background-color: var(--scrollbar-thumb-color);
+    border-radius: 999px;
+    border: none;
+    box-shadow: none;
+    background-clip: padding-box;
+}
+
+html::-webkit-scrollbar {
+    width: 0.75rem;
+}
+
+html::-webkit-scrollbar-track {
+    background-color: var(--page-background-color);
+    border: none;
+    box-shadow: none;
+}
+
+html::-webkit-scrollbar-thumb {
+    background-color: var(--scrollbar-thumb-color);
+    border-radius: 999px;
+    border: none;
+    box-shadow: none;
+    background-clip: padding-box;
 }
 
 .dark-mode {
     background-color: black;
     color: white;
+}
+
+body.dark-mode {
+    --page-background-color: #000000;
+    --scrollbar-thumb-color: #ff0000;
 }
 
 main {
