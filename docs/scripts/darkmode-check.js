@@ -3,6 +3,6 @@ document.addEventListener('DOMContentLoaded', () => {
     
     if (savedDarkMode === 'true') {
         document.body.classList.add('dark-mode');
-        // darkToggleButton.textContent = 'light mode';
+        // darkToggleButton.textContent = 'l_m';
     }
 });
