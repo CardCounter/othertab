@@ -57,6 +57,12 @@
                         </div>
                     </div>
                 </div>
+                <div class="panel-anchor">
+                    <button id="load-button" class="settings-button" aria-haspopup="true" aria-expanded="false">load</button>
+                    <div id="load-panel" class="settings-panel hidden" aria-hidden="true">
+                        <input id="seed-input" type="text" placeholder="enter seed" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -73,6 +79,7 @@
     </footer>
 
     <script src="../scripts/mobile-block.js" data-header="MINES" data-message="mines controls are tricky on mobile, try it on desktop instead"></script>
+    <script src="seed.js"></script>
     <script src="mines.js"></script>
 </body>
 </html>
