@@ -13,6 +13,21 @@
     const UA = typeof navigator === 'undefined' ? '' : navigator.userAgent || '';
     const IS_FIREFOX = /\b(firefox|iceweasel|icecat|waterfox|seamonkey|palemoon)\b/i.test(UA);
 
+    const interpretToggleLabel = (label) => {
+        if (!label) return null;
+        const normalized = label.trim().toLowerCase();
+        if (!normalized) return null;
+        if (normalized.includes('light')) return 'dark';
+        if (normalized.includes('dark')) return 'light';
+        return null;
+    };
+
+    const detectThemeFromToggle = () => {
+        const toggle = document.getElementById('dark-toggle');
+        if (!toggle) return null;
+        return interpretToggleLabel(toggle.textContent || toggle.getAttribute('aria-label') || '');
+    };
+
     const detectTheme = () => {
         let stored = null;
         try {
@@ -24,6 +39,13 @@
         if (stored === 'true') return 'dark';
         if (stored === 'false') return 'light';
 
+        if (document.body && document.body.classList.contains('dark-mode')) {
+            return 'dark';
+        }
+
+        const toggleTheme = detectThemeFromToggle();
+        if (toggleTheme) return toggleTheme;
+
         if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
             return 'dark';
         }
@@ -31,15 +53,35 @@
         return 'light';
     };
 
-    const ensureHoldTheme = () => {
-        if (!root.hasAttribute(THEME_ATTR)) {
-            root.setAttribute(THEME_ATTR, detectTheme());
+    const DARK = '#000000';
+    const LIGHT = '#ffffff';
+
+    const applyWaitPalette = (mode) => {
+        const theme = mode === 'dark' ? 'dark' : 'light';
+        root.setAttribute(THEME_ATTR, theme);
+        if (IS_FIREFOX) {
+            root.style.backgroundColor = theme === 'dark' ? DARK : LIGHT;
+            root.style.color = theme === 'dark' ? LIGHT : DARK;
         }
+    };
+
+    const ensureHoldTheme = () => {
+        const existing = root.getAttribute(THEME_ATTR);
+        if (existing === 'dark' || existing === 'light') {
+            applyWaitPalette(existing);
+            return;
+        }
+
+        applyWaitPalette(detectTheme());
     };
 
     const clearHoldTheme = () => {
         if (root.hasAttribute(THEME_ATTR)) {
             root.removeAttribute(THEME_ATTR);
+        }
+        if (IS_FIREFOX) {
+            root.style.removeProperty('background-color');
+            root.style.removeProperty('color');
         }
     };
 
