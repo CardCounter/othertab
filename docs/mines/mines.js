@@ -30,57 +30,64 @@ class Minesweeper {
         this.revealed = 0;
         this.gameOver = false;
         this.firstClick = true;
-        this.flagCount = 0;
+        this.flagsRemaining = this.mines;
         this.timer = 0;
         this.timerInterval = null;
+        this.maxTimerSeconds = (99 * 3600) + (59 * 60) + 59;
         this.gameContainer = document.getElementById('game-container');
         this.isWin = false;
         this.isMouseDown = false;
-        this.isAutoResetOn = false;
-        this.shareButtonClickCount = 0;
+        this.currentShareText = '';
+        this.shareButton = document.getElementById('copy-button');
+        this.shareButtonResetTimeout = null;
+        if (this.shareButton) {
+            this.shareButton.onclick = () => {
+                if (!this.currentShareText || this.shareButton.classList.contains('hidden')) {
+                    return;
+                }
+
+                navigator.clipboard.writeText(this.currentShareText);
+                this.shareButton.textContent = 'copied';
+                if (this.shareButtonResetTimeout) {
+                    clearTimeout(this.shareButtonResetTimeout);
+                }
+                this.shareButtonResetTimeout = setTimeout(() => {
+                    if (this.shareButton) {
+                        this.shareButton.textContent = 'share';
+                    }
+                }, 1000);
+            };
+        }
+
+        this.modeButton = document.getElementById('mode-button');
+        this.modePanel = document.getElementById('mode-panel');
+        if (this.modeButton && this.modePanel) {
+            this.modeButton.addEventListener('click', () => {
+                const isHidden = this.modePanel.classList.toggle('hidden');
+                this.modeButton.setAttribute('aria-expanded', (!isHidden).toString());
+                this.modePanel.setAttribute('aria-hidden', isHidden.toString());
+            });
+
+            document.addEventListener('click', (event) => {
+                if (!this.modePanel || this.modePanel.classList.contains('hidden')) {
+                    return;
+                }
+                const target = event.target;
+                if (this.modePanel.contains(target) || this.modeButton.contains(target)) {
+                    return;
+                }
+                this.modePanel.classList.add('hidden');
+                this.modeButton.setAttribute('aria-expanded', 'false');
+                this.modePanel.setAttribute('aria-hidden', 'true');
+            });
+        }
         
         this.initializeGrid();
         this.renderGrid();
         this.updateStats();
 
-        this.timeNumbers = {
-            0:'⓪',
-            1:'①',
-            2:'②',
-            3:'③',
-            4:'④',
-            5:'⑤',
-            6:'⑥',
-            7:'⑦',
-            8:'⑧',
-            9:'⑨',
-            10:'⑩',
-            11:'⑪',
-            12:'⑫',
-            13:'⑬',
-            14:'⑭',
-            15:'⑮',
-            16:'⑯',
-            17:'⑰',
-            18:'⑱',
-            19:'⑲',
-            20:'⑳',
-        };
-        this.timeDigits = {
-            0:'⓪',
-            1:'①',
-            2:'②',
-            3:'③',
-            4:'④',
-            5:'⑤',
-            6:'⑥',
-            7:'⑦',
-            8:'⑧',
-            9:'⑨',
-        };
-
         // difficulty buttons
-        const difficultyButtons = document.querySelectorAll('.difficulty');
+        const difficultyButtons = document.querySelectorAll('.difficulty-button');
         difficultyButtons.forEach(button => {
             button.addEventListener('click', () => {
                 // reset all to active state
@@ -93,6 +100,11 @@ class Minesweeper {
                 this.difficulty = button.id;
                 this.setDifficultySettings(this.difficulty);
                 this.resetGame();
+                if (this.modePanel && this.modeButton) {
+                    this.modePanel.classList.add('hidden');
+                    this.modeButton.setAttribute('aria-expanded', 'false');
+                    this.modePanel.setAttribute('aria-hidden', 'true');
+                }
             });
         });
 
@@ -101,11 +113,6 @@ class Minesweeper {
             this.resetGame();
         });
 
-        // auto reset toggle
-        document.getElementById('auto-restart-mode').addEventListener('input', () => {
-            this.isAutoResetOn = document.getElementById('auto-restart-mode').checked;
-        });
-        
         // functionality for space, reset keys
         document.addEventListener('keydown', (e) => {
             if ((e.code === 'Space')) { // && !this.gameOver
@@ -128,8 +135,8 @@ class Minesweeper {
                 }
             }
                 
-            // reset game, e, r   
-            if (e.code === 'KeyR' || e.code === 'KeyE' || e.code === 'KeyW') {
+            // reset game with `
+            if (e.code === 'Backquote') {
                 this.resetGame();
             }
 
@@ -159,9 +166,8 @@ class Minesweeper {
     }
 
     updateStats() {
-        document.getElementById('mine-count').textContent = this.mines;
-        document.getElementById('flag-count').textContent = this.flagCount;
-        document.getElementById('timer').textContent = this.timer;
+        document.getElementById('flag-count').textContent = this.flagsRemaining;
+        document.getElementById('timer').textContent = this.formatTime(this.timer);
     }
     
     initializeGrid() {
@@ -320,12 +326,6 @@ class Minesweeper {
             this.gameOver = true;
             this.stopTimer();
             this.revealAllMines(cell);
-            this.showLoseIndicator();
-            if (this.isAutoResetOn) {
-                setTimeout(() => {
-                    this.resetGame();
-                }, 100);
-            }
             return;
         }
         
@@ -348,7 +348,6 @@ class Minesweeper {
             this.gameOver = true;
             this.isWin = true;
             this.stopTimer();
-            this.showWinIndicator();
             this.showWinPopup();
         }
     }
@@ -357,8 +356,13 @@ class Minesweeper {
         const cell = this.grid[row][col];
         
         if (!cell.isRevealed) {
-            cell.isFlagged = !cell.isFlagged;
-            this.flagCount += cell.isFlagged ? 1 : -1;
+            if (cell.isFlagged) {
+                cell.isFlagged = false;
+                this.flagsRemaining = Math.min(this.flagsRemaining + 1, this.mines);
+            } else {
+                cell.isFlagged = true;
+                this.flagsRemaining -= 1;
+            }
             this.updateCell(row, col);
             this.updateStats();
         }
@@ -477,16 +481,22 @@ class Minesweeper {
     startTimer() {
         this.stopTimer(); // stop any existing timer
         this.timer = 0;
-        document.getElementById('timer').textContent = this.timer;
+        document.getElementById('timer').textContent = this.formatTime(this.timer);
         
         this.timerInterval = setInterval(() => {
-            if (this.timer < 999){
-                this.timer++;
-                document.getElementById('timer').textContent = this.timer;
+            if (this.timer >= this.maxTimerSeconds) {
+                this.timer = this.maxTimerSeconds;
+                document.getElementById('timer').textContent = this.formatTime(this.timer);
+                this.stopTimer();
+                return;
             }
-            else {
-                clearInterval(this.timerInterval);
-            }   
+
+            this.timer++;
+            document.getElementById('timer').textContent = this.formatTime(this.timer);
+            
+            if (this.timer >= this.maxTimerSeconds) {
+                this.stopTimer();
+            }
         }, 1000);
     }
     
@@ -497,95 +507,44 @@ class Minesweeper {
         }
     }
 
-    showWinIndicator() {
-        // change border to green for win
-        this.gameContainer.classList.add('win-border');
-    }
+    formatTime(totalSeconds) {
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
 
-    showLoseIndicator() {
-        // change border to red for loss
-        this.gameContainer.classList.add('lose-border');
+        if (hours > 0) {
+            return `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        }
+
+        return `${minutes}:${String(seconds).padStart(2, '0')}`;
     }
 
     showWinPopup(){
-        const popup = document.getElementById('win-popup');
-        const text = document.getElementById('win-text');
-        let timerValue;
-        let goodTime = '';
-
-        if ((this.difficulty == 'easy' && this.timer <= 6) || (this.difficulty == 'medium' && this.timer <= 50) || (this.difficulty == 'hard' && this.timer <= 100)){
-            goodTime = '!';
+        if (!this.shareButton) {
+            return;
         }
+        const timerValue = this.formatTime(this.timer);
 
-        // if (this.timer <= 20){
-        //     timerValue = this.timeNumbers[this.timer];
-        // }
-        // else {
-        //     let currentNum = this.timer;
-        //     const finalTime = [];
-        //     while(currentNum > 0){
-        //         let digit = currentNum % 10;
-        //         finalTime.unshift(this.timeDigits[digit]);
-        //         currentNum = Math.floor(currentNum / 10);
-        //     }
-        //     timerValue = finalTime.join('')
-        // }
-        
-        timerValue = this.timer;
+        const difficultyLabel = (() => {
+            switch (this.difficulty) {
+                case 'easy':
+                    return 'E';
+                case 'medium':
+                    return 'M';
+                case 'hard':
+                    return 'H';
+                default:
+                    return this.difficulty.charAt(0).toUpperCase();
+            }
+        })();
 
-        text.innerHTML = `
-        <p style="text-align: center;">
-        MINES<br>
-        ${this.difficulty.toUpperCase()}<br>
-        ${timerValue}s${goodTime}<br>
-        </p>
-            `;
-
-        // looks awful, dont want to change it
-        const plainText = `MINES
-${this.difficulty.toUpperCase()}
-${timerValue}s${goodTime}`;
-
-        const shareButton = document.getElementById('copy-button');
-
-        shareButton.addEventListener('click', () => {
-            this.shareButtonClickCount++;
-            navigator.clipboard.writeText(plainText);
-
-            if(this.shareButtonClickCount >= 1 && this.shareButtonClickCount <= 20){
-                shareButton.textContent = 'copied';
-            }
-            else if(this.shareButtonClickCount <= 40){
-                shareButton.textContent = 'already copied';
-            }
-            else if(this.shareButtonClickCount <= 60){
-                shareButton.textContent = 'chill';
-            }
-            else if(this.shareButtonClickCount <= 80){
-                shareButton.textContent = 'calm down';
-            }
-            else if(this.shareButtonClickCount <= 100){
-                shareButton.textContent = 'seriously';
-            }
-            else if(this.shareButtonClickCount <= 120){
-                shareButton.textContent = '...';
-            }
-            else if(this.shareButtonClickCount <= 140){
-                shareButton.textContent = '..';
-            }
-            else if(this.shareButtonClickCount <= 160){
-                shareButton.textContent = '.';
-            }
-            else if(this.shareButtonClickCount <= 300){
-                shareButton.textContent = '';
-            }
-            else {
-                shareButton.textContent = 'freak';
-            }
-        });
-            
-        // display popup by adding hidden class, removing active
-        popup.classList.remove('hidden');
+        this.currentShareText = `MINES_${difficultyLabel} => ${timerValue}`;
+        if (this.shareButtonResetTimeout) {
+            clearTimeout(this.shareButtonResetTimeout);
+            this.shareButtonResetTimeout = null;
+        }
+        this.shareButton.textContent = 'share';
+        this.shareButton.classList.remove('hidden');
     }
     
     resetGame() {
@@ -594,24 +553,23 @@ ${timerValue}s${goodTime}`;
         this.revealed = 0;
         this.gameOver = false;
         this.firstClick = true;
-        this.flagCount = 0;
+        this.flagsRemaining = this.mines;
         this.timer = 0;
         this.isWin = false;
-        this.shareButtonClickCount = 0;
         
         // reset timer display
-        document.getElementById('timer').textContent = this.timer;
+        document.getElementById('timer').textContent = this.formatTime(this.timer);
 
         // reset share button
-        document.getElementById('copy-button').textContent = 'share';
-        
-        // remove win/lose border indicators
-        this.gameContainer.classList.remove('win-border');
-        this.gameContainer.classList.remove('lose-border');
-
-        const win_popup = document.getElementById('win-popup');
-        // win_popup.classList.remove('active');
-        win_popup.classList.add('hidden');
+        if (this.shareButton) {
+            this.shareButton.textContent = 'share';
+            this.shareButton.classList.add('hidden');
+        }
+        this.currentShareText = '';
+        if (this.shareButtonResetTimeout) {
+            clearTimeout(this.shareButtonResetTimeout);
+            this.shareButtonResetTimeout = null;
+        }
         
         this.initializeGrid();
         this.renderGrid();

@@ -2,30 +2,22 @@
     --bg-color: white;
     --text-color: black;
 
-    --cell-bg: #c0c0c0;
-    --cell-revealed-bg: #d0d0d0;
-
-    --button-hover: grey;
-    --button-active: #c0c0c0;
+    --cell-bg: lightgrey;
+    --cell-revealed-bg: white;
+    --button-active: grey;
+    --top-bar-height: 1rem;
+    --top-bar-gap: 0.5rem;
 
     user-select: none;
-}
-
-main {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
 }
 
 .dark-mode {
     --bg-color: black;
     --text-color: white;
 
-    --cell-bg: #2a2a2a;
-    --cell-revealed-bg: #1c1c1c;
-
-    --button-hover: gray;
-    --button-active: #2a2a2a;
+    --cell-bg: rgb(46, 46, 46);
+    --cell-revealed-bg: black;
+    --button-active: grey;
 }
 
 body {
@@ -33,10 +25,17 @@ body {
     background-color: white;
     color: black;
     text-align: center;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
     min-height: 100vh;
+}
+
+main {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 1.5rem 0;
+    box-sizing: border-box;
 }
 
 button {
@@ -63,25 +62,7 @@ button:hover {
     color: red;
 }
 
-.difficulty-buttons {
-    display: flex;
-    justify-content: space-evenly;
-}
-
-.difficulty-buttons button.active:hover {
-    background-color: blue;
-}
-
-.dark-mode .difficulty-buttons button.active:hover {
-    background-color: red;
-}
-
-.stats {
-    display: flex;
-    align-items: center;
-    justify-content: space-evenly;
-    gap: 2rem;
-    margin: 0.2rem 0;
+.flags-display {
     font-size: 18px;
 }
 
@@ -94,19 +75,11 @@ button:hover {
 } */
 
 .game-container {
-    border: 5px solid var(--bg-color);
     position: relative;
     display: flex;
     justify-content: center;
     align-items: center;
-}
-
-.win-border {
-    border-color: green !important;
-}
-
-.lose-border {
-    border-color: red !important;
+    width: 100%;
 }
 
 .grid {
@@ -155,9 +128,9 @@ button:hover {
     font-weight: bold;
 }
 
-.color-1 { color: #0000ff; }
+.color-1 { color: blue; }
 .color-2 { color: #00aa00; }
-.color-3 { color: #ff0000; }
+.color-3 { color: red; }
 .color-4 { color: #0000cc; }
 .color-5 { color: #aa0000; }
 .color-6 { color: #00cccc; }
@@ -165,79 +138,173 @@ button:hover {
 .color-8 { color: #666666; }
 
 .dark-mode .color-1 { color: #4488ff; }
-.dark-mode .color-2 { color: #44ff44; }
-.dark-mode .color-3 { color: #ff6666; }
+.dark-mode .color-2 { color: #42ff42; }
+/* .dark-mode .color-3 { color: #ff4d4d; } */
+.dark-mode .color-3 { color: rgb(255, 50, 50); }
 .dark-mode .color-4 { color: #6666ff; }
 .dark-mode .color-5 { color: #ff9999; }
 .dark-mode .color-6 { color: #66ffff; }
 .dark-mode .color-7 { color: #ffffff; }
 .dark-mode .color-8 { color: #cccccc; }
 
-.controls {
-    display: flex;
-    justify-content: center;
-    margin-top: 2px;
-    margin-bottom: 2px;
-    align-items: center;
-}
-
-.checkbox-wrapper {
-    display: inline-flex;
-    justify-content: center;
-    align-items: center;
-    /* margin: 20px; */
-}
-
-.dark-mode .checkbox-wrapper {
-    accent-color: red;
-}
-
-.win-popup {
-    position: absolute;
-    margin-left: 0.2rem;
-    flex: 1;
-    padding: 1rem;
-    background-color: var(--bg-color);
-    left: calc(100% + 20px);
-    font-size: 1rem;
-    max-width: 90vw;
-}
-
 .hidden {
     display: none;
 }
 
-footer {
+
+.board-wrapper {
+    position: relative;
     display: flex;
-    flex-direction: row;
-    /* margin: 1rem 0; */
-    align-content: center;
     align-items: center;
-    justify-content: space-between; 
-    gap: 0.6rem;
+    justify-content: center;
+    width: min-content;
+    margin: 0 auto;
 }
 
 .top-bar {
-    align-self: stretch;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: absolute;
+    bottom: calc(100% + var(--top-bar-gap));
+    left: 0;
+    width: 100%;
+    min-height: var(--top-bar-height);
+}
+
+.time-share {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.grid-wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+}
+
+.copy-button {
+    padding: 0;
+    margin: 0;
+}
+
+
+.difficulty-buttons-grid {
+    display: grid;
+    grid-template-columns: repeat(3, max-content);
+    column-gap: 0.5rem;
+    justify-items: start;
+    align-items: center;
+}
+
+.difficulty-button {
+    padding: 0;
+    margin: 0;
+    font-size: 16px;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    border: none;
+    cursor: pointer;
+}
+
+.difficulty-button:hover {
+    background-color: grey;
+}
+
+.difficulty-button.active {
+    color: blue;
+    background-color: blue;
+}
+.dark-mode .difficulty-button.active {
+    color: red;
+    background-color: red;
+}
+
+.difficulty-button.active:hover {
+    background-color: blue;
+}
+.dark-mode .difficulty-button.active:hover {
+    background-color: red;
+}
+
+.footer {
     display: flex;
     flex-direction: row;
     align-content: center;
     align-items: center;
-    justify-content: space-between; 
-    min-width: 32vw;
+    justify-content: space-between;
+    gap: 1rem;
+    width: 100%;
+    padding: 0.5rem 1rem;
+    box-sizing: border-box;
 }
 
-.stats{
+.footer-left,
+.footer-center,
+.footer-right {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.footer-center {
+    justify-content: center;
+}
+
+.footer-brand {
+    margin: 0;
+}
+
+.footer-link {
+    text-underline-offset: 2px;
+}
+
+.settings-group {
+    position: relative;
     display: flex;
     flex-direction: row;
     align-items: center;
+    gap: 0.5rem;
+}
+
+.panel-anchor {
+    position: relative;
+}
+
+.settings-button {
+    cursor: pointer;
+    margin: 0;
+    padding: 0;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    border: none;
     font-size: 16px;
-    gap: 0.8rem;
-    margin-right: 0.5rem;
 }
 
-.difficulty-buttons{
+.settings-button:hover {
+    background-color: grey;
+}
+
+.settings-panel {
+    position: absolute;
+    bottom: calc(100% + 4px);
+    left: 0;
     display: flex;
-    flex-direction: row;
-    align-items: center;
+    flex-direction: column;
+    background-color: var(--bg-color);
+    font-size: 1rem;
+}
+
+.settings-panel.hidden {
+    display: none;
+}
+
+.settings-panel .difficulty {
+    padding: 0;
+}
+
+.footer-right .settings-button {
+    margin-left: auto;
 }
