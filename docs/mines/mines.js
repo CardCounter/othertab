@@ -22,9 +22,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
 class Minesweeper {
     constructor() {
-        this.difficulty = 'hard'; // default starting difficulty
-        document.getElementById(this.difficulty).classList.add('active');
+        this.difficultyStorageKey = 'MINES-last-difficulty';
+        this.firstGameStorageKey = 'MINES-first-game-completed';
+        this.difficulty = this.getStoredDifficulty(); // default fallback handled in helper
         this.setDifficultySettings(this.difficulty);
+        this.updateActiveDifficultyButton();
         
         this.grid = [];
         this.revealed = 0;
@@ -45,6 +47,23 @@ class Minesweeper {
         this.seedStartCell = null;
         this.shareButton = document.getElementById('copy-button');
         this.shareButtonResetTimeout = null;
+        this.resetHintElement = document.getElementById('reset-hint');
+        this.hideResetHint();
+        this.retryContainer = document.getElementById('retry-container');
+        this.retryButton = document.getElementById('retry-button');
+        this.loadedSeedAttempts = 0;
+        this.loadedSeedString = '';
+        this.hideRetryOption();
+        this.seededWarningElement = document.getElementById('seeded-warning');
+        this.hideSeededWarning();
+        this.blockedCursorTimeout = null;
+        this.previousCursorValue = '';
+        if (this.retryButton) {
+            this.retryButton.addEventListener('click', () => {
+                this.retryButton.blur();
+                this.retryLoadedSeed();
+            });
+        }
         if (this.shareButton) {
             this.shareButton.onclick = () => {
                 if (!this.currentShareText || this.shareButton.classList.contains('hidden')) {
@@ -110,15 +129,11 @@ class Minesweeper {
         const difficultyButtons = document.querySelectorAll('.difficulty-button');
         difficultyButtons.forEach(button => {
             button.addEventListener('click', () => {
-                // reset all to active state
-                difficultyButtons.forEach(btn => btn.classList.remove('active'));
-                
-                // add active state for chosen button
-                button.classList.add('active');
-                
                 // set difficulty and reset game
                 this.difficulty = button.id;
                 this.setDifficultySettings(this.difficulty);
+                this.persistDifficulty();
+                this.updateActiveDifficultyButton();
                 this.resetGame();
                 if (this.modePanel && this.modeButton) {
                     this.modePanel.classList.add('hidden');
@@ -152,6 +167,11 @@ class Minesweeper {
                 
             // reset game with `
             if (e.code === 'KeyR') {
+                if (this.isSeedLoadedGame) {
+                    e.preventDefault();
+                    this.showActionBlockedCursor();
+                    return;
+                }
                 this.resetGame();
             }
 
@@ -159,6 +179,28 @@ class Minesweeper {
         
     }
     
+    getStoredDifficulty() {
+        const storedDifficulty = localStorage.getItem(this.difficultyStorageKey);
+        if (storedDifficulty === 'easy' || storedDifficulty === 'medium' || storedDifficulty === 'hard') {
+            return storedDifficulty;
+        }
+        return 'hard';
+    }
+
+    persistDifficulty() {
+        localStorage.setItem(this.difficultyStorageKey, this.difficulty);
+    }
+
+    updateActiveDifficultyButton() {
+        document.querySelectorAll('.difficulty-button').forEach(btn => {
+            if (btn.id === this.difficulty) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        });
+    }
+
     setDifficultySettings(difficulty) {
         switch (difficulty) {
             case 'easy':
@@ -298,20 +340,27 @@ class Minesweeper {
         });
     }
 
-    loadSeed(seedString) {
+    loadSeed(seedString, options = {}) {
         if (!window.MinesSeed) {
             return;
         }
         const parsed = window.MinesSeed.parseSeed(seedString);
+        const preserveAttempts = Boolean(options.preserveAttempts);
+        if (!preserveAttempts || this.loadedSeedString !== parsed.seed) {
+            this.loadedSeedAttempts = 1;
+        } else if (this.loadedSeedAttempts < 1) {
+            this.loadedSeedAttempts = 1;
+        }
+        this.loadedSeedString = parsed.seed;
+        this.hideRetryOption();
+        this.hideResetHint();
+        this.hideSeededWarning();
         this.stopTimer();
         this.showGridBorder();
         this.difficulty = parsed.mode;
         this.setDifficultySettings(this.difficulty);
-        document.querySelectorAll('.difficulty-button').forEach(btn => btn.classList.remove('active'));
-        const difficultyButton = document.getElementById(this.difficulty);
-        if (difficultyButton) {
-            difficultyButton.classList.add('active');
-        }
+        this.persistDifficulty();
+        this.updateActiveDifficultyButton();
 
         this.rows = parsed.rows;
         this.cols = parsed.cols;
@@ -355,6 +404,8 @@ class Minesweeper {
         this.timer = 0;
         document.getElementById('timer').textContent = this.formatTime(this.timer);
         this.hideTimer();
+        this.hideResetHint();
+        this.showSeededWarning();
 
         if (this.shareButton) {
             this.shareButton.textContent = 'share';
@@ -585,6 +636,8 @@ class Minesweeper {
         if (cell.isMine) {
             this.gameOver = true;
             this.stopTimer();
+            this.showResetHintIfFirstTime();
+            this.showRetryOption();
             this.hideGridBorder();
             this.revealAllMines(cell);
             return;
@@ -610,6 +663,8 @@ class Minesweeper {
             this.isWin = true;
             this.stopTimer();
             this.showWinPopup();
+            this.showResetHintIfFirstTime();
+            this.showRetryOption();
             this.hideGridBorder();
         }
     }
@@ -822,7 +877,15 @@ class Minesweeper {
         })();
 
         let shareText = `MINES_${difficultyLabel} => ${timerValue}`;
-        if (this.currentSeed) {
+        if (this.isSeedLoadedGame && this.loadedSeedString) {
+            const attempts = Math.max(this.loadedSeedAttempts, 1);
+            if (attempts > 1) {
+                shareText = `MINES_${difficultyLabel} + ${attempts} => ${timerValue}`;
+            }
+            if (this.currentSeed) {
+                shareText += `\n${this.currentSeed}`;
+            }
+        } else if (this.currentSeed) {
             shareText += `\n${this.currentSeed}`;
         }
         this.currentShareText = shareText;
@@ -832,6 +895,93 @@ class Minesweeper {
         }
         this.shareButton.textContent = 'share';
         this.shareButton.classList.remove('hidden');
+    }
+
+    showResetHintIfFirstTime() {
+        if (!this.resetHintElement) {
+            return;
+        }
+        const hasCompletedFirstGame = localStorage.getItem(this.firstGameStorageKey);
+        if (!hasCompletedFirstGame) {
+            if (this.isSeedLoadedGame) {
+                localStorage.setItem(this.firstGameStorageKey, 'true');
+                return;
+            }
+            this.resetHintElement.textContent = 'press r or click the reset button to reset.';
+            this.resetHintElement.classList.remove('hidden');
+            localStorage.setItem(this.firstGameStorageKey, 'true');
+        }
+    }
+
+    hideResetHint() {
+        if (!this.resetHintElement) {
+            return;
+        }
+        this.resetHintElement.textContent = '';
+        this.resetHintElement.classList.add('hidden');
+    }
+
+    showRetryOption() {
+        if (!this.retryContainer || !this.isSeedLoadedGame || !this.loadedSeedString || !this.gameOver) {
+            return;
+        }
+        this.retryContainer.classList.remove('hidden');
+        this.retryContainer.setAttribute('aria-hidden', 'false');
+        this.showSeededWarning();
+    }
+
+    hideRetryOption() {
+        if (!this.retryContainer) {
+            return;
+        }
+        this.retryContainer.classList.add('hidden');
+        this.retryContainer.setAttribute('aria-hidden', 'true');
+    }
+
+    retryLoadedSeed() {
+        if (!this.retryButton || !this.isSeedLoadedGame || !this.loadedSeedString) {
+            return;
+        }
+        if (this.loadedSeedAttempts < 1) {
+            this.loadedSeedAttempts = 1;
+        }
+        this.loadedSeedAttempts += 1;
+        this.loadSeed(this.loadedSeedString, { preserveAttempts: true });
+    }
+
+    showSeededWarning() {
+        if (!this.seededWarningElement) {
+            return;
+        }
+        this.seededWarningElement.classList.remove('hidden');
+        this.seededWarningElement.setAttribute('aria-hidden', 'false');
+    }
+
+    hideSeededWarning() {
+        if (!this.seededWarningElement) {
+            return;
+        }
+        this.seededWarningElement.classList.add('hidden');
+        this.seededWarningElement.setAttribute('aria-hidden', 'true');
+    }
+
+    showActionBlockedCursor() {
+        const body = document.body;
+        if (!body) {
+            return;
+        }
+        if (this.blockedCursorTimeout) {
+            clearTimeout(this.blockedCursorTimeout);
+            this.blockedCursorTimeout = null;
+            body.style.cursor = this.previousCursorValue || '';
+        }
+        this.previousCursorValue = body.style.cursor;
+        body.style.cursor = 'not-allowed';
+        this.blockedCursorTimeout = setTimeout(() => {
+            body.style.cursor = this.previousCursorValue || '';
+            this.previousCursorValue = body.style.cursor;
+            this.blockedCursorTimeout = null;
+        }, 250);
     }
 
     hideGridBorder() {
@@ -848,6 +998,8 @@ class Minesweeper {
 
     resetGame() {
         this.stopTimer();
+        this.hideRetryOption();
+        this.hideResetHint();
         this.setDifficultySettings(this.difficulty);
         this.grid = [];
         this.revealed = 0;
@@ -857,10 +1009,13 @@ class Minesweeper {
         this.seedLockActive = false;
         this.seedStartCell = null;
         this.currentSeed = '';
+        this.loadedSeedString = '';
+        this.loadedSeedAttempts = 0;
         this.flagsRemaining = this.mines;
         this.timer = 0;
         this.isWin = false;
         this.showGridBorder();
+        this.hideSeededWarning();
 
         // reset timer display
         document.getElementById('timer').textContent = this.formatTime(this.timer);
