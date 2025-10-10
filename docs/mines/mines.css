@@ -93,27 +93,40 @@ button:hover {
 }
 
 .mine {
-    background-color: #ff0000;
+    background-color: red;
+}
+
+.mine-symbol {
+    color: black !important;
+    font-size: 25px !important;
+    font-weight: bold;
 }
 
 .flag {
     background-color: var(--cell-bg);
-    color: #ff0000 !important;
+    color: red !important;
     font-size: 25px !important;
     font-weight: bold;
 }
 
 .false-flag {
     background-color: var(--cell-bg);
-    color: #ff0000 !important;
+    color: red !important;
     font-size: 25px !important;
     font-weight: bold;
 }
 
-.mine-symbol {
-    color: #000000 !important;
-    font-size: 25px !important;
-    font-weight: bold;
+.dark-mode .flag,
+.dark-mode .false-flag {
+    color: red !important;
+}
+
+.dark-mode .mine {
+    background-color: red;
+}
+
+.dark-mode .mine-symbol {
+    color: black !important;
 }
 
 .color-1 { color: blue; }
@@ -125,15 +138,14 @@ button:hover {
 .color-7 { color: #000000; }
 .color-8 { color: #666666; }
 
-.dark-mode .color-1 { color: #4488ff; }
+.dark-mode .color-1 { color: #498cff; }
 .dark-mode .color-2 { color: #42ff42; }
-/* .dark-mode .color-3 { color: #ff4d4d; } */
-.dark-mode .color-3 { color: rgb(255, 50, 50); }
-.dark-mode .color-4 { color: #6666ff; }
+.dark-mode .color-3 { color: #fe5252; }
+.dark-mode .color-4 { color: #7c7cff; }
 .dark-mode .color-5 { color: #ff9999; }
 .dark-mode .color-6 { color: #66ffff; }
-.dark-mode .color-7 { color: #ffffff; }
-.dark-mode .color-8 { color: #cccccc; }
+.dark-mode .color-7 { color: #fff52f; }
+.dark-mode .color-8 { color: #dbdbdb; }
 
 .hidden {
     display: none;
@@ -154,6 +166,12 @@ button:hover {
     justify-content: center;
     align-items: center;
     width: 100%;
+    border: 3px solid var(--cell-bg);
+    box-sizing: border-box;
+}
+
+.grid-wrapper.board-finished {
+    border-color: transparent;
 }
 
 .copy-button {

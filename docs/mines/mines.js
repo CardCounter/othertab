@@ -35,6 +35,7 @@ class Minesweeper {
         this.timerInterval = null;
         this.maxTimerSeconds = (99 * 3600) + (59 * 60) + 59;
         this.gameContainer = document.getElementById('game-container');
+        this.gridWrapper = document.querySelector('.grid-wrapper');
         this.isWin = false;
         this.isMouseDown = false;
         this.currentShareText = '';
@@ -103,6 +104,7 @@ class Minesweeper {
         this.updateStats();
         this.initializeLoadControls();
         this.hideTimer();
+        this.showGridBorder();
 
         // difficulty buttons
         const difficultyButtons = document.querySelectorAll('.difficulty-button');
@@ -302,6 +304,7 @@ class Minesweeper {
         }
         const parsed = window.MinesSeed.parseSeed(seedString);
         this.stopTimer();
+        this.showGridBorder();
         this.difficulty = parsed.mode;
         this.setDifficultySettings(this.difficulty);
         document.querySelectorAll('.difficulty-button').forEach(btn => btn.classList.remove('active'));
@@ -582,6 +585,7 @@ class Minesweeper {
         if (cell.isMine) {
             this.gameOver = true;
             this.stopTimer();
+            this.hideGridBorder();
             this.revealAllMines(cell);
             return;
         }
@@ -606,6 +610,7 @@ class Minesweeper {
             this.isWin = true;
             this.stopTimer();
             this.showWinPopup();
+            this.hideGridBorder();
         }
     }
     
@@ -829,6 +834,18 @@ class Minesweeper {
         this.shareButton.classList.remove('hidden');
     }
 
+    hideGridBorder() {
+        if (this.gridWrapper) {
+            this.gridWrapper.classList.add('board-finished');
+        }
+    }
+
+    showGridBorder() {
+        if (this.gridWrapper) {
+            this.gridWrapper.classList.remove('board-finished');
+        }
+    }
+
     resetGame() {
         this.stopTimer();
         this.setDifficultySettings(this.difficulty);
@@ -843,6 +860,7 @@ class Minesweeper {
         this.flagsRemaining = this.mines;
         this.timer = 0;
         this.isWin = false;
+        this.showGridBorder();
 
         // reset timer display
         document.getElementById('timer').textContent = this.formatTime(this.timer);
