@@ -249,6 +249,43 @@ button:hover {
     font-size: 16px;
 }
 
+.reset-hint {
+    font-size: 16px;
+    color: var(--text-color);
+}
+
+.seeded-warning {
+    font-size: 16px;
+    color: var(--text-color);
+    white-space: nowrap;
+}
+
+.seeded-warning.hidden {
+    display: none;
+}
+
+.retry-container {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    font-size: 16px;
+}
+
+.retry-container.hidden {
+    display: none;
+}
+
+.retry-button {
+    padding: 0;
+    margin: 0;
+}
+
+.retry-reset-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+}
+
 .footer-stats .flags-display {
     margin: 0;
 }

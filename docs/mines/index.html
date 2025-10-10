@@ -26,7 +26,7 @@
         <button id="dark-toggle" class="page-button">d_m</button>
     </header>
 
-    <main>
+    <main oncontextmenu="return false;">
         <div class="board-wrapper">
             <div class="grid-wrapper">
                 <div id="game-container" class="game-container">
@@ -56,7 +56,10 @@
                     </div>
                 </div>
             </div>
-            <button id="new-game-button" class="settings-button" type="button">reset</button>
+            <div class="retry-reset-group">
+                <button id="new-game-button" class="settings-button" type="button">reset</button>
+                <span id="retry-container" class="retry-container hidden">or <button id="retry-button" class="settings-button retry-button" type="button">retry</button></span>
+            </div>
         </div>
 
         <div class="footer-center">
@@ -68,6 +71,8 @@
 
         <div class="footer-right">
             <div class="footer-stats">
+                <span id="reset-hint" class="reset-hint hidden"></span>
+                <span id="seeded-warning" class="seeded-warning hidden">using r to reset is disabled during seeded runs.</span>
                 <div class="flags-display">flags: <span id="flag-count" class="count-value"></span></div>
                 <span id="timer" class="timer hidden">0:00</span>
                 <button id="copy-button" class="copy-button hidden">share</button>

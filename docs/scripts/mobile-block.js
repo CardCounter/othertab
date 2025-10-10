@@ -108,8 +108,14 @@
         function getCurrentMode() {
             const t = localStorage.getItem('theme');
             if (t === 'dark' || t === 'light') return t;
-            const dm = localStorage.getItem('dark-mode');
-            if (dm === 'true' || dm === 'false') return dm === 'true' ? 'dark' : 'light';
+            const dmMobile = localStorage.getItem('dark-mode-mobile');
+            if (dmMobile === 'true' || dmMobile === 'false') return dmMobile === 'true' ? 'dark' : 'light';
+            const legacyDm = localStorage.getItem('dark-mode');
+            if (legacyDm === 'true' || legacyDm === 'false') {
+                localStorage.setItem('dark-mode-mobile', legacyDm);
+                localStorage.removeItem('dark-mode');
+                return legacyDm === 'true' ? 'dark' : 'light';
+            }
             return (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
         }
 
@@ -138,7 +144,8 @@
                 document.documentElement.classList.remove('dark');
             }
             localStorage.setItem('theme', mode);
-            localStorage.setItem('dark-mode', mode === 'dark' ? 'true' : 'false');
+            localStorage.setItem('dark-mode-mobile', mode === 'dark' ? 'true' : 'false');
+            localStorage.removeItem('dark-mode');
             applyOverlayTheme(mode);
             // If darkmode.js exposes a hook, call it safely
             if (typeof window.updateDarkMode === 'function') {
