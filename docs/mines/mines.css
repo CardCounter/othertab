@@ -6,9 +6,6 @@
     --cell-revealed-bg: white;
     --button-active: grey;
     --color: black;
-    --top-bar-height: 1rem;
-    --top-bar-gap: 0.5rem;
-
     user-select: none;
 }
 
@@ -64,18 +61,7 @@ button:hover {
     color: red;
 }
 
-.flags-display {
-    font-size: 18px;
-}
-
-/* .top-bar {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.5rem;
-    margin-bottom: 0.5rem;
-} */
-
+ 
 .game-container {
     position: relative;
     display: flex;
@@ -163,23 +149,6 @@ button:hover {
     margin: 0 auto;
 }
 
-.top-bar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    position: absolute;
-    bottom: calc(100% + var(--top-bar-gap));
-    left: 0;
-    width: 100%;
-    min-height: var(--top-bar-height);
-}
-
-.time-share {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
 .grid-wrapper {
     display: flex;
     justify-content: center;
@@ -243,24 +212,31 @@ button:hover {
     background-color: red;
 }
 
-.footer {
-    display: flex;
-    flex-direction: row;
-    align-content: center;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    width: 100%;
-    padding: 0.5rem 1rem;
-    box-sizing: border-box;
-}
-
 .footer-left,
 .footer-center,
 .footer-right {
     display: flex;
     align-items: center;
     gap: 0.6rem;
+}
+
+.footer-right {
+    justify-content: flex-end;
+}
+
+.footer-stats {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 16px;
+}
+
+.footer-stats .flags-display {
+    margin: 0;
+}
+
+.footer-stats .timer {
+    font-variant-numeric: tabular-nums;
 }
 
 .footer-center {
@@ -290,13 +266,11 @@ button:hover {
 
 #load-panel {
     background: var(--bg-color);
-    min-width: 9rem;
-    left: calc(-3rem - 4px);
-    /* right: 0; */
-    bottom: calc(1rem + 2px);
+    min-width: 10rem;
+    left: -2.75rem; /* hard coded */
+    bottom: 1.5rem;
     padding: 0;
     margin: 0;
-    gap: 0.5rem;
     align-items: center;
     box-sizing: border-box;
 }
@@ -309,6 +283,7 @@ button:hover {
     caret-color: blue;
     font-size: 16px;
     font-family: "Times New Roman", Times, serif;
+    padding: 0;
 }
 
 #load-panel input:focus {
@@ -346,7 +321,7 @@ button:hover {
 
 .settings-panel {
     position: absolute;
-    bottom: calc(100% + 4px);
+    bottom: 1.5rem;
     left: 0;
     display: flex;
     flex-direction: column;
@@ -385,4 +360,8 @@ button:hover {
 
 .footer-right .settings-button {
     margin-left: auto;
+}
+
+.timer {
+    font-size: 16px;
 }

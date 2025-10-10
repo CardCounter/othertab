@@ -63,6 +63,14 @@ class Minesweeper {
             };
         }
 
+        this.newGameButton = document.getElementById('new-game-button');
+        if (this.newGameButton) {
+            this.newGameButton.addEventListener('click', () => {
+                this.newGameButton.blur();
+                this.resetGame();
+            });
+        }
+
         this.loadButton = document.getElementById('load-button');
         this.loadPanel = document.getElementById('load-panel');
         this.seedInput = document.getElementById('seed-input');
@@ -94,6 +102,7 @@ class Minesweeper {
         this.renderGrid();
         this.updateStats();
         this.initializeLoadControls();
+        this.hideTimer();
 
         // difficulty buttons
         const difficultyButtons = document.querySelectorAll('.difficulty-button');
@@ -115,11 +124,6 @@ class Minesweeper {
                     this.modePanel.setAttribute('aria-hidden', 'true');
                 }
             });
-        });
-
-        // new game button
-        document.getElementById('new-game').addEventListener('click', () => {
-            this.resetGame();
         });
 
         // functionality for space, reset keys
@@ -145,7 +149,7 @@ class Minesweeper {
             }
                 
             // reset game with `
-            if (e.code === 'Backquote') {
+            if (e.code === 'KeyR') {
                 this.resetGame();
             }
 
@@ -177,6 +181,20 @@ class Minesweeper {
     updateStats() {
         document.getElementById('flag-count').textContent = this.flagsRemaining;
         document.getElementById('timer').textContent = this.formatTime(this.timer);
+    }
+
+    showTimer() {
+        const timerEl = document.getElementById('timer');
+        if (timerEl) {
+            timerEl.classList.remove('hidden');
+        }
+    }
+
+    hideTimer() {
+        const timerEl = document.getElementById('timer');
+        if (timerEl) {
+            timerEl.classList.add('hidden');
+        }
     }
 
     initializeLoadControls() {
@@ -333,6 +351,7 @@ class Minesweeper {
 
         this.timer = 0;
         document.getElementById('timer').textContent = this.formatTime(this.timer);
+        this.hideTimer();
 
         if (this.shareButton) {
             this.shareButton.textContent = 'share';
@@ -735,18 +754,23 @@ class Minesweeper {
     startTimer() {
         this.stopTimer(); // stop any existing timer
         this.timer = 0;
-        document.getElementById('timer').textContent = this.formatTime(this.timer);
+        const timerEl = document.getElementById('timer');
+        if (!timerEl) {
+            return;
+        }
+        timerEl.textContent = this.formatTime(this.timer);
+        this.showTimer();
         
         this.timerInterval = setInterval(() => {
             if (this.timer >= this.maxTimerSeconds) {
                 this.timer = this.maxTimerSeconds;
-                document.getElementById('timer').textContent = this.formatTime(this.timer);
+                timerEl.textContent = this.formatTime(this.timer);
                 this.stopTimer();
                 return;
             }
 
             this.timer++;
-            document.getElementById('timer').textContent = this.formatTime(this.timer);
+            timerEl.textContent = this.formatTime(this.timer);
             
             if (this.timer >= this.maxTimerSeconds) {
                 this.stopTimer();
@@ -804,7 +828,7 @@ class Minesweeper {
         this.shareButton.textContent = 'share';
         this.shareButton.classList.remove('hidden');
     }
-    
+
     resetGame() {
         this.stopTimer();
         this.setDifficultySettings(this.difficulty);
@@ -822,6 +846,7 @@ class Minesweeper {
 
         // reset timer display
         document.getElementById('timer').textContent = this.formatTime(this.timer);
+        this.hideTimer();
 
         // reset share button
         if (this.shareButton) {
