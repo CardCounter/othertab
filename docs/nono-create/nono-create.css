@@ -1,7 +1,7 @@
 :root {
     --bg-color: white;
     --color: black;
-    --board-length: min(70vmin, 70vh);
+    --board-length: min(80vmin, 95vw, calc(100vh - 8rem));
     --creator-size: 15;
     user-select: none;
 }
@@ -16,10 +16,17 @@ body {
     background-color: var(--bg-color);
     color: var(--color);
     text-align: center;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
     min-height: 100vh;
+}
+
+footer p {
+    margin: 0;
+}
+
+.footer-brand {
+    letter-spacing: 0.02em;
 }
 
 main {
@@ -30,8 +37,8 @@ main {
     align-items: center;
     justify-content: center;
     width: 100%;
-    gap: 1.5rem;
-    padding: 1rem 0 2rem 0;
+    /* gap: 1.5rem;
+    padding: 1rem 0 2rem 0; */
 }
 
 .uploader {
@@ -99,6 +106,7 @@ main {
     align-items: center;
     justify-content: center;
     width: 100%;
+    padding: 0;
 }
 
 .creator-board {
@@ -159,65 +167,6 @@ main {
 
 .creator-board .creator-cell:last-child {
     border-right-width: 3px;
-}
-
-/* ---  (nono-style) --- */
-.footer {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  align-items: center;
-  gap: 12px;
-  background: var(--bg-color);
-  bottom: 0;
-  width: 100%;
-
-}
-
-.footer-left,
-.footer-center,
-.footer-right {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-/* janky keep this */
-.footer-left { justify-self: start; margin-left: 28px; margin-bottom: 17px; }
-.footer-center { justify-self: center; margin-bottom: 16px; }
-.footer-right { justify-self: end; margin-right: 28px; margin-bottom: 17px; }
-
-/* brand + links */
-.footer-brand {
-  margin: 0;
-  letter-spacing: 0.02em;
-}
-
-.footer-link {
-  text-underline-offset: 2px;
-}
-
-.footer-link:hover,
-.footer-link:focus {
-  text-decoration: underline;
-}
-
-/* normalize button sizing within footer */
-.footer .settings-button,
-.footer .page-button {
-  line-height: 1;
-}
-
-/* responsive stack on small screens, but keep center group centered */
-@media (max-width: 720px) {
-  .footer {
-    grid-template-columns: 1fr;
-    row-gap: 8px;
-    justify-items: center;
-  }
-  .footer-left,
-  .footer-right {
-    justify-self: center;
-  }
 }
 
 /* --- settings-group and settings-panel from nono.css --- */

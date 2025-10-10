@@ -10,8 +10,6 @@ window.addEventListener('DOMContentLoaded', () => {
     const loadInput = document.getElementById('load-input');
     const saveInputContainer = document.getElementById('save-input-container');
     const saveFilename = document.getElementById('save-filename');
-    const saveConfirm = document.getElementById('save-confirm');
-    const saveCancel = document.getElementById('save-cancel');
     const saveError = document.getElementById('save-error');
     const addLayerButton = document.getElementById('add-layer-button');
     const layersList = document.getElementById('layers-list');
@@ -704,36 +702,18 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     function showSaveInput() {
-        saveInputContainer.style.display = 'flex';
-        saveError.style.display = 'none'; // Hide any previous error
-        
-        // Position the input directly above the save button
-        const saveButton = document.getElementById('save-button');
-        const buttonRect = saveButton.getBoundingClientRect();
-        
-        // Calculate position: input should be above the button
-        const inputTop = buttonRect.top - 40; // 40px above the button
-        const inputLeft = buttonRect.left;
-        
-        saveInputContainer.style.position = 'fixed';
-        saveInputContainer.style.top = inputTop + 'px';
-        saveInputContainer.style.left = inputLeft + 'px';
-        saveInputContainer.style.zIndex = '1000';
-        
+        saveInputContainer.classList.remove('hidden');
+        saveInputContainer.setAttribute('aria-hidden', 'false');
+        saveError.classList.add('hidden');
         saveFilename.focus();
         saveFilename.select();
     }
 
     function hideSaveInput() {
-        saveInputContainer.style.display = 'none';
+        saveInputContainer.classList.add('hidden');
+        saveInputContainer.setAttribute('aria-hidden', 'true');
         saveFilename.value = '';
-        saveError.style.display = 'none'; // Hide error message
-        
-        // Reset positioning
-        saveInputContainer.style.position = '';
-        saveInputContainer.style.bottom = '';
-        saveInputContainer.style.left = '';
-        saveInputContainer.style.zIndex = '';
+        saveError.classList.add('hidden');
     }
 
     function saveCanvas() {
@@ -741,8 +721,7 @@ window.addEventListener('DOMContentLoaded', () => {
         
         // Validate input
         if (!userInput) {
-            saveError.style.display = 'block';
-            saveSanitize.style.display = 'none'; // Hide sanitize message if showing error
+            saveError.classList.remove('hidden');
             return;
         }
         
@@ -1646,13 +1625,14 @@ window.addEventListener('DOMContentLoaded', () => {
     });
 
     // Save canvas functionality
-    saveButton.addEventListener('click', showSaveInput);
-
-    // Save confirm button
-    saveConfirm.addEventListener('click', saveCanvas);
-
-    // Save cancel button
-    saveCancel.addEventListener('click', hideSaveInput);
+    saveButton.addEventListener('click', (event) => {
+        event.stopPropagation();
+        if (saveInputContainer.classList.contains('hidden')) {
+            showSaveInput();
+        } else {
+            hideSaveInput();
+        }
+    });
 
     // Load image functionality
     loadButton.addEventListener('click', () => loadInput.click());
@@ -1671,8 +1651,15 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    saveInputContainer.addEventListener('click', (event) => {
+        event.stopPropagation();
+    });
+
     // Hide save input when clicking outside
     document.addEventListener('click', (e) => {
+        if (saveInputContainer.classList.contains('hidden')) {
+            return;
+        }
         if (!saveInputContainer.contains(e.target) && !saveButton.contains(e.target)) {
             hideSaveInput();
         }

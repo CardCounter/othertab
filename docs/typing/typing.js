@@ -80,6 +80,16 @@ class Typing {
         this.typingDone = false;
         this.canType = true;
 
+        this.stageEl = document.querySelector('.typing-stage');
+        if (this.stageEl) {
+            this.stageEl.addEventListener('contextmenu', (event) => {
+                event.preventDefault();
+            });
+            this.stageEl.addEventListener('selectstart', (event) => {
+                event.preventDefault();
+            });
+        }
+
 
         if (localStorage.getItem('TYPING-currentWordMode')){
             this.currentWordMode = localStorage.getItem('TYPING-currentWordMode');
