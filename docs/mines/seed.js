@@ -6,6 +6,19 @@
     medium: { rows: 16, cols: 16 },
     hard: { rows: 16, cols: 30 }
   };
+  const modeToPrefix = {
+    easy: "e",
+    medium: "m",
+    hard: "h"
+  };
+  const prefixToMode = Object.fromEntries(
+    Object.entries(modeToPrefix).map(([mode, prefix]) => [prefix, mode])
+  );
+  const modeMaskSeeds = {
+    easy: 137,
+    medium: 211,
+    hard: 59
+  };
 
   function getSettingsForMode(mode) {
     const settings = difficultyMap[mode];
@@ -27,29 +40,74 @@
     return bits;
   }
 
-  function bitsToBase64(bits) {
-    const padLength = (8 - (bits.length % 8)) % 8;
-    if (padLength) {
-      bits = bits + "0".repeat(padLength);
+  function bitsToBytes(binStr) {
+    const totalBits = binStr.length;
+    const byteLen = Math.ceil(totalBits / 8);
+    const bytes = new Uint8Array(byteLen);
+    for (let i = 0; i < totalBits; i++) {
+      if (binStr.charCodeAt(i) !== 49) continue; // '1'
+      const byteIndex = Math.floor(i / 8);
+      const bitPos = 7 - (i % 8); // msb-first
+      bytes[byteIndex] |= (1 << bitPos);
     }
-    let binary = "";
-    for (let i = 0; i < bits.length; i += 8) {
-      const chunk = bits.slice(i, i + 8);
-      const charCode = parseInt(chunk, 2);
-      binary += String.fromCharCode(charCode);
-    }
-    return btoa(binary).replace(/=+$/g, "");
+    return bytes;
   }
 
-  function base64ToBits(base64) {
-    const padded = base64 + "=".repeat((4 - (base64.length % 4)) % 4);
-    const binary = atob(padded);
+  function bytesToBits(bytes) {
     let bits = "";
-    for (let i = 0; i < binary.length; i++) {
-      const charCode = binary.charCodeAt(i);
-      bits += charCode.toString(2).padStart(8, "0");
+    for (let i = 0; i < bytes.length; i++) {
+      const b = bytes[i];
+      for (let bitPos = 7; bitPos >= 0; bitPos--) {
+        bits += ((b >> bitPos) & 1) ? "1" : "0";
+      }
     }
     return bits;
+  }
+
+  function deriveModeMask(length, seed) {
+    const mask = new Uint8Array(length);
+    let state = seed & 0xFF;
+    for (let i = 0; i < length; i++) {
+      state = (state * 73 + 41) & 0xFF;
+      mask[i] = state;
+    }
+    return mask;
+  }
+
+  function applyModeMask(bytes, mode, encode) {
+    const seed = modeMaskSeeds[mode];
+    if (typeof seed !== "number") {
+      throw new Error("unsupported mines mode");
+    }
+    const mask = deriveModeMask(bytes.length, seed);
+    const result = new Uint8Array(bytes.length);
+    for (let i = 0; i < bytes.length; i++) {
+      const byte = bytes[i];
+      const maskByte = mask[i];
+      result[i] = encode
+        ? (byte + maskByte) & 0xFF
+        : (byte - maskByte + 256) & 0xFF;
+    }
+    return result;
+  }
+
+  function bytesToBase64Url(bytes) {
+    let binary = "";
+    for (let i = 0; i < bytes.length; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    return btoa(binary).replace(/\+/g, "-").replace(/\//g, "!").replace(/=+$/g, "");
+  }
+
+  function base64UrlToBytes(base64) {
+    const b64 = base64.replace(/-/g, "+").replace(/!/g, "/");
+    const padded = b64 + "=".repeat((4 - (b64.length % 4)) % 4);
+    const binary = atob(padded);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return bytes;
   }
 
   function bitsToLayout(bits, rows, cols) {
@@ -71,28 +129,59 @@
     if (rows !== expectedRows || cols !== expectedCols) {
       throw new Error("grid size does not match mode");
     }
-    const bits = flattenLayout(grid, rows, cols);
-    const encoded = bitsToBase64(bits);
-    return `${mode}-${encoded}-${startCol}-${startRow}`;
+    if (startCol < 0 || startCol >= cols || startRow < 0 || startRow >= rows) {
+      throw new Error("start location outside grid");
+    }
+    const prefix = modeToPrefix[mode];
+    if (!prefix) {
+      throw new Error("unsupported mines mode");
+    }
+
+    const layoutBits = flattenLayout(grid, rows, cols);
+    const colBits = Number(startCol).toString(2).padStart(5, "0");
+    const rowBits = Number(startRow).toString(2).padStart(5, "0");
+
+    let combinedBits = layoutBits + colBits + rowBits;
+    const padLen = (8 - (combinedBits.length % 8)) % 8;
+    if (padLen) {
+      combinedBits += "0".repeat(padLen);
+    }
+
+    const bytes = bitsToBytes(combinedBits);
+    const maskedBytes = applyModeMask(bytes, mode, true);
+    const encoded = bytesToBase64Url(maskedBytes);
+    return `${prefix}${encoded}`;
   }
 
   function parseSeed(seedString) {
-    if (typeof seedString !== "string" || !seedString.includes("-")) {
+    if (typeof seedString !== "string" || seedString.length < 2) {
       throw new Error("invalid seed");
     }
-    const parts = seedString.split("-");
-    if (parts.length !== 4) {
+    const prefix = seedString.charAt(0);
+    const mode = prefixToMode[prefix];
+    if (!mode) {
       throw new Error("invalid seed");
     }
-    const [mode, encoded, startX, startY] = parts;
+    const encoded = seedString.slice(1);
+    if (!encoded) {
+      throw new Error("invalid seed");
+    }
     const { rows, cols } = getSettingsForMode(mode);
-    const bits = base64ToBits(encoded).slice(0, rows * cols);
-    if (bits.length < rows * cols) {
+    const totalBits = rows * cols + 10;
+    const bytes = base64UrlToBytes(encoded);
+    const unmaskedBytes = applyModeMask(bytes, mode, false);
+    const allBits = bytesToBits(unmaskedBytes);
+    if (allBits.length < totalBits) {
       throw new Error("seed layout too short");
     }
-    const layout = bitsToLayout(bits, rows, cols);
-    const startCol = Number.parseInt(startX, 10);
-    const startRow = Number.parseInt(startY, 10);
+    const relevantBits = allBits.slice(0, totalBits);
+    const layoutBits = relevantBits.slice(0, rows * cols);
+    const colBits = relevantBits.slice(rows * cols, rows * cols + 5);
+    const rowBits = relevantBits.slice(rows * cols + 5, rows * cols + 10);
+
+    const layout = bitsToLayout(layoutBits, rows, cols);
+    const startCol = parseInt(colBits || "0", 2);
+    const startRow = parseInt(rowBits || "0", 2);
     if (!Number.isInteger(startCol) || !Number.isInteger(startRow)) {
       throw new Error("invalid start location");
     }
