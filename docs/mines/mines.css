@@ -192,11 +192,23 @@ button:hover {
     margin: 0;
 }
 
+/* #load-panel {
+    background: var(--bg-color);
+    min-width: 9rem;
+    left: calc(-3rem - 4px);
+    bottom: 1rem;
+    gap: 0.5rem;
+    align-items: center;
+    box-sizing: border-box;
+} */
+
 
 .difficulty-buttons-grid {
     display: grid;
     grid-template-columns: repeat(3, max-content);
-    column-gap: 0.5rem;
+    left: calc(-3rem - 4px);
+    gap: 0.5rem;
+    bottom: 1rem;
     justify-items: start;
     align-items: center;
 }
@@ -264,8 +276,7 @@ button:hover {
 }
 
 .settings-group {
-    position: relative;
-    display: flex;
+    display: inline-flex;
     flex-direction: row;
     align-items: center;
     gap: 0.5rem;
@@ -273,6 +284,50 @@ button:hover {
 
 .panel-anchor {
     position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+#load-panel {
+    background: var(--bg-color);
+    min-width: 9rem;
+    left: calc(-3rem - 4px);
+    /* right: 0; */
+    bottom: calc(1rem + 2px);
+    padding: 0;
+    margin: 0;
+    gap: 0.5rem;
+    align-items: center;
+    box-sizing: border-box;
+}
+
+#load-panel input {
+    width: 100%;
+    border: none;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    caret-color: blue;
+    font-size: 16px;
+    font-family: "Times New Roman", Times, serif;
+}
+
+#load-panel input:focus {
+    outline: none;
+    box-shadow: none;
+}
+
+#load-panel input::placeholder {
+    color: grey;
+}
+
+.dark-mode #load-panel input {
+    background-color: black;
+    color: white;
+    caret-color: red;
+}
+
+.dark-mode #load-panel input::placeholder {
+    color: grey;
 }
 
 .settings-button {
