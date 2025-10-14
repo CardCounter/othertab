@@ -1,0 +1,59 @@
+name: PR Build (Vite + PurgeCSS + HTML minify)
+
+on:
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Build (Vite => /build)
+        run: npx vite build --outDir build
+
+      - name: Prune unused CSS (PurgeCSS)
+        run: |
+          npx purgecss \
+            --css "build/**/*.css" \
+            --content "build/**/*.html" "src/**/*.{js,ts,jsx,tsx,html}" \
+            --output "build"
+
+      - name: Minify HTML
+        run: |
+          npx html-minifier-terser \
+            --input-dir build \
+            --output-dir build \
+            --file-ext html \
+            --collapse-whitespace \
+            --remove-comments \
+            --remove-redundant-attributes \
+            --remove-empty-attributes \
+            --minify-css true \
+            --minify-js true
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-build
+          path: build
+          if-no-files-found: error
