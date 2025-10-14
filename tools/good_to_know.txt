@@ -11,4 +11,6 @@ to test build:
 npm run build
 npm run preview <or> npx vite preview
 
+also npm run dev instead of liveserver
+
 
