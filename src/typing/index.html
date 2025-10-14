@@ -15,6 +15,10 @@
         }
     </style>
     <script>document.documentElement.classList.add('js-loading');</script>
+    <script>
+        window.OTHERTAB_MOBILE_HEADER = 'TYPING';
+        window.OTHERTAB_MOBILE_MESSAGE = 'try typing on desktop instead';
+    </script>
     <link rel="stylesheet" href="../css/global.css">
     <link rel="stylesheet" href="../css/header-footer.css">
     <link rel="stylesheet" href="../css/link.css">
@@ -70,11 +74,10 @@
             <a href="https://ko-fi.com/othertab" class="footer-link">support</a>
         </div>
     </footer>
-
-    <script src="../scripts/mobile-block.js" data-header="TYPING" data-message="try typing on desktop instead"></script>
-    <script src="../scripts/darkmode.js"></script>
-    <script src="../scripts/fouc.js"></script>
-    <script type="module" src="typing.js"></script>
+    <script type="module" src="../scripts/mobile-block.js"></script>
+    <script type="module" src="../scripts/darkmode.js"></script>
+    <script type="module" src="../scripts/fouc.js"></script>
+    <script type="module" src="./typing.js"></script>
 </body>
 </html>
 

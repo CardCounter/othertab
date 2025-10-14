@@ -15,6 +15,10 @@
         }
     </style>
     <script>document.documentElement.classList.add('js-loading');</script>
+    <script>
+        window.OTHERTAB_MOBILE_HEADER = 'NONO_CREATE';
+        window.OTHERTAB_MOBILE_MESSAGE = 'nono create really needs a bigger screen';
+    </script>
     <link rel="stylesheet" href="../css/global.css">
     <link rel="stylesheet" href="../css/header-footer.css">
     <link rel="stylesheet" href="../css/link.css">
@@ -64,13 +68,12 @@
         <button class="settings-button" id="clear-button">clear</button>
       </div>
     </footer>
-
-    <script src="../scripts/mobile-block.js" data-header="NONO_CREATE" data-message="nono create really needs a bigger screen"></script>
-    <script src="../scripts/darkmode.js"></script>
-    <script src="../scripts/fouc.js"></script>
-    <script src="../nono/seed.js"></script>
-    <script src="nono-create.js"></script>
-    <script src="upload.js"></script>
+    <script type="module" src="../scripts/mobile-block.js"></script>
+    <script type="module" src="../scripts/darkmode.js"></script>
+    <script type="module" src="../scripts/fouc.js"></script>
+    <script type="module" src="../nono/seed.js"></script>
+    <script type="module" src="./nono-create.js"></script>
+    <script type="module" src="./upload.js"></script>
 </body>
 </html>
 

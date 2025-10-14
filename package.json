@@ -1,0 +1,14 @@
+{
+    "name": "othertab",
+    "version": "1.0.0",
+    "scripts": {
+        "dev": "vite",
+        "build": "vite build",
+        "preview": "vite preview"
+    },
+    "devDependencies": {
+        "@fullhuman/postcss-purgecss": "^5.0.0",
+        "html-minifier-terser": "^7.2.0",
+        "vite": "^7.1.9"
+    }
+}

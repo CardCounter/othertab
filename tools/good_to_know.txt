@@ -7,3 +7,8 @@ sign out
  ⏎
 sign back in
 
+to test build:
+npm run build
+npm run preview <or> npx vite preview
+
+

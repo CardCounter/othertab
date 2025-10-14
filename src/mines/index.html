@@ -14,6 +14,10 @@
         }
     </style>
     <script>document.documentElement.classList.add('js-loading');</script>
+    <script>
+        window.OTHERTAB_MOBILE_HEADER = 'MINES';
+        window.OTHERTAB_MOBILE_MESSAGE = 'mines controls are tricky on mobile, try it on desktop instead';
+    </script>
     <link rel="stylesheet" href="../css/global.css">
     <link rel="stylesheet" href="../css/header-footer.css">
     <link rel="stylesheet" href="../css/link.css">
@@ -79,10 +83,9 @@
             </div>
         </div>
     </footer>
-
-    <script src="../scripts/mobile-block.js" data-header="MINES" data-message="mines controls are tricky on mobile, try it on desktop instead"></script>
-    <script src="seed.js"></script>
-    <script src="mines.js"></script>
+    <script type="module" src="../scripts/mobile-block.js"></script>
+    <script type="module" src="./seed.js"></script>
+    <script type="module" src="./mines.js"></script>
 </body>
 </html>
 

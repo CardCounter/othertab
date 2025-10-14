@@ -1,5 +1,7 @@
 (function () {
-    const currentScript = document.currentScript;
+    const currentScript =
+        document.currentScript ||
+        document.querySelector('script[data-mobile-block]');
     const defaultHeader = 'OTHER TAB';
     const defaultMessage = 'this page isnt really made for mobile, sorry';
 
@@ -180,20 +182,16 @@
         document.body.style.overflow = 'hidden';
 
         // Ensure dark mode and FOUC scripts are loaded
-        (function ensureScripts() {
-            const needed = [
-                '../scripts/darkmode-check.js',
-                '../scripts/darkmode.js',
-                '../scripts/fouc.js'
-            ];
-            needed.forEach(src => {
-                const fname = src.split('/').pop();
-                if (!document.querySelector('script[src*="' + fname + '"]')) {
-                    const s = document.createElement('script');
-                    s.src = src;
-                    document.head.appendChild(s);
-                }
-            });
+        (async function ensureScripts() {
+            try {
+                await Promise.all([
+                    import('../scripts/darkmode-check.js'),
+                    import('../scripts/darkmode.js'),
+                    import('../scripts/fouc.js')
+                ]);
+            } catch (error) {
+                console.warn('mobile-block: failed to load helper scripts', error);
+            }
         })();
     }
 
