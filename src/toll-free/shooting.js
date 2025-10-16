@@ -9,7 +9,6 @@ export const attemptCreateBullet = (options) => {
         bulletSpeed,
         bulletLifetime,
         spreadAngle = 0,
-        lineLength = 12,
     } = options;
     const dx = target.x - origin.x;
     const dy = target.y - origin.y;
@@ -34,37 +33,22 @@ export const attemptCreateBullet = (options) => {
         vx: dirX * bulletSpeed,
         vy: dirY * bulletSpeed,
         life: bulletLifetime,
-        angle,
-        length: lineLength,
     };
 };
 
 export const updateBullets = (bullets, delta, options) => {
     const { bulletSize, worldSize, padding = 0 } = options;
-    const thickness = bulletSize;
 
     return bullets.filter((bullet) => {
         bullet.x += bullet.vx * delta;
         bullet.y += bullet.vy * delta;
         bullet.life -= delta;
 
-        const angle = bullet.angle ?? 0;
-        const length = bullet.length ?? 0;
-        const cos = Math.cos(angle);
-        const sin = Math.sin(angle);
-        const tailX = bullet.x - cos * length;
-        const tailY = bullet.y - sin * length;
-
-        const minX = Math.min(bullet.x, tailX) - thickness - padding;
-        const maxX = Math.max(bullet.x, tailX) + thickness + padding;
-        const minY = Math.min(bullet.y, tailY) - thickness - padding;
-        const maxY = Math.max(bullet.y, tailY) + thickness + padding;
-
         const insideBounds =
-            maxX >= 0 &&
-            minX <= worldSize &&
-            maxY >= 0 &&
-            minY <= worldSize;
+            bullet.x >= -padding &&
+            bullet.x <= worldSize + padding &&
+            bullet.y >= -padding &&
+            bullet.y <= worldSize + padding;
 
         return bullet.life > 0 && insideBounds;
     });

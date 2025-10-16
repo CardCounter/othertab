@@ -1,6 +1,9 @@
-import { ROOM_SIZE, DOOR_DEPTH, createRandomRoom, findDoorByEdge, OPPOSITE_EDGE } from './rooms.js';
+import { ROOM_SIZE, TILE_SIZE, createRandomRoom, findDoorByEdge, OPPOSITE_EDGE } from './rooms.js';
 import { clampValue, updateMovement } from './movement.js';
 import { attemptCreateBullet, updateBullets } from './shooting.js';
+import { loadSpriteSheet } from './sprite-sheet.js';
+import spriteSheetMeta from './sprites/sheet1.json';
+import spriteSheetImageUrl from './sprites/sheet1.png';
 
 const canvas = document.getElementById('toll-free-canvas');
 const ctx = canvas?.getContext('2d');
@@ -20,212 +23,25 @@ if (!Number.isInteger(SCREEN_SCALE)) {
 
 const SPRITE_SIZE = 8;
 const SPRITE_HALF = SPRITE_SIZE / 2;
-const SPRITE_SOURCE_SIZE = 512;
-const ANGLE_STEPS = 32;
-const TWO_PI = Math.PI * 2;
-
-const SPEED = 200;
-const BULLET_SPEED = 600;
+const SPEED = 100;
+const BULLET_SPEED = 10;
 const BULLET_SIZE = 2;
 const BULLET_HALF = BULLET_SIZE / 2;
-const BULLET_LIFETIME = 0.8;
+const BULLET_LIFETIME = 10;
 const BULLET_SPREAD = Math.PI / 10;
-const BULLET_LENGTH = 18;
 const FIRE_RATE = 0.06;
 
-const COLOR_PALETTE = [0xffffff, 0x000000];
-
-const baseSpriteCanvas = document.createElement('canvas');
-baseSpriteCanvas.width = SPRITE_SOURCE_SIZE;
-baseSpriteCanvas.height = SPRITE_SOURCE_SIZE;
-const baseSpriteCtx = baseSpriteCanvas.getContext('2d', { willReadFrequently: true });
-
-const rotatedSpriteCanvas = document.createElement('canvas');
-rotatedSpriteCanvas.width = SPRITE_SOURCE_SIZE;
-rotatedSpriteCanvas.height = SPRITE_SOURCE_SIZE;
-const rotatedSpriteCtx = rotatedSpriteCanvas.getContext('2d', { willReadFrequently: true });
-
-if (!baseSpriteCtx || !rotatedSpriteCtx) {
-    throw new Error('toll free sprite contexts unavailable');
-}
-
-baseSpriteCtx.imageSmoothingEnabled = false;
-rotatedSpriteCtx.imageSmoothingEnabled = false;
-
-const snapColorToPalette = (color) => {
-    const r = (color >> 16) & 0xff;
-    const g = (color >> 8) & 0xff;
-    const b = color & 0xff;
-
-    let best = COLOR_PALETTE[0];
-    let bestDistance = Infinity;
-
-    for (const paletteColor of COLOR_PALETTE) {
-        const pr = (paletteColor >> 16) & 0xff;
-        const pg = (paletteColor >> 8) & 0xff;
-        const pb = paletteColor & 0xff;
-        const distance = (r - pr) ** 2 + (g - pg) ** 2 + (b - pb) ** 2;
-        if (distance < bestDistance) {
-            bestDistance = distance;
-            best = paletteColor;
-        }
-    }
-
-    return best;
-};
-
-const downsampleImageData2x2 = (sourceData, width) => {
-    const targetWidth = width / 2;
-    const colors = new Int32Array(targetWidth * targetWidth).fill(-1);
-
-    for (let y = 0; y < targetWidth; y += 1) {
-        for (let x = 0; x < targetWidth; x += 1) {
-            const startX = x * 2;
-            const startY = y * 2;
-            const votes = new Map();
-            let bestColor = -1;
-            let bestWeight = 0;
-
-            for (let by = 0; by < 2; by += 1) {
-                for (let bx = 0; bx < 2; bx += 1) {
-                    const srcX = startX + bx;
-                    const srcY = startY + by;
-                    const index = (srcY * width + srcX) * 4;
-                    const alpha = sourceData[index + 3];
-
-                    if (alpha < 16) {
-                        continue;
-                    }
-
-                    const r = sourceData[index];
-                    const g = sourceData[index + 1];
-                    const b = sourceData[index + 2];
-                    const snapped = snapColorToPalette((r << 16) | (g << 8) | b);
-                    const weight = (votes.get(snapped) || 0) + alpha;
-                    votes.set(snapped, weight);
-
-                    if (weight > bestWeight) {
-                        bestWeight = weight;
-                        bestColor = snapped;
-                    }
-                }
-            }
-
-            colors[y * targetWidth + x] = bestColor;
-        }
-    }
-
-    return {
-        width: targetWidth,
-        colors,
-    };
-};
-
-const downsampleColors2x2 = (sourceColors, width) => {
-    const targetWidth = width / 2;
-    const colors = new Int32Array(targetWidth * targetWidth).fill(-1);
-
-    for (let y = 0; y < targetWidth; y += 1) {
-        for (let x = 0; x < targetWidth; x += 1) {
-            const startX = x * 2;
-            const startY = y * 2;
-            const votes = new Map();
-            let bestColor = -1;
-            let bestWeight = 0;
-
-            for (let by = 0; by < 2; by += 1) {
-                for (let bx = 0; bx < 2; bx += 1) {
-                    const srcX = startX + bx;
-                    const srcY = startY + by;
-                    const color = sourceColors[srcY * width + srcX];
-
-                    if (color === -1) {
-                        continue;
-                    }
-
-                    const weight = (votes.get(color) || 0) + 1;
-                    votes.set(color, weight);
-
-                    if (weight > bestWeight) {
-                        bestWeight = weight;
-                        bestColor = color;
-                    }
-                }
-            }
-
-            colors[y * targetWidth + x] = bestColor;
-        }
-    }
-
-    return {
-        width: targetWidth,
-        colors,
-    };
-};
-
-const preRotatedFrames = [];
 let spriteReady = false;
+let spriteMap = new Map();
 
-const loadSpriteBlueprint = async () => {
-    const spriteUrl = new URL('./sprites/player.png', import.meta.url);
-    const image = new Image();
-    image.src = spriteUrl.toString();
-    await image.decode();
+const getSprite = (name) => spriteMap.get(name) || null;
 
-    baseSpriteCtx.clearRect(0, 0, SPRITE_SOURCE_SIZE, SPRITE_SOURCE_SIZE);
-    baseSpriteCtx.drawImage(image, 0, 0, SPRITE_SOURCE_SIZE, SPRITE_SOURCE_SIZE);
-};
-
-const buildSpriteFrames = () => {
-    preRotatedFrames.length = ANGLE_STEPS;
-
-    for (let step = 0; step < ANGLE_STEPS; step += 1) {
-        const angle = (step / ANGLE_STEPS) * TWO_PI;
-
-        rotatedSpriteCtx.setTransform(1, 0, 0, 1, 0, 0);
-        rotatedSpriteCtx.clearRect(0, 0, SPRITE_SOURCE_SIZE, SPRITE_SOURCE_SIZE);
-        rotatedSpriteCtx.save();
-        rotatedSpriteCtx.translate(SPRITE_SOURCE_SIZE / 2, SPRITE_SOURCE_SIZE / 2);
-        rotatedSpriteCtx.rotate(angle);
-        rotatedSpriteCtx.drawImage(baseSpriteCanvas, -SPRITE_SOURCE_SIZE / 2, -SPRITE_SOURCE_SIZE / 2);
-        rotatedSpriteCtx.restore();
-
-        const data = rotatedSpriteCtx.getImageData(0, 0, SPRITE_SOURCE_SIZE, SPRITE_SOURCE_SIZE).data;
-        let reduced = downsampleImageData2x2(data, SPRITE_SOURCE_SIZE);
-
-        while (reduced.width > SPRITE_SIZE) {
-            reduced = downsampleColors2x2(reduced.colors, reduced.width);
-        }
-
-        const frameCanvas = document.createElement('canvas');
-        frameCanvas.width = SPRITE_SIZE;
-        frameCanvas.height = SPRITE_SIZE;
-        const frameCtx = frameCanvas.getContext('2d');
-        if (!frameCtx) {
-            throw new Error('failed to create sprite frame context');
-        }
-        frameCtx.imageSmoothingEnabled = false;
-
-        const frameImage = frameCtx.createImageData(SPRITE_SIZE, SPRITE_SIZE);
-        for (let y = 0; y < SPRITE_SIZE; y += 1) {
-            for (let x = 0; x < SPRITE_SIZE; x += 1) {
-                const index = y * SPRITE_SIZE + x;
-                const color = reduced.colors[index];
-                const offset = index * 4;
-                if (color === -1) {
-                    frameImage.data[offset + 3] = 0;
-                    continue;
-                }
-                frameImage.data[offset] = (color >> 16) & 0xff;
-                frameImage.data[offset + 1] = (color >> 8) & 0xff;
-                frameImage.data[offset + 2] = color & 0xff;
-                frameImage.data[offset + 3] = 255;
-            }
-        }
-        frameCtx.putImageData(frameImage, 0, 0);
-        preRotatedFrames[step] = frameCanvas;
-    }
-
+const loadSprites = async () => {
+    spriteMap = await loadSpriteSheet({
+        imageUrl: spriteSheetImageUrl,
+        meta: spriteSheetMeta,
+        spriteSize: SPRITE_SIZE,
+    });
     spriteReady = true;
 };
 
@@ -260,7 +76,7 @@ const state = {
         inside: false,
     },
     bullets: [],
-    room: createRandomRoom({ spriteHalf: SPRITE_HALF }),
+    room: createRandomRoom({ spriteHalf: SPRITE_HALF, variant: 'open' }),
     firing: {
         active: false,
         cooldown: 0,
@@ -298,7 +114,6 @@ const shoot = () => {
         bulletSpeed: BULLET_SPEED,
         bulletLifetime: BULLET_LIFETIME,
         spreadAngle: BULLET_SPREAD,
-        lineLength: BULLET_LENGTH,
     });
 
     if (bullet) {
@@ -308,7 +123,12 @@ const shoot = () => {
 
 const transitionToRoomFrom = (edge) => {
     const entryEdge = OPPOSITE_EDGE[edge];
-    const newRoom = createRandomRoom({ requiredEdges: [entryEdge], spriteHalf: SPRITE_HALF });
+    const variant = Math.random() < 0.5 ? 'closed' : 'open';
+    const newRoom = createRandomRoom({
+        requiredEdges: [entryEdge],
+        spriteHalf: SPRITE_HALF,
+        variant,
+    });
     const entryDoor = findDoorByEdge(newRoom, entryEdge);
     if (!entryDoor) {
         return;
@@ -487,21 +307,76 @@ const fillBackground = () => {
 };
 
 const renderWalls = () => {
-    if (!state.room) {
+    if (!state.room || !state.room.grid) {
         return;
     }
 
-    const thickness = DOOR_DEPTH * SCREEN_SCALE;
+    const tileSizePx = TILE_SIZE * SCREEN_SCALE;
     ctx.fillStyle = '#000000';
-    ctx.fillRect(0, 0, canvas.width, thickness);
-    ctx.fillRect(0, canvas.height - thickness, canvas.width, thickness);
-    ctx.fillRect(0, 0, thickness, canvas.height);
-    ctx.fillRect(canvas.width - thickness, 0, thickness, canvas.height);
 
-    ctx.fillStyle = '#ffffff';
-    for (const door of state.room.doors) {
-        ctx.fillRect(door.x * SCREEN_SCALE, door.y * SCREEN_SCALE, door.width * SCREEN_SCALE, door.height * SCREEN_SCALE);
+    for (let y = 0; y < state.room.grid.length; y += 1) {
+        for (let x = 0; x < state.room.grid[y].length; x += 1) {
+            if (state.room.grid[y][x] === 1) {
+                ctx.fillRect(x * tileSizePx, y * tileSizePx, tileSizePx, tileSizePx);
+            }
+        }
     }
+};
+
+const renderPlayer = () => {
+    if (!spriteReady) {
+        return;
+    }
+
+    const darkMode = document.body.classList.contains('dark-mode');
+    const sprite = getSprite(darkMode ? 'player_d' : 'player') || getSprite('player');
+    if (!sprite) {
+        return;
+    }
+
+    const drawX = Math.round(state.precisePosition.x - SPRITE_HALF);
+    const drawY = Math.round(state.precisePosition.y - SPRITE_HALF);
+    ctx.drawImage(
+        sprite,
+        drawX * SCREEN_SCALE,
+        drawY * SCREEN_SCALE,
+        SPRITE_SIZE * SCREEN_SCALE,
+        SPRITE_SIZE * SCREEN_SCALE,
+    );
+};
+
+const renderDoors = () => {
+    if (!spriteReady || !state.room || !Array.isArray(state.room.doors) || state.room.doors.length === 0) {
+        return;
+    }
+
+    const darkMode = document.body.classList.contains('dark-mode');
+    const sprite = getSprite(darkMode ? 'door_d' : 'door') || getSprite('door');
+    if (!sprite) {
+        return;
+    }
+
+    const scaledWidth = SPRITE_SIZE * SCREEN_SCALE;
+    const scaledHeight = SPRITE_SIZE * SCREEN_SCALE;
+
+    state.room.doors.forEach((door) => {
+        const horizontal = door.edge === 'top' || door.edge === 'bottom';
+        const segments = horizontal
+            ? Math.max(1, Math.round(door.width / TILE_SIZE))
+            : Math.max(1, Math.round(door.height / TILE_SIZE));
+
+        for (let i = 0; i < segments; i += 1) {
+            const drawX = door.x + (horizontal ? i * TILE_SIZE : 0);
+            const drawY = door.y + (horizontal ? 0 : i * TILE_SIZE);
+            ctx.drawImage(
+                sprite,
+                Math.round(drawX) * SCREEN_SCALE,
+                Math.round(drawY) * SCREEN_SCALE,
+                scaledWidth,
+                scaledHeight,
+            );
+        }
+    });
 };
 
 const renderBullets = () => {
@@ -510,45 +385,19 @@ const renderBullets = () => {
     }
 
     const bulletColor = document.body.classList.contains('dark-mode') ? '#ff6666' : '#0044ff';
-    ctx.save();
-    ctx.strokeStyle = bulletColor;
-    ctx.lineWidth = BULLET_SIZE * SCREEN_SCALE;
-    ctx.lineCap = 'round';
+    ctx.fillStyle = bulletColor;
 
     for (const bullet of state.bullets) {
-        const angle = bullet.angle ?? 0;
-        const length = bullet.length ?? 0;
-        const headX = bullet.x * SCREEN_SCALE;
-        const headY = bullet.y * SCREEN_SCALE;
-        const tailX = headX - Math.cos(angle) * length * SCREEN_SCALE;
-        const tailY = headY - Math.sin(angle) * length * SCREEN_SCALE;
-
-        ctx.beginPath();
-        ctx.moveTo(tailX, tailY);
-        ctx.lineTo(headX, headY);
-        ctx.stroke();
+        const drawX = Math.round(bullet.x - BULLET_HALF);
+        const drawY = Math.round(bullet.y - BULLET_HALF);
+        ctx.fillRect(drawX * SCREEN_SCALE, drawY * SCREEN_SCALE, BULLET_SIZE * SCREEN_SCALE, BULLET_SIZE * SCREEN_SCALE);
     }
-    ctx.restore();
-};
-
-const renderPlayer = () => {
-    if (!spriteReady) {
-        return;
-    }
-
-    const frame = preRotatedFrames[0];
-    if (!frame) {
-        return;
-    }
-
-    const drawX = Math.round(state.precisePosition.x - SPRITE_HALF);
-    const drawY = Math.round(state.precisePosition.y - SPRITE_HALF);
-    ctx.drawImage(frame, drawX * SCREEN_SCALE, drawY * SCREEN_SCALE, SPRITE_SIZE * SCREEN_SCALE, SPRITE_SIZE * SCREEN_SCALE);
 };
 
 const render = () => {
     fillBackground();
     renderWalls();
+    renderDoors();
     renderBullets();
     renderPlayer();
 };
@@ -565,8 +414,7 @@ const frame = (timestamp) => {
 
 const start = async () => {
     try {
-        await loadSpriteBlueprint();
-        buildSpriteFrames();
+        await loadSprites();
         lastTime = performance.now();
         window.requestAnimationFrame(frame);
     } catch (error) {
