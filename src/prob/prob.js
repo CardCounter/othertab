@@ -162,10 +162,9 @@ function createProbObject(options) {
     const {
         id,
         name,
-        description,
-        probabilityScaling,
+        baseProbability,
         payoutScaling,
-        autoScaling,
+        speedScaling,
         upgrades = {},
         winCondition = {},
         actionLabel = "flip",
@@ -175,7 +174,7 @@ function createProbObject(options) {
     const probabilityFn = createProbabilityCalculator(probabilityScaling);
     const payoutFn = createPayoutCalculator(payoutScaling);
     const autoFn = createAutoCalculator(autoScaling);
-    const widget = createWinCondition(winCondition, { name, description });
+    const widget = createWinCondition(winCondition, { name });
     const normalizedResultSymbols = {
         success: resultSymbols.success ?? "✓",
         failure: resultSymbols.failure ?? "×"
@@ -217,7 +216,6 @@ function createProbObject(options) {
     return {
         id,
         name,
-        description,
         widget,
         actionLabel,
         resultSymbols: normalizedResultSymbols,
@@ -236,14 +234,89 @@ function createProbObject(options) {
     };
 }
 
+// function createProbObject(options) {
+//     const {
+//         id,
+//         name,
+//         probabilityScaling,
+//         payoutScaling,
+//         autoScaling,
+//         upgrades = {},
+//         winCondition = {},
+//         actionLabel = "flip",
+//         resultSymbols = { success: "✓", failure: "×" }
+//     } = options;
+
+//     const probabilityFn = createProbabilityCalculator(probabilityScaling);
+//     const payoutFn = createPayoutCalculator(payoutScaling);
+//     const autoFn = createAutoCalculator(autoScaling);
+//     const widget = createWinCondition(winCondition, { name });
+//     const normalizedResultSymbols = {
+//         success: resultSymbols.success ?? "✓",
+//         failure: resultSymbols.failure ?? "×"
+//     };
+
+//     const normalizedUpgrades = {};
+//     Object.entries(upgrades).forEach(([key, spec]) => {
+//         const scope = spec.scope ?? "specific";
+//         normalizedUpgrades[key] = {
+//             ...spec,
+//             scope,
+//             title: spec.title ?? toLabel(key) ?? key,
+//             description: spec.description ?? "",
+//             action: spec.action ?? "upgrade",
+//             maxLevel: spec.maxLevel ?? Number.POSITIVE_INFINITY
+//         };
+//     });
+
+//     function computeUpgradeCost(spec, level) {
+//         if (!spec) {
+//             return Infinity;
+//         }
+//         const maxLevel = spec.maxLevel ?? Number.POSITIVE_INFINITY;
+//         if (level >= maxLevel) {
+//             return Infinity;
+//         }
+//         const baseCost = spec.baseCost ?? 0;
+//         if (spec.costScaling?.type === "linear") {
+//             const step = spec.costScaling.step ?? spec.step ?? baseCost;
+//             const cost = baseCost + step * level;
+//             return Math.max(1, Math.ceil(cost));
+//         }
+
+//         const growth = spec.costScaling?.growth ?? spec.growth ?? 1;
+//         const cost = baseCost * Math.pow(growth, level);
+//         return Math.max(1, Math.ceil(cost));
+//     }
+
+//     return {
+//         id,
+//         name,
+//         widget,
+//         actionLabel,
+//         resultSymbols: normalizedResultSymbols,
+//         upgrades: normalizedUpgrades,
+//         getProbability: (level) => probabilityFn(level),
+//         getPayout: (level) => payoutFn(level),
+//         getAutoInterval: (level) => autoFn(level),
+//         getUpgradeCost: (type, stateRef) => {
+//             const spec = normalizedUpgrades[type];
+//             if (!spec) {
+//                 return Infinity;
+//             }
+//             const level = stateRef?.[spec.levelKey] ?? 0;
+//             return computeUpgradeCost(spec, level);
+//         }
+//     };
+// }
+
 const probObjects = [
     createProbObject({
-        id: "unfair-coin",
-        name: "unfair coin",
-        description: "flip until chance blinks.",
-        actionLabel: "flip coin",
-        probabilityScaling: { type: "exponential", base: 0.01, decay: 0.9, cap: 0.999 },
-        payoutScaling: { type: "exponential", base: 1, growth: 1.6 },
+        id: "coin-flip",
+        name: "coin-flip",
+        actionLabel: "flip",
+        probabilityScaling: { type: "exponential", base: 0.50, decay: 0.9, cap: 0.999 },
+        payoutScaling: { type: "linear", base: 1, growth: 1 },
         autoScaling: { type: "exponential-decay", base: 5000, decay: 0.65, min: 350 },
         resultSymbols: { success: "H", failure: "T" },
         upgrades: {
@@ -293,9 +366,8 @@ const probObjects = [
     createProbObject({
         id: "critical-d20",
         name: "critical d20",
-        description: "chase perfect twenties.",
         actionLabel: "roll d20",
-        probabilityScaling: { type: "exponential", base: 0.01, decay: 0.92, cap: 0.6 },
+        probabilityScaling: { type: "exponential", base: 0.50, decay: 0.92, cap: 0.6 },
         payoutScaling: { type: "exponential", base: 5, growth: 1.7 },
         autoScaling: { type: "exponential-decay", base: 6000, decay: 0.7, min: 400 },
         resultSymbols: { success: "20", failure: "·" },
@@ -344,7 +416,6 @@ const navUI = new Map();
 const globals = {
     credits: document.getElementById("credits-total"),
     title: document.getElementById("prob-title"),
-    description: document.getElementById("prob-description"),
     goal: document.getElementById("prob-goal-text"),
     chance: document.getElementById("prob-chance"),
     result: document.getElementById("prob-result"),
@@ -520,9 +591,6 @@ function refreshActiveProb(prob) {
     const state = getProbState(prob.id);
     if (globals.title) {
         globals.title.textContent = prob.name;
-    }
-    if (globals.description) {
-        globals.description.textContent = prob.description;
     }
     if (globals.actionButton) {
         globals.actionButton.textContent = prob.actionLabel;
@@ -741,7 +809,8 @@ function updateNavDisplay(prob) {
     }
     if (ui.button) {
         ui.button.classList.toggle("complete", details.isComplete);
-        ui.button.title = `${prob.description} • best streak ${details.best}`;
+        const tooltip = prob.widget?.description ?? prob.widget?.summary ?? prob.widget?.title ?? prob.name;
+        ui.button.title = `${tooltip} • best streak ${details.best}`;
     }
 }
 
@@ -870,15 +939,11 @@ function createNavButton(prob) {
     title.className = "nav-title";
     title.textContent = prob.name;
 
-    const description = document.createElement("span");
-    description.className = "nav-description";
-    description.textContent = prob.description;
-
     const progress = document.createElement("span");
     progress.className = "nav-progress";
     progress.textContent = "";
 
-    button.append(title, description, progress);
+    button.append(title, progress);
     button.addEventListener("click", () => setActiveProb(prob.id));
 
     globals.navList.appendChild(button);

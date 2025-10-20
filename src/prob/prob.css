@@ -22,6 +22,7 @@ footer {
     padding: 0 1.5rem 0.75rem 1.5rem;
     font-size: 1.1rem;
     text-transform: lowercase;
+    align-self: center;
 }
 
 .credits-bar .credits-label {
@@ -159,12 +160,6 @@ main {
     margin: 0;
     text-transform: lowercase;
     letter-spacing: 0.08em;
-}
-
-.prob-main-info p {
-    margin: 0.35rem 0 0;
-    opacity: 0.85;
-    max-width: 28rem;
 }
 
 .prob-goal {
@@ -379,11 +374,6 @@ main {
 .prob-nav-button .nav-title {
     font-size: 1rem;
     font-weight: 600;
-}
-
-.prob-nav-button .nav-description {
-    font-size: 0.85rem;
-    opacity: 0.75;
 }
 
 .prob-nav-button .nav-progress {
