@@ -5,7 +5,7 @@ header {
     align-items: center;
     justify-items: center;
     width: 100%;
-    padding: 0.45rem 0.7rem 0.45rem 0.7rem;
+    padding: 1rem;
     box-sizing: border-box;
 }
 
@@ -47,7 +47,7 @@ header.header-mr > :nth-child(2) {
     align-self: center;
 }
 
-header h2 {
+header .title {
     margin: 0;
     justify-self: center;
     grid-column: 2;
@@ -87,7 +87,7 @@ footer {
     align-items: center;
     justify-items: center;
     width: 100%;
-    padding: 0.7rem;
+    padding: 1rem;
     box-sizing: border-box;
     /* gap: 0.75rem; */
 }

@@ -16,7 +16,7 @@ body {
     max-width: 800px;
     gap: 1.5rem;
     margin: auto;
-    padding: 1rem;
+    /* padding: 1rem; */
     justify-content: center;
     justify-items: center;
 }
