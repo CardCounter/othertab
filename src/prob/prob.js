@@ -1,970 +1,882 @@
-
-// dont need total plays, total wins, change rest of code accordingly
-function createProbState() {
-    return {
-        credits: 0,
-        totalPlays: 0,
-        totalWins: 0,
-        streak: 0,
-        bestStreak: 0,
-        probabilityLevel: 0,
-        payoutLevel: 0,
-        autoLevel: 0,
-        history: [],
-        lastResultSymbol: "–"
-    };
-}
-
-
-function clamp(value, { min = Number.NEGATIVE_INFINITY, max = Number.POSITIVE_INFINITY } = {}) {
-    return Math.min(Math.max(value, min), max);
-}
-
-function toLabel(value) {
-    if (!value) {
-        return null;
-    }
-    const label = value.replace(/[-_]+/g, " ").trim().toLowerCase();
-    return label.length > 0 ? label : null;
-}
-
-function createProbabilityCalculator(config = {}) {
-    const { type = "static", cap = 0.999, base = 0.5 } = config;
-    const clampedCap = clamp(cap, { min: 0, max: 0.999999 });
-
-    if (type === "exponential") {
-        const decay = config.decay ?? 0.9;
-        const start = clamp(config.base ?? base, { min: 0, max: clampedCap });
-        return (level) => {
-            const probability = 1 - (1 - start) * Math.pow(decay, level);
-            return clamp(probability, { min: 0, max: clampedCap });
-        };
-    }
-
-    if (type === "linear") {
-        const step = config.step ?? 0.01;
-        const start = clamp(config.base ?? base, { min: 0, max: clampedCap });
-        return (level) => clamp(start + step * level, { min: 0, max: clampedCap });
-    }
-
-    const value = clamp(config.value ?? base, { min: 0, max: clampedCap });
-    return () => value;
-}
-
-function createPayoutCalculator(config = {}) {
-    const { type = "linear", base = 1 } = config;
-
-    if (type === "exponential") {
-        const growth = config.growth ?? 1;
-        const start = config.base ?? base;
-        return (level) => clamp(start * Math.pow(growth, level), { min: 0 });
-    }
-
-    if (type === "static") {
-        const value = config.value ?? base;
-        return () => clamp(value, { min: 0 });
-    }
-
-    const step = config.step ?? 0;
-    const start = config.base ?? base;
-    return (level) => clamp(start + step * level, { min: 0 });
-}
-
-function createAutoCalculator(config = {}) {
-    if (!config || !config.type) {
-        return () => null;
-    }
-
-    if (config.type === "exponential-decay") {
-        const base = config.base ?? 5000;
-        const decay = config.decay ?? 0.65;
-        const min = config.min ?? 250;
-        return (level) => {
-            if (level === 0) {
-                return null;
-            }
-            const interval = base * Math.pow(decay, level - 1);
-            return clamp(interval, { min });
-        };
-    }
-
-    if (config.type === "linear-decay") {
-        const base = config.base ?? 5000;
-        const step = config.step ?? 250;
-        const min = config.min ?? 250;
-        return (level) => {
-            if (level === 0) {
-                return null;
-            }
-            const interval = base - step * (level - 1);
-            return clamp(interval, { min });
-        };
-    }
-
-    return () => null;
-}
-
-// used in widgit description
-function createWinCondition(config = {}, context = {}) {
-    const type = config.type ?? "streak";
-
-    if (type === "streak") {
-        const goal = config.goal ?? 10;
-        const title =
-            config.title ??
-            config.name ??
-            toLabel(config.id) ??
-            context.name ??
-            "streak target";
-        const description =
-            config.description ??
-            config.summary ??
-            `hold a streak of ${goal}.`;
-        return {
-            id: config.id ?? `streak-${goal}`,
-            title,
-            description,
-            goal,
-            getProgress: config.getProgress ?? ((stateRef) => stateRef.streak),
-            getBest: config.getBest ?? ((stateRef) => stateRef.bestStreak),
-            isComplete: config.isComplete ?? ((stateRef) => stateRef.bestStreak >= goal)
-        };
-    }
-
-    if (config.custom) {
-        return config.custom;
-    }
-
-    const fallbackTitle =
-        config.title ??
-        config.name ??
-        toLabel(config.id) ??
-        context.name ??
-        "goal";
-    const fallbackDescription =
-        config.description ??
-        config.summary ??
-        context.description ??
-        "complete the listed objective.";
-
-    return {
-        id: config.id ?? "undefined-goal",
-        title: fallbackTitle,
-        description: fallbackDescription,
-        goal: config.goal ?? 0,
-        getProgress: config.getProgress ?? (() => 0),
-        getBest: config.getBest ?? (() => 0),
-        isComplete: config.isComplete ?? (() => false)
-    };
-}
-
-function createProbObject(options) {
-    const {
-        id,
-        name,
-        baseProbability,
-        payoutScaling,
-        speedScaling,
-        upgrades = {},
-        winCondition = {},
-        actionLabel = "flip",
-        resultSymbols = { success: "✓", failure: "×" }
-    } = options;
-
-    const probabilityFn = createProbabilityCalculator(probabilityScaling);
-    const payoutFn = createPayoutCalculator(payoutScaling);
-    const autoFn = createAutoCalculator(autoScaling);
-    const widget = createWinCondition(winCondition, { name });
-    const normalizedResultSymbols = {
-        success: resultSymbols.success ?? "✓",
-        failure: resultSymbols.failure ?? "×"
-    };
-
-    const normalizedUpgrades = {};
-    Object.entries(upgrades).forEach(([key, spec]) => {
-        const scope = spec.scope ?? "specific";
-        normalizedUpgrades[key] = {
-            ...spec,
-            scope,
-            title: spec.title ?? toLabel(key) ?? key,
-            description: spec.description ?? "",
-            action: spec.action ?? "upgrade",
-            maxLevel: spec.maxLevel ?? Number.POSITIVE_INFINITY
-        };
-    });
-
-    function computeUpgradeCost(spec, level) {
-        if (!spec) {
-            return Infinity;
-        }
-        const maxLevel = spec.maxLevel ?? Number.POSITIVE_INFINITY;
-        if (level >= maxLevel) {
-            return Infinity;
-        }
-        const baseCost = spec.baseCost ?? 0;
-        if (spec.costScaling?.type === "linear") {
-            const step = spec.costScaling.step ?? spec.step ?? baseCost;
-            const cost = baseCost + step * level;
-            return Math.max(1, Math.ceil(cost));
-        }
-
-        const growth = spec.costScaling?.growth ?? spec.growth ?? 1;
-        const cost = baseCost * Math.pow(growth, level);
-        return Math.max(1, Math.ceil(cost));
-    }
-
-    return {
-        id,
-        name,
-        widget,
-        actionLabel,
-        resultSymbols: normalizedResultSymbols,
-        upgrades: normalizedUpgrades,
-        getProbability: (level) => probabilityFn(level),
-        getPayout: (level) => payoutFn(level),
-        getAutoInterval: (level) => autoFn(level),
-        getUpgradeCost: (type, stateRef) => {
-            const spec = normalizedUpgrades[type];
-            if (!spec) {
-                return Infinity;
-            }
-            const level = stateRef?.[spec.levelKey] ?? 0;
-            return computeUpgradeCost(spec, level);
-        }
-    };
-}
-
-// function createProbObject(options) {
-//     const {
-//         id,
-//         name,
-//         probabilityScaling,
-//         payoutScaling,
-//         autoScaling,
-//         upgrades = {},
-//         winCondition = {},
-//         actionLabel = "flip",
-//         resultSymbols = { success: "✓", failure: "×" }
-//     } = options;
-
-//     const probabilityFn = createProbabilityCalculator(probabilityScaling);
-//     const payoutFn = createPayoutCalculator(payoutScaling);
-//     const autoFn = createAutoCalculator(autoScaling);
-//     const widget = createWinCondition(winCondition, { name });
-//     const normalizedResultSymbols = {
-//         success: resultSymbols.success ?? "✓",
-//         failure: resultSymbols.failure ?? "×"
-//     };
-
-//     const normalizedUpgrades = {};
-//     Object.entries(upgrades).forEach(([key, spec]) => {
-//         const scope = spec.scope ?? "specific";
-//         normalizedUpgrades[key] = {
-//             ...spec,
-//             scope,
-//             title: spec.title ?? toLabel(key) ?? key,
-//             description: spec.description ?? "",
-//             action: spec.action ?? "upgrade",
-//             maxLevel: spec.maxLevel ?? Number.POSITIVE_INFINITY
-//         };
-//     });
-
-//     function computeUpgradeCost(spec, level) {
-//         if (!spec) {
-//             return Infinity;
-//         }
-//         const maxLevel = spec.maxLevel ?? Number.POSITIVE_INFINITY;
-//         if (level >= maxLevel) {
-//             return Infinity;
-//         }
-//         const baseCost = spec.baseCost ?? 0;
-//         if (spec.costScaling?.type === "linear") {
-//             const step = spec.costScaling.step ?? spec.step ?? baseCost;
-//             const cost = baseCost + step * level;
-//             return Math.max(1, Math.ceil(cost));
-//         }
-
-//         const growth = spec.costScaling?.growth ?? spec.growth ?? 1;
-//         const cost = baseCost * Math.pow(growth, level);
-//         return Math.max(1, Math.ceil(cost));
-//     }
-
-//     return {
-//         id,
-//         name,
-//         widget,
-//         actionLabel,
-//         resultSymbols: normalizedResultSymbols,
-//         upgrades: normalizedUpgrades,
-//         getProbability: (level) => probabilityFn(level),
-//         getPayout: (level) => payoutFn(level),
-//         getAutoInterval: (level) => autoFn(level),
-//         getUpgradeCost: (type, stateRef) => {
-//             const spec = normalizedUpgrades[type];
-//             if (!spec) {
-//                 return Infinity;
-//             }
-//             const level = stateRef?.[spec.levelKey] ?? 0;
-//             return computeUpgradeCost(spec, level);
-//         }
-//     };
-// }
-
-const probObjects = [
-    createProbObject({
-        id: "coin-flip",
-        name: "coin-flip",
-        actionLabel: "flip",
-        probabilityScaling: { type: "exponential", base: 0.50, decay: 0.9, cap: 0.999 },
-        payoutScaling: { type: "linear", base: 1, growth: 1 },
-        autoScaling: { type: "exponential-decay", base: 5000, decay: 0.65, min: 350 },
-        resultSymbols: { success: "H", failure: "T" },
-        upgrades: {
-            payout: {
-                scope: "generic",
-                baseCost: 50,
-                growth: 2.4,
-                levelKey: "payoutLevel",
-                title: "lucky rake",
-                description: "each win pays out more, compounding the improbable winnings.",
-                action: "boost credits"
-            },
-            auto: {
-                scope: "generic",
-                baseCost: 100,
-                growth: 2.5,
-                levelKey: "autoLevel",
-                title: "auto flipper",
-                description: "mechanical patience: hands-free flips at ever-faster tempo.",
-                action: "boost cadence"
-            },
-            probability: {
-                baseCost: 25,
-                growth: 2.8,
-                levelKey: "probabilityLevel",
-                title: "bias tweak",
-                description: "shave the tails edge. probability inches toward certainty, never quite there.",
-                action: "boost chance"
-            },
-            twinCoin: {
-                baseCost: 250,
-                costScaling: { type: "linear", step: 250 },
-                maxLevel: 1,
-                levelKey: "twinCoinLevel",
-                title: "twin toss",
-                description: "flip a shadow coin alongside yours; if either hits heads, you cash it.",
-                action: "add coin"
-            }
-        },
-        winCondition: {
-            id: "improbable-run",
-            type: "streak",
-            goal: 10,
-            summary: "flip heads ten times in a row."
-        }
-    }),
-    createProbObject({
-        id: "critical-d20",
-        name: "critical d20",
-        actionLabel: "roll d20",
-        probabilityScaling: { type: "exponential", base: 0.50, decay: 0.92, cap: 0.6 },
-        payoutScaling: { type: "exponential", base: 5, growth: 1.7 },
-        autoScaling: { type: "exponential-decay", base: 6000, decay: 0.7, min: 400 },
-        resultSymbols: { success: "20", failure: "·" },
-        upgrades: {
-            probability: {
-                baseCost: 40,
-                growth: 2.6,
-                levelKey: "probabilityLevel",
-                title: "edge aligner",
-                description: "fine-tune the die so twenties feel a touch less impossible.",
-                action: "hone faces"
-            },
-            payout: {
-                scope: "generic",
-                baseCost: 80,
-                growth: 2.3,
-                levelKey: "payoutLevel",
-                title: "critical purse",
-                description: "every natural twenty unloads a richer stash of credits.",
-                action: "raise payout"
-            },
-            auto: {
-                scope: "generic",
-                baseCost: 160,
-                growth: 2.4,
-                levelKey: "autoLevel",
-                title: "clockwork hand",
-                description: "clockwork rollers keep tossing the die, each upgrade tightening the rhythm.",
-                action: "speed rolls"
-            }
-        },
-        winCondition: {
-            id: "perfect-twenties",
-            type: "streak",
-            goal: 10,
-            summary: "roll a natural twenty ten times consecutively."
-        }
-    })
-];
-
-const states = new Map();
-const autoIntervals = new Map();
-const probLookup = new Map();
-const navUI = new Map();
-
-const globals = {
-    credits: document.getElementById("credits-total"),
-    title: document.getElementById("prob-title"),
-    goal: document.getElementById("prob-goal-text"),
-    chance: document.getElementById("prob-chance"),
-    result: document.getElementById("prob-result"),
-    actionButton: document.getElementById("prob-action"),
-    historyTrack: document.getElementById("prob-history"),
-    specificWrapper: document.getElementById("prob-specific-upgrades"),
-    upgradeGrid: document.getElementById("upgrade-grid-body"),
-    navList: document.getElementById("prob-nav-list")
+const appDom = {
+    creditsTotal: document.getElementById("credits-total"),
+    widgetPrev: document.getElementById("widget-prev"),
+    widgetNext: document.getElementById("widget-next")
 };
 
-const upgradeControls = {};
-let genericUpgradeTypes = [];
+const appState = {
+    credits: 0
+};
 
-let activeProbId = null;
-const HISTORY_LIMIT = 20;
-let currentSpecificView = { probId: null, order: [], buttons: new Map() };
+const creditListeners = new Set();
 
-const numberFormatter = new Intl.NumberFormat("en-US", {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2
-});
+function notifyCredits() {
+    creditListeners.forEach((listener) => {
+        try {
+            listener(appState.credits);
+        } catch {
+            // ignore listener errors
+        }
+    });
+}
 
 function formatNumber(value) {
-    return numberFormatter.format(value);
-}
-
-function formatUpgradeCostText(cost) {
-    return Number.isFinite(cost) ? `cost: ${formatNumber(cost)}` : "maxed";
-}
-
-function collectGenericUpgradeTypes() {
-    const types = new Set();
-    probObjects.forEach((prob) => {
-        Object.entries(prob.upgrades).forEach(([type, config]) => {
-            if (config.scope === "generic") {
-                types.add(type);
-            }
-        });
-    });
-    return Array.from(types);
-}
-
-initializeUpgradeControls();
-
-if (globals.actionButton) {
-    globals.actionButton.addEventListener("click", () => {
-        const prob = getActiveProb();
-        if (!prob) {
-            return;
-        }
-        performProbAction(prob, false);
-    });
-}
-
-probObjects.forEach((prob, index) => {
-    initializeProb(prob);
-    if (index === 0) {
-        setActiveProb(prob.id);
-    }
-});
-
-updateCreditsDisplay();
-
-function initializeUpgradeControls() {
-    if (!globals.upgradeGrid) {
-        return;
-    }
-    genericUpgradeTypes = collectGenericUpgradeTypes();
-    if (!genericUpgradeTypes.length) {
-        return;
-    }
-
-    const row = document.createElement("div");
-    row.className = "upgrade-grid-row";
-
-    const label = document.createElement("span");
-    label.className = "upgrade-grid-label";
-    label.textContent = "all challenges";
-    row.appendChild(label);
-
-    const orderedTypes = ["auto", "payout"];
-    orderedTypes.forEach((type) => {
-        if (!genericUpgradeTypes.includes(type)) {
-            const spacer = document.createElement("span");
-            spacer.className = "upgrade-grid-label";
-            spacer.textContent = "";
-            row.appendChild(spacer);
-            return;
-        }
-        const button = document.createElement("button");
-        button.type = "button";
-        button.className = "upgrade-button";
-        button.dataset.upgrade = type;
-        setUpgradeButton(button, "—", "unavailable", true);
-        row.appendChild(button);
-        upgradeControls[type] = button;
-    });
-
-    globals.upgradeGrid.appendChild(row);
-
-    Object.entries(upgradeControls).forEach(([type, button]) => {
-        if (!button) {
-            return;
-        }
-        button.addEventListener("click", () => {
-            const prob = getActiveProb();
-            if (!prob) {
-                return;
-            }
-            attemptUpgrade(prob, type);
-        });
-    });
-}
-
-function createUpgradePrimary(text) {
-    const el = document.createElement("strong");
-    el.textContent = text;
-    return el;
-}
-
-function createUpgradeSecondary(text) {
-    const el = document.createElement("span");
-    el.textContent = text;
-    return el;
-}
-
-function setUpgradeButton(button, primaryText, secondaryText, disabled) {
-    button.innerHTML = "";
-    button.appendChild(createUpgradePrimary(primaryText));
-    button.appendChild(createUpgradeSecondary(secondaryText));
-    button.disabled = Boolean(disabled);
-}
-
-function getUpgradePrimaryLabel(type, config) {
-    if (type === "probability") {
-        return config?.title ?? "probability";
-    }
-    if (type === "auto") {
-        return "speed + 1";
-    }
-    if (type === "payout") {
-        return "payout + $1";
-    }
-    return config?.title ?? type;
-}
-
-function getActiveProb() {
-    if (!activeProbId) {
-        return null;
-    }
-    return probLookup.get(activeProbId) ?? null;
-}
-
-function setActiveProb(probId) {
-    if (!probLookup.has(probId)) {
-        return;
-    }
-    activeProbId = probId;
-    navUI.forEach((ui, id) => {
-        if (ui.button) {
-            ui.button.classList.toggle("active", id === probId);
-        }
-    });
-    const prob = probLookup.get(probId);
-    updateNavDisplay(prob);
-    refreshActiveProb(prob);
-}
-
-function refreshActiveProb(prob) {
-    if (!prob) {
-        return;
-    }
-    const state = getProbState(prob.id);
-    if (globals.title) {
-        globals.title.textContent = prob.name;
-    }
-    if (globals.actionButton) {
-        globals.actionButton.textContent = prob.actionLabel;
-        globals.actionButton.disabled = false;
-    }
-    if (globals.chance) {
-        const chance = getEffectiveProbability(prob, state);
-        globals.chance.textContent = `${(chance * 100).toFixed(2)}%`;
-    }
-    if (globals.result) {
-        globals.result.textContent = state.lastResultSymbol ?? "–";
-    }
-    updateGoalDisplay(prob, state);
-    renderHistory(prob);
-    ensureSpecificUpgradeView(prob);
-    updateUpgradeButtons(prob, state);
-    renderSpecificUpgrades(prob);
-}
-
-function formatGoalDescriptor(prob) {
-    const widget = prob.widget ?? {};
-    if (widget.description) {
-        return widget.description.replace(/\.$/, "");
-    }
-    if (widget.title) {
-        return widget.title;
-    }
-    return "goal";
-}
-
-function getGoalDetails(prob, state) {
-    const widget = prob.widget ?? {};
-    const goal = widget.goal ?? 0;
-    const getProgress = widget.getProgress ?? ((value) => value.streak);
-    const getBest = widget.getBest ?? ((value) => value.bestStreak);
-    const progress = getProgress(state);
-    const best = getBest(state);
-    const isComplete = widget.isComplete ? widget.isComplete(state) : goal > 0 && progress >= goal;
-    return { goal, progress, best, isComplete };
-}
-
-function formatGoalText(prob, details) {
-    const descriptor = formatGoalDescriptor(prob);
-    if (!details.goal) {
-        return descriptor;
-    }
-    const progressValue = Math.min(details.progress, details.goal);
-    return `${progressValue} / ${details.goal} ${descriptor}`.trim();
-}
-
-function updateGoalDisplay(prob, state) {
-    if (!globals.goal) {
-        return;
-    }
-    const details = getGoalDetails(prob, state);
-    globals.goal.textContent = formatGoalText(prob, details);
-    globals.goal.title = `best: ${details.best}`;
-}
-
-function getProbState(probId) {
-    if (!states.has(probId)) {
-        states.set(probId, createProbState());
-    }
-    return states.get(probId);
-}
-
-function sumAllCredits() {
-    let total = 0;
-    states.forEach((state) => {
-        total += state.credits;
-    });
-    return total;
+    return Number(value).toFixed(2).replace(/\.00$/, "");
 }
 
 function updateCreditsDisplay() {
-    if (globals.credits) {
-        globals.credits.textContent = formatNumber(sumAllCredits());
-    }
-}
-
-function updateUpgradeButtons(prob, state = getProbState(prob.id)) {
-    Object.entries(upgradeControls).forEach(([type, button]) => {
-        if (!button) {
-            return;
-        }
-        const upgradeConfig = prob.upgrades?.[type];
-        if (!upgradeConfig || upgradeConfig.scope !== "generic") {
-            setUpgradeButton(button, "—", "unavailable", true);
-            button.title = "";
-            return;
-        }
-        const cost = prob.getUpgradeCost(type, state);
-        const primaryLabel = getUpgradePrimaryLabel(type, upgradeConfig);
-        const costText = formatUpgradeCostText(cost);
-        const isMaxed = !Number.isFinite(cost);
-        setUpgradeButton(button, primaryLabel, costText, isMaxed || state.credits < cost);
-        button.title = upgradeConfig.description ?? "";
-    });
-}
-
-function getSpecificUpgradeOrder(prob) {
-    return Object.entries(prob.upgrades)
-        .filter(([, config]) => config.scope !== "generic")
-        .map(([type]) => type);
-}
-
-function ensureSpecificUpgradeView(prob) {
-    if (!globals.specificWrapper) {
+    if (!appDom.creditsTotal) {
         return;
     }
-    const order = getSpecificUpgradeOrder(prob);
-    if (order.length === 0) {
-        globals.specificWrapper.hidden = true;
-        globals.specificWrapper.innerHTML = "";
-        currentSpecificView = { probId: null, order: [], buttons: new Map() };
-        return;
-    }
-
-    globals.specificWrapper.hidden = false;
-
-    if (currentSpecificView.probId !== prob.id) {
-        globals.specificWrapper.innerHTML = "";
-        currentSpecificView = { probId: prob.id, order, buttons: new Map() };
-    } else {
-        currentSpecificView.order = order;
-    }
-
-    renderSpecificUpgrades(prob);
+    appDom.creditsTotal.textContent = formatNumber(appState.credits);
 }
 
-function renderSpecificUpgrades(prob) {
-    if (!globals.specificWrapper) {
-        return;
-    }
-    if (currentSpecificView.probId !== prob.id) {
-        ensureSpecificUpgradeView(prob);
-        return;
-    }
+function setCredits(value) {
+    appState.credits = value;
+    updateCreditsDisplay();
+    notifyCredits();
+}
 
-    const state = getProbState(prob.id);
-    const available = currentSpecificView.order.filter((type) => {
-        const config = prob.upgrades?.[type];
-        if (!config || config.scope === "generic") {
+const credits = {
+    get() {
+        return appState.credits;
+    },
+    add(amount) {
+        setCredits(appState.credits + amount);
+        return appState.credits;
+    },
+    canAfford(cost) {
+        return appState.credits >= cost;
+    },
+    spend(cost) {
+        if (!this.canAfford(cost)) {
             return false;
         }
-        const level = state[config.levelKey] ?? 0;
-        const maxLevel = config.maxLevel ?? Number.POSITIVE_INFINITY;
-        return level < maxLevel;
-    });
-
-    const display = available.slice(0, 3);
-    const displaySet = new Set(display);
-
-    currentSpecificView.buttons.forEach((button, type) => {
-        if (!displaySet.has(type)) {
-            button.remove();
-            currentSpecificView.buttons.delete(type);
+        setCredits(appState.credits - cost);
+        return true;
+    },
+    subscribe(listener) {
+        if (typeof listener !== "function") {
+            return () => {};
         }
-    });
+        creditListeners.add(listener);
+        return () => creditListeners.delete(listener);
+    }
+};
 
-    display.forEach((type) => {
-        const config = prob.upgrades[type];
-        if (!config) {
+function createCooldownTimer(button, { label = "action" } = {}) {
+    let endTime = 0;
+    let rafId = null;
+    let completion = null;
+    let active = false;
+
+    if (button) {
+        button.disabled = false;
+        button.textContent = label;
+    }
+
+    function clearTimer() {
+        if (rafId) {
+            cancelAnimationFrame(rafId);
+            rafId = null;
+        }
+        active = false;
+        completion = null;
+        if (button) {
+            button.disabled = false;
+            button.textContent = label;
+        }
+    }
+
+    function tick(timestamp) {
+        if (!button) {
             return;
         }
-        let button = currentSpecificView.buttons.get(type);
-        if (!button) {
-            button = document.createElement("button");
-            button.type = "button";
-            button.className = "specific-upgrade";
-            button.dataset.upgrade = type;
+        const remaining = Math.max(0, endTime - timestamp);
+        if (remaining <= 0) {
+            const pending = completion;
+            clearTimer();
+            if (typeof pending === "function") {
+                pending();
+            }
+            return;
+        }
+        button.disabled = true;
+        button.textContent = `${label} (${(remaining / 1000).toFixed(1)}s)`;
+        rafId = requestAnimationFrame(tick);
+    }
 
-            const titleSpan = document.createElement("span");
-            titleSpan.className = "specific-title";
-            button.appendChild(titleSpan);
+    return {
+        start(durationMs, onComplete) {
+            if (!button) {
+                if (typeof onComplete === "function") {
+                    setTimeout(onComplete, durationMs);
+                }
+                return;
+            }
+            if (rafId) {
+                cancelAnimationFrame(rafId);
+            }
+            active = true;
+            completion = onComplete;
+            endTime = performance.now() + durationMs;
+            button.disabled = true;
+            tick(performance.now());
+        },
+        shorten(durationMs) {
+            if (!active || !button) {
+                return;
+            }
+            const now = performance.now();
+            const remaining = Math.max(0, endTime - now);
+            endTime = now + Math.min(remaining, durationMs);
+            button.disabled = true;
+            button.textContent = `${label} (${(Math.max(0, endTime - now) / 1000).toFixed(1)}s)`;
+            if (rafId) {
+                cancelAnimationFrame(rafId);
+                rafId = null;
+            }
+            tick(performance.now());
+        },
+        cancel() {
+            clearTimer();
+        },
+        isActive() {
+            return active;
+        }
+    };
+}
 
-            const costSpan = document.createElement("span");
-            costSpan.className = "specific-cost";
-            button.appendChild(costSpan);
+const coinWidget = (() => {
+    const dom = {
+        section: document.getElementById("coin-widget-section"),
+        payoutValue: document.getElementById("coin-payout-value"),
+        payoutUpgrade: document.getElementById("coin-upgrade-payout"),
+        speedUpgrade: document.getElementById("coin-upgrade-speed"),
+        chanceValue: document.getElementById("coin-chance"),
+        streakStatus: document.getElementById("coin-streak"),
+        resultsWrapper: document.getElementById("coin-results-wrapper"),
+        resultPrimary: document.getElementById("coin-result-primary"),
+        resultSecondary: document.getElementById("coin-result-secondary"),
+        dualUpgrade: document.getElementById("coin-upgrade-dual"),
+        bestStart: document.getElementById("coin-best-start"),
+        bestEnd: document.getElementById("coin-best-end"),
+        flipButton: document.getElementById("coin-flip"),
+        historyTrack: document.getElementById("coin-history-track")
+    };
 
-            button.addEventListener("click", () => attemptUpgrade(prob, type));
+    const state = {
+        payout: 1,
+        payoutLevel: 0,
+        speedLevel: 0,
+        chance: 0.5,
+        streak: 0,
+        bestStreak: 0,
+        targetStreak: 10,
+        history: [],
+        baseInterval: 3000,
+        minInterval: 500,
+        intervalDecay: 0.82,
+        isAnimating: false,
+        extraCoinUnlocked: false
+    };
 
-            currentSpecificView.buttons.set(type, button);
+    const COSTS = {
+        payout(level) {
+            return Math.ceil(3 * Math.pow(1.4, level));
+        },
+        speed(level) {
+            return Math.ceil(10 * Math.pow(1.45, level));
+        }
+    };
+
+    const DUAL_COIN_COST = 10;
+
+    const cooldown = createCooldownTimer(dom.flipButton, { label: "flip" });
+    let flipAnimationId = null;
+
+    function getCurrentInterval() {
+        const interval = state.baseInterval * Math.pow(state.intervalDecay, state.speedLevel);
+        return Math.max(state.minInterval, Math.round(interval));
+    }
+
+    function updateChanceDisplay() {
+        if (!dom.chanceValue) {
+            return;
+        }
+        const percentText = (state.chance * 100).toFixed(1).replace(/\.0$/, "");
+        dom.chanceValue.textContent = `${percentText}% chance of heads`;
+    }
+
+    function updateStreakDisplay() {
+        if (!dom.streakStatus) {
+            return;
+        }
+        if (state.bestStreak >= state.targetStreak) {
+            dom.streakStatus.textContent = `longest streak: ${state.bestStreak}`;
+        } else {
+            dom.streakStatus.textContent = `${state.streak}/${state.targetStreak} heads in a row`;
+        }
+    }
+
+    function renderHistory() {
+        if (!dom.historyTrack) {
+            return;
+        }
+        dom.historyTrack.innerHTML = "";
+        const fragment = document.createDocumentFragment();
+        state.history.forEach((entry) => {
+            const span = document.createElement("span");
+            span.textContent = entry;
+            if (entry === "h") {
+                span.classList.add("flip-heads");
+            }
+            fragment.appendChild(span);
+        });
+        dom.historyTrack.appendChild(fragment);
+    }
+
+    function clearCoinElement(element) {
+        if (!element) {
+            return;
+        }
+        element.textContent = "–";
+        delete element.dataset.result;
+    }
+
+    function getActiveCoinElements() {
+        const elements = [];
+        if (dom.resultPrimary) {
+            elements.push(dom.resultPrimary);
+        }
+        if (state.extraCoinUnlocked && dom.resultSecondary) {
+            elements.push(dom.resultSecondary);
+        }
+        return elements;
+    }
+
+    function setCoinResults(symbols) {
+        const elements = getActiveCoinElements();
+        if (elements.length === 0) {
+            return;
+        }
+        const fallback = symbols[0] ?? "–";
+        elements.forEach((element, index) => {
+            const symbol = symbols[index] ?? fallback;
+            element.textContent = symbol;
+            if (symbol === "–") {
+                delete element.dataset.result;
+            } else {
+                element.dataset.result = symbol;
+            }
+        });
+        if (state.extraCoinUnlocked && dom.resultSecondary) {
+            dom.resultSecondary.setAttribute("aria-hidden", "false");
+        }
+        if (!state.extraCoinUnlocked && dom.resultSecondary) {
+            clearCoinElement(dom.resultSecondary);
+            dom.resultSecondary.setAttribute("aria-hidden", "true");
+        }
+    }
+
+    function updatePayoutDisplay() {
+        if (!dom.payoutValue || !dom.payoutUpgrade) {
+            return;
+        }
+        dom.payoutValue.textContent = formatNumber(state.payout);
+        const cost = COSTS.payout(state.payoutLevel);
+        dom.payoutUpgrade.textContent = `upgrade payout (${cost}φ)`;
+        dom.payoutUpgrade.disabled = !credits.canAfford(cost);
+        dom.payoutUpgrade.title = `increase payout to ${formatNumber(state.payout + 1)}φ`;
+    }
+
+    function updateSpeedDisplay() {
+        if (!dom.speedUpgrade) {
+            return;
+        }
+        const cost = COSTS.speed(state.speedLevel);
+        const currentInterval = getCurrentInterval();
+        const nextInterval = Math.max(
+            state.minInterval,
+            Math.round(state.baseInterval * Math.pow(state.intervalDecay, state.speedLevel + 1))
+        );
+        const improves = nextInterval < currentInterval;
+        dom.speedUpgrade.textContent = improves
+            ? `increase flips/sec (${cost}φ)`
+            : "increase flips/sec (max)";
+        dom.speedUpgrade.disabled = !improves || !credits.canAfford(cost);
+        dom.speedUpgrade.title = improves
+            ? `next flip interval: ${(nextInterval / 1000).toFixed(2)}s`
+            : "maximum speed reached";
+    }
+
+    function updateDualCoinDisplay() {
+        const unlocked = state.extraCoinUnlocked;
+        if (dom.dualUpgrade) {
+            if (unlocked) {
+                dom.dualUpgrade.textContent = "dual coin unlocked";
+                dom.dualUpgrade.disabled = true;
+            } else {
+                dom.dualUpgrade.textContent = `add dual coin (${DUAL_COIN_COST}φ)`;
+                dom.dualUpgrade.disabled = !credits.canAfford(DUAL_COIN_COST);
+            }
+        }
+        if (dom.resultsWrapper) {
+            dom.resultsWrapper.classList.toggle("coin-results-extra", unlocked);
+        }
+        if (dom.resultSecondary) {
+            dom.resultSecondary.setAttribute("aria-hidden", unlocked ? "false" : "true");
+            if (!unlocked) {
+                clearCoinElement(dom.resultSecondary);
+            }
+        }
+        if (dom.bestStart) {
+            dom.bestStart.setAttribute("aria-hidden", unlocked ? "false" : "true");
+        }
+        if (dom.bestEnd) {
+            dom.bestEnd.setAttribute("aria-hidden", unlocked ? "false" : "true");
+        }
+    }
+
+    function refreshUpgradeStates() {
+        updatePayoutDisplay();
+        updateSpeedDisplay();
+        updateDualCoinDisplay();
+    }
+
+    function addHistoryEntry(result) {
+        state.history.unshift(result);
+        if (state.history.length > 20) {
+            state.history.pop();
+        }
+        renderHistory();
+    }
+
+    function startFlipAnimation(swapInterval = 80) {
+        if (!dom.flipButton) {
+            return;
+        }
+        if (flipAnimationId) {
+            cancelAnimationFrame(flipAnimationId);
+            flipAnimationId = null;
+        }
+        state.isAnimating = true;
+        const randomize = () => {
+            const elements = getActiveCoinElements();
+            if (elements.length === 0) {
+                return;
+            }
+            elements.forEach((element) => {
+                const symbol = Math.random() < 0.5 ? "h" : "t";
+                element.textContent = symbol;
+                element.dataset.result = symbol;
+            });
+        };
+        randomize();
+        let lastSwap = performance.now();
+
+        const loop = (now) => {
+            if (now - lastSwap >= swapInterval) {
+                lastSwap = now;
+                randomize();
+            }
+            flipAnimationId = requestAnimationFrame(loop);
+        };
+
+        flipAnimationId = requestAnimationFrame(loop);
+    }
+
+    function stopFlipAnimation() {
+        if (flipAnimationId) {
+            cancelAnimationFrame(flipAnimationId);
+            flipAnimationId = null;
+        }
+        state.isAnimating = false;
+    }
+
+    function awardCredits(amount) {
+        credits.add(amount);
+        refreshUpgradeStates();
+    }
+
+    function handleFlip() {
+        if (state.isAnimating || cooldown.isActive() || (dom.flipButton && dom.flipButton.disabled)) {
+            return;
         }
 
-        globals.specificWrapper.appendChild(button);
-        updateSpecificUpgradeButton(prob, state, type, button, config);
-    });
+        const coinCount = state.extraCoinUnlocked ? 2 : 1;
+        const results = Array.from({ length: coinCount }, () => Math.random() < state.chance);
+        const finalIsHeads = results.some(Boolean);
+        const coinSymbols = results.map((isHeads) => (isHeads ? "h" : "t"));
+        const historySymbol = finalIsHeads ? "h" : "t";
 
-    globals.specificWrapper.hidden = display.length === 0;
-}
-
-function updateSpecificUpgradeButton(prob, state, type, button, config) {
-    const title = button.querySelector(".specific-title");
-    const costSpan = button.querySelector(".specific-cost");
-    if (title) {
-        title.textContent = config.title;
-    }
-    const cost = prob.getUpgradeCost(type, state);
-    const isMaxed = !Number.isFinite(cost);
-    costSpan.textContent = formatUpgradeCostText(cost);
-    button.disabled = isMaxed || state.credits < cost;
-}
-
-function updateNavDisplay(prob) {
-    const ui = navUI.get(prob.id);
-    if (!ui) {
-        return;
-    }
-    const state = getProbState(prob.id);
-    const details = getGoalDetails(prob, state);
-    if (ui.progress) {
-        ui.progress.textContent = details.goal
-            ? `${Math.min(details.progress, details.goal)} / ${details.goal}`
-            : formatNumber(details.progress);
-    }
-    if (ui.button) {
-        ui.button.classList.toggle("complete", details.isComplete);
-        const tooltip = prob.widget?.description ?? prob.widget?.summary ?? prob.widget?.title ?? prob.name;
-        ui.button.title = `${tooltip} • best streak ${details.best}`;
-    }
-}
-
-function renderHistory(prob) {
-    if (activeProbId !== prob.id || !globals.historyTrack) {
-        return;
-    }
-    const state = getProbState(prob.id);
-    globals.historyTrack.innerHTML = "";
-    state.history.forEach((entry) => {
-        const node = document.createElement("span");
-        node.className = `history-item ${entry.isSuccess ? "success" : "failure"}`;
-        node.textContent = entry.symbol;
-        globals.historyTrack.appendChild(node);
-    });
-}
-
-function updateProbDisplay(prob) {
-    updateCreditsDisplay();
-    updateNavDisplay(prob);
-    if (activeProbId === prob.id) {
-        refreshActiveProb(prob);
-    }
-}
-
-function recordHistory(prob, isSuccess, symbol) {
-    const state = getProbState(prob.id);
-    state.history.unshift({ isSuccess, symbol });
-    if (state.history.length > HISTORY_LIMIT) {
-        state.history.length = HISTORY_LIMIT;
-    }
-    state.lastResultSymbol = symbol;
-    renderHistory(prob);
-}
-
-function getEffectiveProbability(prob, state) {
-    let probability = prob.getProbability(state.probabilityLevel);
-    if (prob.id === "unfair-coin") {
-        const twinLevel = state.twinCoinLevel ?? 0;
-        if (twinLevel > 0) {
-            const coinCount = 1 + twinLevel;
-            probability = 1 - Math.pow(1 - probability, coinCount);
+        if (dom.flipButton) {
+            dom.flipButton.disabled = true;
+            dom.flipButton.textContent = "flipping...";
         }
-    }
-    return probability;
-}
 
-function performProbAction(prob, isAuto = false) {
-    const state = getProbState(prob.id);
-    const probability = getEffectiveProbability(prob, state);
-    const roll = Math.random();
-    const isWin = roll < probability;
-    const symbol = isWin ? prob.resultSymbols.success : prob.resultSymbols.failure;
+        startFlipAnimation();
 
-    state.totalPlays += 1;
-    if (isWin) {
-        state.totalWins += 1;
-        state.streak += 1;
-        state.credits += prob.getPayout(state.payoutLevel);
-    } else {
-        state.streak = 0;
-    }
+        cooldown.start(getCurrentInterval(), () => {
+            stopFlipAnimation();
+            setCoinResults(coinSymbols);
 
-    if (state.streak > state.bestStreak) {
-        state.bestStreak = state.streak;
-    }
+            if (finalIsHeads) {
+                state.streak += 1;
+                if (state.streak > state.bestStreak) {
+                    state.bestStreak = state.streak;
+                }
+                awardCredits(state.payout);
+            } else {
+                state.streak = 0;
+            }
 
-    recordHistory(prob, isWin, symbol);
-    updateProbDisplay(prob);
-
-    if (!isAuto && activeProbId === prob.id && globals.actionButton) {
-        globals.actionButton.disabled = true;
-        requestAnimationFrame(() => {
-            globals.actionButton.disabled = false;
+            addHistoryEntry(historySymbol);
+            updateStreakDisplay();
+            refreshUpgradeStates();
         });
     }
+
+    function handlePayoutUpgrade() {
+        const cost = COSTS.payout(state.payoutLevel);
+        if (!credits.spend(cost)) {
+            return;
+        }
+        state.payoutLevel += 1;
+        state.payout += 1;
+        refreshUpgradeStates();
+    }
+
+    function handleDualCoinUpgrade() {
+        if (state.extraCoinUnlocked) {
+            return;
+        }
+        if (!credits.spend(DUAL_COIN_COST)) {
+            return;
+        }
+        state.extraCoinUnlocked = true;
+        refreshUpgradeStates();
+        if (dom.resultSecondary) {
+            clearCoinElement(dom.resultSecondary);
+            dom.resultSecondary.setAttribute("aria-hidden", "false");
+        }
+        const primarySymbol =
+            dom.resultPrimary && dom.resultPrimary.textContent ? dom.resultPrimary.textContent : "–";
+        setCoinResults([primarySymbol, "–"]);
+    }
+
+    function handleSpeedUpgrade() {
+        const cost = COSTS.speed(state.speedLevel);
+        const currentInterval = getCurrentInterval();
+        const nextInterval = Math.max(
+            state.minInterval,
+            Math.round(state.baseInterval * Math.pow(state.intervalDecay, state.speedLevel + 1))
+        );
+        if (nextInterval >= currentInterval) {
+            return;
+        }
+        if (!credits.spend(cost)) {
+            return;
+        }
+        state.speedLevel += 1;
+        refreshUpgradeStates();
+        if (cooldown.isActive()) {
+            cooldown.shorten(getCurrentInterval());
+        } else if (dom.flipButton && !state.isAnimating) {
+            dom.flipButton.textContent = "flip";
+        }
+    }
+
+    function bindEvents() {
+        if (dom.flipButton) {
+            dom.flipButton.addEventListener("click", handleFlip);
+        }
+        if (dom.payoutUpgrade) {
+            dom.payoutUpgrade.addEventListener("click", handlePayoutUpgrade);
+        }
+        if (dom.speedUpgrade) {
+            dom.speedUpgrade.addEventListener("click", handleSpeedUpgrade);
+        }
+        if (dom.dualUpgrade) {
+            dom.dualUpgrade.addEventListener("click", handleDualCoinUpgrade);
+        }
+    }
+
+    function init() {
+        updateChanceDisplay();
+        updateStreakDisplay();
+        renderHistory();
+        refreshUpgradeStates();
+        setCoinResults(["–", "–"]);
+        cooldown.cancel();
+        bindEvents();
+        credits.subscribe(() => refreshUpgradeStates());
+    }
+
+    function show() {
+        updateChanceDisplay();
+        updateStreakDisplay();
+        renderHistory();
+        refreshUpgradeStates();
+    }
+
+    function hide() {
+        const wasAnimating = state.isAnimating;
+        stopFlipAnimation();
+        cooldown.cancel();
+        if (wasAnimating) {
+            setCoinResults(["–", "–"]);
+        }
+    }
+
+    return {
+        id: "coin",
+        init,
+        show,
+        hide
+    };
+})();
+
+const diceWidget = (() => {
+    const dom = {
+        section: document.getElementById("dice-widget-section"),
+        chanceValue: document.getElementById("dice-chance"),
+        streakStatus: document.getElementById("dice-streak"),
+        results: document.getElementById("dice-results"),
+        rollButton: document.getElementById("dice-roll"),
+        addDieButton: document.getElementById("dice-upgrade-add"),
+        historyTrack: document.getElementById("dice-history-track")
+    };
+
+    const state = {
+        diceCount: 1,
+        maxDice: 3,
+        targetStreak: 10,
+        streak: 0,
+        bestStreak: 0,
+        history: [],
+        rollInterval: 3000,
+        isAnimating: false
+    };
+
+    const cooldown = createCooldownTimer(dom.rollButton, { label: "roll" });
+    let diceFaces = [];
+    let animationId = null;
+
+    function getSuccessChance() {
+        return 1 - Math.pow(5 / 6, state.diceCount);
+    }
+
+    function getNextDieCost() {
+        if (state.diceCount >= state.maxDice) {
+            return null;
+        }
+        return 15 * state.diceCount;
+    }
+
+    function ensureDiceFaces() {
+        if (!dom.results) {
+            return;
+        }
+        if (diceFaces.length === state.diceCount) {
+            return;
+        }
+        dom.results.innerHTML = "";
+        diceFaces = [];
+        for (let i = 0; i < state.diceCount; i += 1) {
+            const face = document.createElement("div");
+            face.className = "dice-face";
+            face.textContent = "–";
+            dom.results.appendChild(face);
+            diceFaces.push(face);
+        }
+    }
+
+    function updateChanceDisplay() {
+        if (!dom.chanceValue) {
+            return;
+        }
+        const percentText = (getSuccessChance() * 100).toFixed(1).replace(/\.0$/, "");
+        dom.chanceValue.textContent = `${percentText}% chance of a six`;
+    }
+
+    function updateStreakDisplay() {
+        if (!dom.streakStatus) {
+            return;
+        }
+        if (state.bestStreak >= state.targetStreak) {
+            dom.streakStatus.textContent = `longest streak: ${state.bestStreak}`;
+        } else {
+            dom.streakStatus.textContent = `${state.streak}/${state.targetStreak} sixes in a row`;
+        }
+    }
+
+    function renderHistory() {
+        if (!dom.historyTrack) {
+            return;
+        }
+        dom.historyTrack.innerHTML = "";
+        const fragment = document.createDocumentFragment();
+        state.history.forEach((entry) => {
+            const span = document.createElement("span");
+            span.textContent = entry.success ? "6" : "×";
+            span.classList.add(entry.success ? "success" : "failure");
+            span.title = entry.values.join(", ");
+            fragment.appendChild(span);
+        });
+        dom.historyTrack.appendChild(fragment);
+    }
+
+    function updateAddDieDisplay() {
+        if (!dom.addDieButton) {
+            return;
+        }
+        const cost = getNextDieCost();
+        if (cost === null) {
+            dom.addDieButton.textContent = "max dice unlocked";
+            dom.addDieButton.disabled = true;
+            return;
+        }
+        dom.addDieButton.textContent = `add die (${cost}φ)`;
+        dom.addDieButton.disabled = !credits.canAfford(cost);
+    }
+
+    function refreshUpgradeStates() {
+        updateAddDieDisplay();
+    }
+
+    function setDiceResults(values) {
+        ensureDiceFaces();
+        for (let i = 0; i < diceFaces.length; i += 1) {
+            const face = diceFaces[i];
+            const value = values[i] ?? "–";
+            face.textContent = value;
+            const isSuccess = Number(value) === 6;
+            face.classList.toggle("success", isSuccess);
+        }
+    }
+
+    function startRollAnimation(swapInterval = 90) {
+        ensureDiceFaces();
+        if (animationId) {
+            cancelAnimationFrame(animationId);
+            animationId = null;
+        }
+        state.isAnimating = true;
+
+        const randomize = () => {
+            diceFaces.forEach((face) => {
+                const value = Math.floor(Math.random() * 6) + 1;
+                face.textContent = value;
+                face.classList.toggle("success", value === 6);
+            });
+        };
+
+        randomize();
+        let lastSwap = performance.now();
+
+        const loop = (now) => {
+            if (now - lastSwap >= swapInterval) {
+                lastSwap = now;
+                randomize();
+            }
+            animationId = requestAnimationFrame(loop);
+        };
+
+        animationId = requestAnimationFrame(loop);
+    }
+
+    function stopRollAnimation() {
+        if (animationId) {
+            cancelAnimationFrame(animationId);
+            animationId = null;
+        }
+        state.isAnimating = false;
+    }
+
+    function addHistoryEntry(entry) {
+        state.history.unshift(entry);
+        if (state.history.length > 20) {
+            state.history.pop();
+        }
+        renderHistory();
+    }
+
+    function handleRoll() {
+        if (state.isAnimating || cooldown.isActive() || (dom.rollButton && dom.rollButton.disabled)) {
+            return;
+        }
+        const results = Array.from({ length: state.diceCount }, () => Math.floor(Math.random() * 6) + 1);
+        const success = results.some((value) => value === 6);
+
+        if (dom.rollButton) {
+            dom.rollButton.disabled = true;
+            dom.rollButton.textContent = "rolling...";
+        }
+
+        startRollAnimation();
+
+        cooldown.start(state.rollInterval, () => {
+            stopRollAnimation();
+            setDiceResults(results);
+
+            if (success) {
+                state.streak += 1;
+                if (state.streak > state.bestStreak) {
+                    state.bestStreak = state.streak;
+                }
+            } else {
+                state.streak = 0;
+            }
+
+            addHistoryEntry({ success, values: results });
+            updateStreakDisplay();
+            refreshUpgradeStates();
+        });
+    }
+
+    function handleAddDieUpgrade() {
+        const cost = getNextDieCost();
+        if (cost === null) {
+            return;
+        }
+        if (!credits.spend(cost)) {
+            return;
+        }
+        state.diceCount += 1;
+        ensureDiceFaces();
+        setDiceResults(Array(state.diceCount).fill("–"));
+        updateChanceDisplay();
+        refreshUpgradeStates();
+    }
+
+    function bindEvents() {
+        if (dom.rollButton) {
+            dom.rollButton.addEventListener("click", handleRoll);
+        }
+        if (dom.addDieButton) {
+            dom.addDieButton.addEventListener("click", handleAddDieUpgrade);
+        }
+    }
+
+    function show() {
+        ensureDiceFaces();
+        updateChanceDisplay();
+        updateStreakDisplay();
+        renderHistory();
+        refreshUpgradeStates();
+    }
+
+    function hide() {
+        const wasAnimating = state.isAnimating;
+        stopRollAnimation();
+        cooldown.cancel();
+        if (wasAnimating) {
+            setDiceResults(Array(state.diceCount).fill("–"));
+        }
+    }
+
+    function init() {
+        ensureDiceFaces();
+        setDiceResults(Array(state.diceCount).fill("–"));
+        updateChanceDisplay();
+        updateStreakDisplay();
+        renderHistory();
+        refreshUpgradeStates();
+        cooldown.cancel();
+        bindEvents();
+        credits.subscribe(() => refreshUpgradeStates());
+    }
+
+    return {
+        id: "dice",
+        init,
+        show,
+        hide
+    };
+})();
+
+const widgetManager = (() => {
+    const registry = {
+        coin: coinWidget,
+        dice: diceWidget
+    };
+    const order = Object.keys(registry);
+    const sections = {
+        coin: document.getElementById("coin-widget-section"),
+        dice: document.getElementById("dice-widget-section")
+    };
+    const navButtons = Array.from(document.querySelectorAll(".carousel-item[data-widget]"));
+    let active = null;
+
+    function updateNavButtons() {
+        navButtons.forEach((button) => {
+            const { widget } = button.dataset;
+            button.classList.toggle("active", widget === active);
+        });
+    }
+
+    function setActive(name) {
+        if (!registry[name]) {
+            return;
+        }
+        if (active === name) {
+            registry[name].show();
+            updateNavButtons();
+            return;
+        }
+        if (active && registry[active]) {
+            registry[active].hide();
+        }
+        active = name;
+        Object.entries(sections).forEach(([key, section]) => {
+            if (!section) {
+                return;
+            }
+            section.classList.toggle("widget-hidden", key !== name);
+        });
+        registry[name].show();
+        updateNavButtons();
+    }
+
+    function cycle(delta) {
+        if (!order.length) {
+            return;
+        }
+        const currentIndex = active ? order.indexOf(active) : 0;
+        const nextIndex = (currentIndex + delta + order.length) % order.length;
+        setActive(order[nextIndex]);
+    }
+
+    function init() {
+        navButtons.forEach((button) => {
+            button.addEventListener("click", () => {
+                const { widget } = button.dataset;
+                setActive(widget);
+            });
+        });
+        if (appDom.widgetPrev) {
+            appDom.widgetPrev.disabled = order.length <= 1;
+            appDom.widgetPrev.addEventListener("click", () => cycle(-1));
+        }
+        if (appDom.widgetNext) {
+            appDom.widgetNext.disabled = order.length <= 1;
+            appDom.widgetNext.addEventListener("click", () => cycle(1));
+        }
+        setActive(order[0]);
+    }
+
+    return {
+        init,
+        setActive
+    };
+})();
+
+function initializeApp() {
+    updateCreditsDisplay();
+    coinWidget.init();
+    diceWidget.init();
+    widgetManager.init();
 }
 
-function attemptUpgrade(prob, type) {
-    const state = getProbState(prob.id);
-    const upgradeConfig = prob.upgrades?.[type];
-    if (!upgradeConfig) {
-        return;
-    }
-    const cost = prob.getUpgradeCost(type, state);
-    if (!Number.isFinite(cost) || state.credits < cost) {
-        return;
-    }
-    state.credits -= cost;
-    const nextLevel = (state[upgradeConfig.levelKey] ?? 0) + 1;
-    const maxLevel = upgradeConfig.maxLevel ?? Number.POSITIVE_INFINITY;
-    state[upgradeConfig.levelKey] = Math.min(nextLevel, maxLevel);
-
-    if (type === "auto") {
-        applyAutoInterval(prob);
-    }
-
-    updateProbDisplay(prob);
-}
-
-function applyAutoInterval(prob) {
-    if (autoIntervals.has(prob.id)) {
-        clearInterval(autoIntervals.get(prob.id));
-        autoIntervals.delete(prob.id);
-    }
-    const state = getProbState(prob.id);
-    const interval = prob.getAutoInterval(state.autoLevel);
-    if (interval) {
-        const id = setInterval(() => {
-            performProbAction(prob, true);
-        }, interval);
-        autoIntervals.set(prob.id, id);
-    }
-}
-
-function createNavButton(prob) {
-    if (!globals.navList) {
-        return;
-    }
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "prob-nav-button";
-    button.dataset.probId = prob.id;
-
-    const title = document.createElement("span");
-    title.className = "nav-title";
-    title.textContent = prob.name;
-
-    const progress = document.createElement("span");
-    progress.className = "nav-progress";
-    progress.textContent = "";
-
-    button.append(title, progress);
-    button.addEventListener("click", () => setActiveProb(prob.id));
-
-    globals.navList.appendChild(button);
-    navUI.set(prob.id, { button, progress });
-}
-
-function initializeProb(prob) {
-    probLookup.set(prob.id, prob);
-    getProbState(prob.id);
-    createNavButton(prob);
-    updateNavDisplay(prob);
-    applyAutoInterval(prob);
-}
-
-
-/*
-todo
-
-have most probabilities relatied to one random number, use bit shift or smth
-completely redo prob_obj
-
-
-
-*/
+initializeApp();
