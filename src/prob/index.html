@@ -26,55 +26,86 @@
 <body>
     <header>
         <a href="../"><button id="home-button" class="page-button">o_t</button></a>
-        <h2>PROB</h2>
+        <p class="title">PROB</p>
         <button id="dark-toggle" class="page-button">d_m</button>
     </header>
 
     <div class="credits-bar">
         <span id="credits-total" class="credits-value">0</span>
-        <span class="credits-label">𝜓</span>
+        <span class="credits-label">φ</span>
     </div>
 
     <main>
-        <div class="prob-layout" aria-live="polite">
-            <aside id="prob-upgrade-panel" class="prob-panel upgrade-panel" aria-label="upgrade options">
-                <h3 class="panel-title">upgrades</h3>
-                <div class="upgrade-grid">
-                    <div class="upgrade-grid-header">
-                        <span>label</span>
-                        <span>flip speed</span>
-                        <span>payout</span>
+        <div class="prob-trifold" aria-live="polite">
+            <aside class="prob-column prob-column-left" aria-label="left column"></aside>
+            <section class="prob-main widget-container" aria-label="prob widgets">
+                <div id="coin-widget-section" class="widget-card coin-widget" aria-label="coin widget">
+                    <div class="coin-header">
+                        <div class="coin-header-left">
+                            <p class="coin-payout">payout: <span id="coin-payout-value">1</span>&phi;</p>
+                            <button id="coin-upgrade-payout" class="secondary-action" type="button">upgrade payout</button>
+                            <button id="coin-upgrade-speed" class="secondary-action" type="button">increase flips/sec</button>
+                        </div>
+                        <div class="coin-header-right">
+                            <span id="coin-chance" class="coin-chance-value">50% chance of heads</span>
+                            <span id="coin-streak" class="coin-streak-status">0/10 heads in a row</span>
+                        </div>
                     </div>
-                    <div id="upgrade-grid-body" class="upgrade-grid-body"></div>
+                    <div class="coin-body">
+                        <div id="coin-results-wrapper" class="coin-results-wrapper">
+                            <span id="coin-best-start" class="coin-best coin-best-start" aria-hidden="true">best{</span>
+                            <div id="coin-results" class="coin-results">
+                                <div id="coin-result-primary" class="coin-result">–</div>
+                                <div id="coin-result-secondary" class="coin-result coin-result-secondary" aria-hidden="true">–</div>
+                            </div>
+                            <span id="coin-best-end" class="coin-best coin-best-end" aria-hidden="true">}</span>
+                        </div>
+                        <button id="coin-flip" class="primary-action" type="button">flip</button>
+                    </div>
+                    <div id="coin-specific-upgrades" class="coin-specific-upgrades" aria-live="polite">
+                        <button id="coin-upgrade-dual" class="secondary-action" type="button">add dual coin (10φ)</button>
+                    </div>
+                    <div class="coin-history" aria-live="polite">
+                        <div id="coin-history-track" class="coin-history-track"></div>
+                    </div>
                 </div>
-            </aside>
-            <section id="prob-main" class="prob-main" aria-label="prob challenge">
-                <div class="prob-main-header">
-                    <div class="prob-main-info">
-                        <h2 id="prob-title"></h2>
+                <div id="dice-widget-section" class="widget-card dice-widget widget-hidden" aria-label="dice widget">
+                    <div class="dice-header">
+                        <div class="dice-header-left">
+                            <p class="dice-target">target: 10 sixes in a row</p>
+                            <button id="dice-upgrade-add" class="secondary-action" type="button">add die (15φ)</button>
+                        </div>
+                        <div class="dice-header-right">
+                            <span id="dice-chance" class="dice-chance-value">16.7% chance of a six</span>
+                            <span id="dice-streak" class="dice-streak-status">0/10 sixes in a row</span>
+                        </div>
                     </div>
-                    <div class="prob-goal">
-                        <span class="goal-label">goal</span>
-                        <span id="prob-goal-text" class="goal-value"></span>
+                    <div class="dice-body">
+                        <div id="dice-results" class="dice-results" aria-live="polite"></div>
+                        <button id="dice-roll" class="primary-action" type="button">roll</button>
                     </div>
-                </div>
-                <div class="prob-main-body">
-                    <div class="prob-metric">
-                        <span class="metric-label">chance</span>
-                        <span id="prob-chance" class="metric">0%</span>
-                    </div>
-                    <div id="prob-result" class="prob-result">–</div>
-                    <button id="prob-action" class="primary-action" type="button">flip</button>
-                    <div id="prob-specific-upgrades" class="specific-upgrades" hidden></div>
-                    <div class="history-wrapper">
-                        <span class="metric-label">recent results</span>
-                        <div id="prob-history" class="history-track" aria-live="polite"></div>
+                    <div class="dice-history" aria-live="polite">
+                        <div id="dice-history-track" class="dice-history-track"></div>
                     </div>
                 </div>
             </section>
-            <aside id="prob-nav" class="prob-panel nav-panel" aria-label="prob selection">
-                <h3 class="panel-title">challenges</h3>
-                <div id="prob-nav-list" class="nav-list"></div>
+            <aside class="prob-column prob-column-right" aria-label="widget carousel">
+                <div class="widget-carousel">
+                    <button id="widget-prev" class="carousel-control" type="button" aria-label="previous widget">▲</button>
+                    <div class="carousel-window">
+                        <div id="widget-carousel-items" class="carousel-items">
+                            <button class="carousel-item active" data-widget="coin" type="button">
+                                <span class="widget-name">coin</span>
+                                <span class="widget-note">flip streaks</span>
+                            </button>
+                            <button class="carousel-item" data-widget="dice" type="button">
+                                <span class="widget-name">dice</span>
+                                <span class="widget-note">roll sixes</span>
+                            </button>
+                        </div>
+                    </div>
+                    <button id="widget-next" class="carousel-control" type="button" aria-label="next widget">▼</button>
+                </div>
             </aside>
         </div>
     </main>
