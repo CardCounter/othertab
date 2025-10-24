@@ -1,5 +1,5 @@
 import { TILE_SIZE, loadSpriteResources } from './sprites.js';
-import { generatePlainLevel } from './level/plainLevel.js';
+import { generateSpriteLevel } from './level/generateLevel.js';
 import { startGameLoop } from './loop.js';
 import {
   KEY_MAP,
@@ -54,9 +54,8 @@ const VIEW_TILES_Y = 18;
 const WORLD_WIDTH = 120;
 const WORLD_HEIGHT = 80;
 
-const canvas = document.getElementById('game');
-const ctx = canvas.getContext('2d');
-ctx.imageSmoothingEnabled = false;
+let canvas = null;
+let ctx = null;
 
 let devicePixelRatioValue = window.devicePixelRatio || 1;
 
@@ -74,6 +73,10 @@ const state = {
   keys: new Set(),
   attackMarks: [],
   stopLoop: null,
+  freezeTimer: 0,
+  freezeAllowsDirectionSwap: false,
+  freezeStoredDirection: 0,
+  freezeAtMaxSpeed: false,
 };
 
 class Level {
@@ -126,7 +129,20 @@ function resolveBackgroundColor() {
   return document.body.classList.contains('dark-mode') ? '#000000' : '#ffffff';
 }
 
+function setupCanvas() {
+  canvas = document.getElementById('game');
+  if (!canvas) {
+    throw new Error('Canvas element with id "game" not found.');
+  }
+  ctx = canvas.getContext('2d');
+  if (!ctx) {
+    throw new Error('Failed to acquire 2D context for #game canvas.');
+  }
+  ctx.imageSmoothingEnabled = false;
+}
+
 function resizeCanvas() {
+  if (!canvas || !ctx) return;
   devicePixelRatioValue = window.devicePixelRatio || 1;
   const width = window.innerWidth;
   const height = window.innerHeight;
@@ -202,10 +218,10 @@ function drawLevel(ctx2d, stateObj) {
 }
 
 function drawAttackMarks(ctx2d, stateObj) {
-  const { attackMarks, camera } = stateObj;
+  const { attackMarks, camera, sheet, sprites, player } = stateObj;
   const now = performance.now();
-  const tileScale = TILE_SIZE;
-  const cssLineWidth = Math.max(1 / camera.scale, 0.5);
+  const centerX = player.x + player.width / 2;
+  const centerY = player.y + player.height / 2;
 
   for (let i = attackMarks.length - 1; i >= 0; i -= 1) {
     const mark = attackMarks[i];
@@ -213,19 +229,9 @@ function drawAttackMarks(ctx2d, stateObj) {
       attackMarks.splice(i, 1);
       continue;
     }
-    const screenX = mark.x * tileScale;
-    const screenY = mark.y * tileScale;
-    ctx2d.save();
-    ctx2d.translate(screenX, screenY);
-    ctx2d.strokeStyle = 'rgba(220, 64, 64, 0.9)';
-    ctx2d.lineWidth = cssLineWidth;
-    ctx2d.beginPath();
-    ctx2d.moveTo(3, 3);
-    ctx2d.lineTo(TILE_SIZE - 3, TILE_SIZE - 3);
-    ctx2d.moveTo(TILE_SIZE - 3, 3);
-    ctx2d.lineTo(3, TILE_SIZE - 3);
-    ctx2d.stroke();
-    ctx2d.restore();
+    const x = centerX + mark.offsetX;
+    const y = centerY + mark.offsetY;
+    sheet.draw(ctx2d, sprites.player_attack_weapon, x, y);
   }
 }
 
@@ -240,10 +246,64 @@ function drawPlayer(ctx2d, stateObj) {
   });
 }
 
+function getHorizontalInputDirection(keys) {
+  let dir = 0;
+  if (keys.has(KEY_MAP.LEFT)) dir -= 1;
+  if (keys.has(KEY_MAP.RIGHT)) dir += 1;
+  return dir;
+}
+
+function resolveFreezeDirection() {
+  if (!state.freezeAllowsDirectionSwap) {
+    return;
+  }
+
+  const player = state.player;
+  if (!player) {
+    state.freezeAllowsDirectionSwap = false;
+    state.freezeStoredDirection = 0;
+    state.freezeAtMaxSpeed = false;
+    return;
+  }
+
+  const direction = getHorizontalInputDirection(state.keys);
+  let chosenDirection = direction;
+  if (chosenDirection === 0) {
+    chosenDirection =
+      state.freezeStoredDirection || player.wallRunDirection || 0;
+  }
+
+  if (player.wallRunActive && chosenDirection !== 0) {
+    player.wallRunDirection = chosenDirection;
+  }
+
+  state.freezeAllowsDirectionSwap = false;
+  state.freezeStoredDirection = 0;
+  state.freezeAtMaxSpeed = false;
+}
+
 function stepSimulation(dt) {
   const { player, camera } = state;
   player.prevX = player.x;
   player.prevY = player.y;
+  if (state.freezeTimer > 0) {
+    if (player.dashTrigger) {
+      player.attackFreezeBeforeDash = true;
+      player.retainMoveSpeed = state.freezeAtMaxSpeed;
+      state.freezeTimer = 0;
+      resolveFreezeDirection();
+    } else {
+      state.freezeTimer = Math.max(0, state.freezeTimer - dt);
+      if (state.freezeTimer === 0) {
+        resolveFreezeDirection();
+      }
+      camera.prevX = camera.x;
+      camera.prevY = camera.y;
+      camera.prevScale = camera.scale;
+      return;
+    }
+  }
+
   updatePlayer(dt, state);
   camera.prevX = camera.x;
   camera.prevY = camera.y;
@@ -309,18 +369,31 @@ function onKeyDown(event) {
     event.code === KEY_MAP.RIGHT ||
     event.code === KEY_MAP.UP ||
     event.code === KEY_MAP.DOWN ||
-    event.code === KEY_MAP.JUMP
+    event.code === KEY_MAP.JUMP ||
+    event.code === KEY_MAP.DASH_LEFT ||
+    event.code === KEY_MAP.DASH_RIGHT
   ) {
     event.preventDefault();
   }
 
+  if (event.code === KEY_MAP.DASH_LEFT || event.code === KEY_MAP.DASH_RIGHT) {
+    if (!event.repeat) {
+      state.player.dashTrigger = true;
+    }
+  }
+
   if (event.code === KEY_MAP.ATTACK) {
-    handleAttack(state);
+    if (!event.repeat) {
+      handleAttack(state);
+    }
     return;
   }
 
   if (event.code === KEY_MAP.JUMP) {
-    state.player.jumpBuffer = JUMP_BUFFER_TIME;
+    if (!event.repeat) {
+      state.player.jumpBuffer = JUMP_BUFFER_TIME;
+      state.player.jumpTrigger = true;
+    }
   }
 
   state.keys.add(event.code);
@@ -329,16 +402,18 @@ function onKeyDown(event) {
 function onKeyUp(event) {
   if (event.code === KEY_MAP.JUMP) {
     state.player.jumpBuffer = 0;
+    state.player.jumpTrigger = false;
   }
   state.keys.delete(event.code);
 }
 
 async function init() {
+  setupCanvas();
   resizeCanvas();
 
   const { sheet, lookup, sprites, getSheetForMode } = await loadSpriteResources();
   state.backgroundColor = resolveBackgroundColor();
-  const level = generatePlainLevel(Level, WORLD_WIDTH, WORLD_HEIGHT);
+  const level = await generateSpriteLevel(Level, WORLD_WIDTH, WORLD_HEIGHT);
   const tileDefs = buildTileDefinitions(sprites);
   const player = createPlayer();
   const spawnTile = level.spawnTile ?? { x: 5, y: 10 };
@@ -396,4 +471,8 @@ async function init() {
   renderScene(0);
 }
 
-init();
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}

@@ -93,17 +93,15 @@ function createSpriteAliases() {
     atlas[name] = resolveTileIndex(col, row, SPRITE_FALLBACK);
     return atlas[name];
   };
-  assign('tile_ground', 11, 13);
-//   assign('tile_soil', 1, 6);
-//   assign('tile_stone', 2, 6);
-//   assign('tile_ladder', 3, 6);
-//   assign('tile_rope', 4, 6);
-//   assign('tile_support', 5, 6);
-//   assign('tile_crate', 6, 6);
-//   assign('tile_treasure', 7, 6);
-//   assign('tile_torch', 0, 7);
-//   assign('tile_background', 1, 7);
+  // player
   assign('player', 1, 0);
+  assign('player_max_speed', 3, 1);
+  assign('player_attack', 2, 0);
+  assign('player_dash', 7, 15);
+  assign('player_attack_weapon', 8, 5);
+
+  // env tiles
+  assign('tile_ground', 11, 13);
 
   return Object.freeze(atlas);
 }
