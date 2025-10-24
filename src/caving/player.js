@@ -13,7 +13,7 @@ export const KEY_MAP = {
 
 export const JUMP_BUFFER_TIME = 0.18;
 
-const WALK_SPEED = 80;
+const WALK_SPEED = 60;
 const RUN_SPEED = 115;
 const CLIMB_SPEED = 55;
 const JUMP_SPEED = 200;
@@ -24,7 +24,7 @@ const COYOTE_TIME = 0.1;
 const GROUND_ACCEL = 3200;
 const AIR_ACCEL = 1800;
 const EDGE_COOLDOWN = 0.15;
-const EDGE_VERTICAL_SNAP = TILE_SIZE * 0.3;
+const EDGE_VERTICAL_SNAP = TILE_SIZE * 0.75;
 const EDGE_MIN_FALL_SPEED = 40;
 
 function clamp(value, min, max) {
@@ -211,7 +211,8 @@ function tryEdgeGrab(player, level, tileDefs) {
   const bottomTile = Math.floor((player.y + player.height - 1) / TILE_SIZE);
 
   for (const side of [-1, 1]) {
-    const sampleX = side === 1 ? player.x + player.width : player.x - 1;
+    const sampleX =
+      side === 1 ? player.x + player.width + 0.1 : player.x - 0.1;
     const tileX = Math.floor(sampleX / TILE_SIZE);
     for (let ty = topTile; ty <= bottomTile; ty += 1) {
       if (!isSolid(tileDefs, level.get(tileX, ty))) {
@@ -235,11 +236,12 @@ function tryEdgeGrab(player, level, tileDefs) {
 function startEdgeGrab(player, side, tileX, tileTop) {
   const tileLeft = tileX * TILE_SIZE;
   const tileRight = tileLeft + TILE_SIZE;
+  const buffer = 0.001;
 
   if (side === 'left') {
-    player.x = tileRight - player.width - 0.001;
+    player.x = tileRight + buffer;
   } else {
-    player.x = tileLeft + 0.001;
+    player.x = tileLeft - player.width - buffer;
   }
 
   player.y = tileTop - player.height + EDGE_VERTICAL_SNAP;
