@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="flip a very unfair coin until the impossible starts to feel routine">
+    <meta name="description" content="stack poker hands until ten streaks fall in a row">
     <link rel="icon" href="../images/o_t-40px.png" type="image/png" media="(prefers-color-scheme: light)">
     <link rel="icon" href="../images/o_t-40px-dark.png" type="image/png" media="(prefers-color-scheme: dark)">
     <title>prob</title>
@@ -16,7 +16,7 @@
     <script>document.documentElement.classList.add('js-loading');</script>
     <script>
         window.OTHERTAB_MOBILE_HEADER = 'PROB';
-        window.OTHERTAB_MOBILE_MESSAGE = 'prob needs a keyboard or mouse to flip coins properly, desktop is best';
+        window.OTHERTAB_MOBILE_MESSAGE = 'prob plays best with a keyboard or mouse. stacking cards on desktop is ideal.';
     </script>
     <link rel="stylesheet" href="../css/global.css">
     <link rel="stylesheet" href="../css/header-footer.css">
@@ -30,123 +30,11 @@
         <button id="dark-toggle" class="page-button">d_m</button>
     </header>
 
-    <nav class="prob-nav-grid" aria-label="prob navigation">
-        <a class="prob-nav-item prob-nav-link" href="#coin-widget-section" data-widget="coin">coin</a>
-        <a class="prob-nav-item prob-nav-link" href="#dice-widget-section" data-widget="dice">d6</a>
-        <a class="prob-nav-item prob-nav-link" href="#ace-widget-section" data-widget="ace">A♠</a>
-        <a class="prob-nav-item prob-nav-link" href="#pachinko-widget-section" data-widget="pachinko">pach</a>
-        <div class="prob-nav-item prob-nav-placeholder" aria-hidden="true"></div>
-        <div class="prob-nav-item prob-nav-placeholder" aria-hidden="true"></div>
-        <div class="prob-nav-item prob-nav-placeholder" aria-hidden="true"></div>
-        <div class="prob-nav-item prob-nav-placeholder" aria-hidden="true"></div>
-        <div class="prob-nav-item prob-nav-placeholder" aria-hidden="true"></div>
-        <div class="prob-nav-item prob-nav-placeholder" aria-hidden="true"></div>
-        <span class="prob-nav-item prob-nav-label">casino</span>
-    </nav>
-
-    <div class="credits-bar">
-        <span id="credits-total" class="credits-value">0</span>
-        <span class="credits-label">φ</span>
-    </div>
-
-    <main class="prob-main" aria-live="polite">
-        <section class="widget-container" aria-label="prob widgets">
-            <div id="coin-widget-section" class="widget-card coin-widget" aria-label="coin widget">
-                <div class="coin-header">
-                    <div class="coin-header-left">
-                        <p class="coin-payout">payout: <span id="coin-payout-value">1</span>&phi;</p>
-                        <button id="coin-upgrade-payout" class="secondary-action" type="button">upgrade payout</button>
-                        <button id="coin-upgrade-speed" class="secondary-action" type="button">increase flips/sec</button>
-                    </div>
-                    <div class="coin-header-right">
-                        <span id="coin-chance" class="coin-chance-value">50% chance of heads</span>
-                    </div>
-                </div>
-                <div class="coin-body">
-                    <p id="coin-streak" class="coin-streak-status">0/10 heads in a row</p>
-                    <div id="coin-results-wrapper" class="coin-results-wrapper">
-                        <span id="coin-best-start" class="coin-best coin-best-start" aria-hidden="true">best{</span>
-                        <div id="coin-results" class="coin-results">
-                            <div id="coin-result-primary" class="coin-result">–</div>
-                            <div id="coin-result-secondary" class="coin-result coin-result-secondary" aria-hidden="true">–</div>
-                        </div>
-                        <span id="coin-best-end" class="coin-best coin-best-end" aria-hidden="true">}</span>
-                    </div>
-                    <button id="coin-flip" class="primary-action" type="button">flip</button>
-                </div>
-                <div id="coin-specific-upgrades" class="coin-specific-upgrades" aria-live="polite">
-                    <button id="coin-upgrade-dual" class="secondary-action" type="button">add dual coin (10φ)</button>
-                </div>
-            </div>
-            <div id="dice-widget-section" class="widget-card dice-widget widget-hidden" aria-label="dice widget">
-                <div class="dice-header">
-                    <div class="dice-header-left">
-                        <p class="dice-target">target: 10 sixes in a row</p>
-                        <button id="dice-upgrade-add" class="secondary-action" type="button">add die (15φ)</button>
-                    </div>
-                    <div class="dice-header-right">
-                        <span id="dice-chance" class="dice-chance-value">16.7% chance of a six</span>
-                    </div>
-                </div>
-                <div class="dice-body">
-                    <p id="dice-streak" class="dice-streak-status">0/10 sixes in a row</p>
-                    <div id="dice-results" class="dice-results" aria-live="polite"></div>
-                    <button id="dice-roll" class="primary-action" type="button">roll</button>
-                </div>
-            </div>
-            <div id="ace-widget-section" class="widget-card ace-widget widget-hidden" aria-label="ace of spades widget">
-                <div class="ace-header">
-                    <div class="ace-header-left">
-                        <p class="ace-payout">payout: <span id="ace-payout-value">2</span>&phi;</p>
-                        <button id="ace-upgrade-payout" class="secondary-action" type="button">upgrade payout</button>
-                        <button id="ace-upgrade-speed" class="secondary-action" type="button">increase draws/sec</button>
-                    </div>
-                    <div class="ace-header-right">
-                        <span id="ace-chance" class="ace-chance-value">1.9% chance of A♠</span>
-                    </div>
-                </div>
-                <div class="ace-body">
-                    <p id="ace-streak" class="ace-streak-status">0/10 A♠ in a row</p>
-                    <div id="ace-results" class="ace-results" aria-live="polite">
-                        <div class="ace-result-card" data-slot="primary">–</div>
-                        <div class="ace-result-card" data-slot="secondary">–</div>
-                        <div class="ace-result-card" data-slot="tertiary">–</div>
-                    </div>
-                    <button id="ace-draw" class="primary-action" type="button">draw</button>
-                </div>
-                <div class="ace-footer">
-                    <button id="ace-see-deck" class="secondary-action" type="button">see deck</button>
-                </div>
-            </div>
-            <div id="pachinko-widget-section" class="widget-card pachinko-widget widget-hidden" aria-label="pachinko widget">
-                <div class="pachinko-body">
-                    <div class="pachinko-canvas-wrapper">
-                        <canvas id="pachinko-canvas" class="pachinko-canvas" aria-label="pachinko board" role="img" tabindex="0"></canvas>
-                    </div>
-                    <div class="pachinko-panel" role="presentation">
-                        <p class="pachinko-panel-line">aim for the &phi; slot.</p>
-                        <button id="pachinko-drop" class="primary-action" type="button">drop ball</button>
-                        <p class="pachinko-panel-line">payout: <span id="pachinko-payout-value">5</span>&phi;</p>
-                        <button id="pachinko-upgrade-payout" class="secondary-action" type="button">upgrade payout</button>
-                        <p class="pachinko-panel-line">cooldown: <span id="pachinko-rate">1.20s</span></p>
-                        <button id="pachinko-upgrade-speed" class="secondary-action" type="button">increase balls/sec</button>
-                        <div id="pachinko-status" class="pachinko-panel-status" aria-live="polite"></div>
-                    </div>
-                </div>
-            </div>
-        </section>
-        <section id="ace-deck-view" class="deck-page" aria-label="ace deck view">
-            <div class="deck-header">
-                <button id="deck-close" class="secondary-action" type="button">back to draws</button>
-                <h2 class="deck-title">A♠ deck</h2>
-            </div>
-            <div class="deck-upgrades" aria-live="polite">
-                <button id="deck-upgrade-delete" class="secondary-action" type="button">delete card (8φ)</button>
-                <button id="deck-upgrade-add" class="secondary-action" type="button">add A♠ (12φ)</button>
-                <span id="deck-mode-indicator" class="deck-mode-indicator" aria-live="assertive"></span>
-            </div>
-            <div id="deck-grid" class="deck-grid" role="grid" aria-label="card deck grid"></div>
-        </section>
+    <main class="prob-main">
+        <nav class="poker-tabs" aria-label="poker decks">
+            <div id="poker-tabs" class="poker-tabs-list"></div>
+        </nav>
+        <section id="poker-display" class="poker-display" aria-live="polite"></section>
     </main>
 
     <footer class="footer-m">
