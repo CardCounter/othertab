@@ -208,9 +208,17 @@ function classifyHand(cards) {
     return { id: "high_card", label: HAND_LABELS.high_card };
 }
 
-function createHandCardElement(card) {
+function createHandCardElement(card, highlighted) {
     const span = document.createElement("span");
-    span.className = `poker-hand-card${card.color === "red" ? " red" : ""}`;
+    const classes = ["poker-hand-card"];
+    if (card.color === "red") {
+        classes.push("red");
+    }
+    classes.push(`suit-${card.suitName}`);
+    if (highlighted) {
+        classes.push("scoring");
+    }
+    span.className = classes.join(" ");
     span.textContent = `${card.rank}${card.suit}`;
     span.title = card.label;
     return span;
@@ -222,30 +230,8 @@ function createDeckElement(config) {
     root.dataset.hand = config.id;
     root.id = `${config.id}-deck`;
 
-    const header = document.createElement("div");
-    header.className = "poker-card-header";
-
-    const title = document.createElement("h2");
-    title.className = "poker-card-title";
-    title.textContent = config.title;
-
-    const subtitle = document.createElement("p");
-    subtitle.className = "poker-card-subtitle";
-    subtitle.textContent = config.subtitle;
-
-    header.append(title, subtitle);
-
-    const streakRow = document.createElement("div");
-    streakRow.className = "poker-streak";
-    streakRow.setAttribute("aria-live", "polite");
-
-    const streakLabel = document.createElement("span");
-    streakLabel.textContent = "streak";
-
-    const streakValue = document.createElement("strong");
-    streakValue.textContent = `0 / ${STREAK_TARGET}`;
-
-    streakRow.append(streakLabel, streakValue);
+    const row = document.createElement("div");
+    row.className = "poker-row";
 
     const button = document.createElement("button");
     button.className = "poker-button";
@@ -256,43 +242,80 @@ function createDeckElement(config) {
     handContainer.className = "poker-hand";
     handContainer.setAttribute("aria-live", "polite");
 
+    row.append(button, handContainer);
+
     const result = document.createElement("p");
     result.className = "poker-result";
-    result.textContent = "waiting for the first draw.";
+    result.setAttribute("aria-live", "polite");
+    result.textContent = "";
 
-    const completion = document.createElement("p");
-    completion.className = "poker-result poker-complete";
-    completion.hidden = true;
-    completion.textContent = "";
-
-    root.append(header, streakRow, button, handContainer, result, completion);
+    root.append(row, result);
 
     return {
         root,
         button,
-        streakValue,
         handContainer,
-        result,
-        completion
+        result
     };
 }
 
-function updateHandDisplay(container, cards) {
-    container.replaceChildren(...cards.map((card) => createHandCardElement(card)));
+function updateHandDisplay(container, cards, highlightIndices = []) {
+    const highlightSet = new Set(highlightIndices);
+    container.replaceChildren(
+        ...cards.map((card, index) => createHandCardElement(card, highlightSet.has(index)))
+    );
 }
 
-function updateStreakDisplay(dom, streak) {
-    dom.streakValue.textContent = `${streak} / ${STREAK_TARGET}`;
-}
-
-function buildResultMessage({ success, classification, streak, successNoun }) {
-    if (success) {
-        if (streak >= STREAK_TARGET) {
-            return `complete — ten ${successNoun}.`;
+function getHighlightIndices(cards, classificationId) {
+    const values = cards.map((card) => card.value);
+    const indexMap = new Map();
+    values.forEach((value, index) => {
+        const list = indexMap.get(value);
+        if (list) {
+            list.push(index);
+        } else {
+            indexMap.set(value, [index]);
         }
-        return `hit — ${classification.label} (${streak}/${STREAK_TARGET}).`;
+    });
+
+    switch (classificationId) {
+        case "high_card": {
+            const maxValue = Math.max(...values);
+            return indexMap.get(maxValue) ?? [];
+        }
+        case "pair": {
+            const pair = [...indexMap.values()].find((indices) => indices.length === 2);
+            return pair ?? [];
+        }
+        case "two_pair": {
+            return [...indexMap.values()]
+                .filter((indices) => indices.length === 2)
+                .flat();
+        }
+        case "three_kind": {
+            const triple = [...indexMap.values()].find((indices) => indices.length === 3);
+            return triple ?? [];
+        }
+        case "four_kind": {
+            const quad = [...indexMap.values()].find((indices) => indices.length === 4);
+            return quad ?? [];
+        }
+        case "full_house":
+        case "straight":
+        case "flush":
+        case "straight_flush":
+        case "royal_flush":
+            return [0, 1, 2, 3, 4];
+        default:
+            return [];
     }
-    return `miss — ${classification.label}; streak reset.`;
+}
+
+function buildResultMessage({ success, classification, streak }) {
+    if (success) {
+        return `hit ${classification.label} ${streak}/${STREAK_TARGET}`;
+    }
+    return "missed";
 }
 
 function handleDraw(state) {
@@ -309,23 +332,20 @@ function handleDraw(state) {
         state.streak = 0;
     }
 
-    updateHandDisplay(state.dom.handContainer, cards);
-    updateStreakDisplay(state.dom, state.streak);
+    const highlightIndices = success ? getHighlightIndices(cards, classification.id) : [];
+    updateHandDisplay(state.dom.handContainer, cards, highlightIndices);
 
     const message = buildResultMessage({
         success,
         classification,
-        streak: state.streak,
-        successNoun: state.config.successNoun
+        streak: state.streak
     });
 
     state.dom.result.textContent = message;
-    state.dom.result.classList.toggle("success", success && state.streak < STREAK_TARGET);
+    state.dom.result.classList.toggle("success", success);
     state.dom.result.classList.toggle("fail", !success);
 
     if (state.streak >= STREAK_TARGET) {
-        state.dom.completion.hidden = false;
-        state.dom.completion.textContent = `streak locked: ten ${state.config.successNoun}.`;
         state.dom.button.disabled = true;
     }
 }
