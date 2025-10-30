@@ -198,6 +198,19 @@ function getDeckCardsFromSlots(slots) {
     return slots.filter((card) => card);
 }
 
+function getCachedDeckCards(state) {
+    if (!state._cachedDeckArray) {
+        state._cachedDeckArray = getDeckCardsFromSlots(state.deckSlots);
+    }
+    return state._cachedDeckArray;
+}
+
+function invalidateDeckCache(state) {
+    if (state) {
+        state._cachedDeckArray = null;
+    }
+}
+
 function getDeckCardCountFromSlots(slots) {
     return slots.reduce((count, card) => (card ? count + 1 : count), 0);
 }
@@ -218,35 +231,7 @@ function getSlotIndexFromTarget(target) {
 }
 
 function getInitialDeckForChallenge(deckId) {
-    switch (deckId) {
-        case "pair":
-            return sortDeckCards(
-                createRankFilteredDeck(["2", "3", "4", "5", "6", "7", "8", "9", "10"])
-            );
-        case "two_pair":
-            return sortDeckCards(createRankFilteredDeck(["5", "6", "7", "8", "9", "10", "J"]));
-        case "three_kind":
-            return sortDeckCards(createRankFilteredDeck(["8", "9", "10", "J", "Q", "K", "A"]));
-        case "straight":
-            return sortDeckCards(createRankFilteredDeck(["4", "5", "6", "7", "8", "9", "10"]));
-        case "flush":
-            return sortDeckCards(
-                createSuitFilteredDeck(["♠", "♣"], ["2", "3", "4", "5", "6", "7", "8", "9"])
-            );
-        case "full_house":
-            return sortDeckCards(
-                createSuitFilteredDeck(["♥", "♦"], ["8", "9", "10", "J", "Q", "K"])
-            );
-        case "four_kind":
-            return sortDeckCards(createRankFilteredDeck(["Q", "K", "A"]));
-        case "straight_flush":
-            return sortDeckCards(createSuitFilteredDeck("♣", ["5", "6", "7", "8", "9", "10", "J", "Q"]));
-        case "royal_flush":
-            return sortDeckCards(createSuitFilteredDeck("♥", ["10", "J", "Q", "K", "A"]));
-        case "high_card":
-        default:
-            return sortDeckCards(createStandardDeck());
-    }
+    return sortDeckCards(createStandardDeck());
 }
 
 function drawHandFromDeck(deck, handSize = HAND_SIZE) {
@@ -254,13 +239,14 @@ function drawHandFromDeck(deck, handSize = HAND_SIZE) {
         return [];
     }
     const pool = [...deck];
-    for (let i = pool.length - 1; i > 0; i -= 1) {
-        const swapIndex = Math.floor(Math.random() * (i + 1));
-        const temp = pool[i];
-        pool[i] = pool[swapIndex];
-        pool[swapIndex] = temp;
+    const hand = [];
+    for (let i = 0; i < handSize; i += 1) {
+        const randomIndex = Math.floor(Math.random() * pool.length);
+        hand.push(pool[randomIndex]);
+        pool[randomIndex] = pool[pool.length - 1];
+        pool.pop();
     }
-    return pool.slice(0, handSize);
+    return hand;
 }
 
 function isStraight(values) {
@@ -456,6 +442,9 @@ function renderDeckGrid(state) {
         for (let rankIndex = 0; rankIndex < CARDS_PER_ROW; rankIndex += 1) {
             const slotIndex = suitIndex * CARDS_PER_ROW + rankIndex;
             const card = state.deckSlots?.[slotIndex] ?? null;
+            const cell = document.createElement("div");
+            cell.className = "deck-cell";
+            cell.dataset.slot = `${slotIndex}`;
             if (card) {
                 const button = document.createElement("button");
                 button.type = "button";
@@ -464,19 +453,21 @@ function renderDeckGrid(state) {
                 button.title = card.label;
                 button.dataset.slot = `${slotIndex}`;
                 button.draggable = true;
-                fragment.append(button);
+                cell.classList.add("has-card");
+                cell.append(button);
             } else {
-                const placeholder = document.createElement("div");
-                placeholder.className = "deck-slot";
-                placeholder.dataset.slot = `${slotIndex}`;
-                fragment.append(placeholder);
+                cell.classList.add("deck-slot");
             }
+            fragment.append(cell);
         }
     }
 
     for (let extraIndex = 0; extraIndex < EXTRA_BOTTOM_SLOTS; extraIndex += 1) {
         const slotIndex = TOTAL_MAIN_SLOTS + extraIndex;
         const card = state.deckSlots?.[slotIndex] ?? null;
+        const cell = document.createElement("div");
+        cell.className = "deck-cell";
+        cell.dataset.slot = `${slotIndex}`;
         if (card) {
             const button = document.createElement("button");
             button.type = "button";
@@ -485,22 +476,24 @@ function renderDeckGrid(state) {
             button.title = card.label;
             button.dataset.slot = `${slotIndex}`;
             button.draggable = true;
-            fragment.append(button);
+            cell.classList.add("has-card");
+            cell.append(button);
         } else {
-            const placeholder = document.createElement("div");
-            placeholder.className = "deck-slot";
-            placeholder.dataset.slot = `${slotIndex}`;
-            fragment.append(placeholder);
+            cell.classList.add("deck-slot");
         }
+        fragment.append(cell);
     }
 
     if (state.dom.sortButton) {
         const sortButton = state.dom.sortButton;
         const startCol = RANK_DISPLAY_ORDER.indexOf("6") + 1;
         const endCol = RANK_DISPLAY_ORDER.indexOf("2") + 2;
-        sortButton.style.gridRow = `${SUIT_DISPLAY_ORDER.length + 1}`;
-        sortButton.style.gridColumn = `${startCol} / ${endCol}`;
-        fragment.append(sortButton);
+        const actionCell = document.createElement("div");
+        actionCell.className = "deck-cell deck-action-cell";
+        actionCell.style.gridRow = `${SUIT_DISPLAY_ORDER.length + 1}`;
+        actionCell.style.gridColumn = `${startCol} / ${endCol}`;
+        actionCell.append(sortButton);
+        fragment.append(actionCell);
     }
 
     state.dom.deckGrid.replaceChildren(fragment);
@@ -538,6 +531,118 @@ document.addEventListener("click", (event) => {
     }
 });
 
+function setupKeyboardControls(state) {
+    if (!state?.dom?.button) {
+        return;
+    }
+
+    const pressedKeys = new Set();
+    let repeatInterval = null;
+    const ACTIVE_KEYS = new Set(["Enter", " "]);
+    const REPEAT_DELAY = 100; // Initial delay before repeat starts (ms)
+    const REPEAT_INTERVAL = 50; // Interval between repeats while held (ms)
+
+    const triggerDraw = () => {
+        // Only trigger if button is visible (active deck) and not disabled
+        if (state.dom.button.disabled || state.dom.button.offsetParent === null) {
+            return;
+        }
+        handleDraw(state);
+    };
+
+    const startRepeating = () => {
+        // If already repeating, don't start another interval
+        if (repeatInterval) {
+            return;
+        }
+
+        // Set up interval for repeating (initial trigger already happened on keydown)
+        repeatInterval = setInterval(() => {
+            triggerDraw();
+        }, REPEAT_INTERVAL);
+    };
+
+    const stopRepeating = () => {
+        if (repeatInterval) {
+            clearInterval(repeatInterval);
+            repeatInterval = null;
+        }
+    };
+
+    const handleKeyDown = (event) => {
+        // Only handle Enter and Space
+        if (!ACTIVE_KEYS.has(event.key)) {
+            return;
+        }
+
+        // Only process if button is visible (active deck)
+        if (state.dom.button.offsetParent === null) {
+            return;
+        }
+
+        // Prevent default to avoid scrolling (Space) or form submission (Enter)
+        // But allow if user is typing in an input/textarea
+        const activeElement = document.activeElement;
+        const isTypingInput = activeElement && (
+            activeElement.tagName === "INPUT" ||
+            activeElement.tagName === "TEXTAREA" ||
+            activeElement.isContentEditable
+        );
+        
+        if (!isTypingInput) {
+            event.preventDefault();
+        }
+
+        // If key already pressed, ignore (prevents duplicate triggers)
+        if (pressedKeys.has(event.key)) {
+            return;
+        }
+
+        pressedKeys.add(event.key);
+
+        // Start repeating if not already active
+        if (pressedKeys.size === 1) {
+            // Delay before starting repeat to allow single trigger
+            setTimeout(() => {
+                if (pressedKeys.size > 0) {
+                    startRepeating();
+                }
+            }, REPEAT_DELAY);
+        }
+
+        // Trigger immediately on first key press (but only if not typing)
+        if (!isTypingInput) {
+            triggerDraw();
+        }
+    };
+
+    const handleKeyUp = (event) => {
+        if (!ACTIVE_KEYS.has(event.key)) {
+            return;
+        }
+
+        pressedKeys.delete(event.key);
+
+        // Stop repeating if all keys are released
+        if (pressedKeys.size === 0) {
+            stopRepeating();
+        }
+    };
+
+    // Listen for keyboard events on window to catch keys even when button not focused
+    // This works for both focused and unfocused button states
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+
+    // Clean up on page unload (handled by removing from window listeners)
+    // Store cleanup function if needed later
+    state._keyboardCleanup = () => {
+        window.removeEventListener("keydown", handleKeyDown);
+        window.removeEventListener("keyup", handleKeyUp);
+        stopRepeating();
+    };
+}
+
 function setupDeckManagement(state) {
     if (!state?.dom?.deckGrid) {
         return;
@@ -553,6 +658,7 @@ function setupDeckManagement(state) {
             clearPendingDelete();
             const sortedCards = sortDeckCards(getDeckCardsFromSlots(state.deckSlots));
             state.deckSlots = createDeckSlotsFromCards(sortedCards);
+            invalidateDeckCache(state);
             renderDeckGrid(state);
         });
     }
@@ -599,6 +705,7 @@ function setupDeckManagement(state) {
         clearPendingDelete();
         if (toSlot != null) {
             moveCardInSlots(state.deckSlots, fromSlot, toSlot);
+            invalidateDeckCache(state);
         }
         state.dragSourceSlot = null;
         renderDeckGrid(state);
@@ -624,6 +731,7 @@ function setupDeckManagement(state) {
             }
             clearPendingDelete();
             state.deckSlots[slot] = null;
+            invalidateDeckCache(state);
             renderDeckGrid(state);
             return;
         }
@@ -691,48 +799,177 @@ function getHighlightIndices(cards, classificationId) {
     }
 }
 
-function buildResultMessage({ success, classification, streak }) {
+function buildResultMessage({ success, classification, streak, permanentlyCompleted }) {
     if (success) {
+        if (permanentlyCompleted || streak >= STREAK_TARGET) {
+            return `hit ${classification.label}, streak: ${streak}`;
+        }
         return `hit ${classification.label} ${streak}/${STREAK_TARGET}`;
     }
-    return "missed";
+    return `missed (${classification.label})`;
 }
 
-function handleDraw(state) {
+function animateShuffle(state, durationMs) {
+    return new Promise((resolve) => {
+        if (!state || durationMs <= 0) {
+            resolve();
+            return;
+        }
+
+        const deck = getCachedDeckCards(state);
+        if (deck.length < HAND_SIZE) {
+            resolve();
+            return;
+        }
+
+        const startTime = performance.now();
+        let animationFrameId = null;
+        const container = state.dom.handContainer;
+        const frameDelay = state.animationFrameDelay ?? 0; // Delay between updates in ms (0 = no delay, max speed)
+        let lastUpdateTime = startTime;
+        
+        // Reuse existing card elements instead of recreating them
+        let cardElements = Array.from(container.children);
+        if (cardElements.length !== HAND_SIZE) {
+            // Create elements if they don't exist or don't match hand size
+            container.replaceChildren();
+            cardElements = [];
+            for (let i = 0; i < HAND_SIZE; i++) {
+                const span = document.createElement("span");
+                span.className = "poker-hand-card";
+                container.appendChild(span);
+                cardElements.push(span);
+            }
+        }
+
+        const updateAnimation = (currentTime) => {
+            const elapsed = currentTime - startTime;
+            if (elapsed >= durationMs) {
+                if (animationFrameId) {
+                    cancelAnimationFrame(animationFrameId);
+                }
+                resolve();
+                return;
+            }
+
+            // Throttle updates based on frameDelay
+            const timeSinceLastUpdate = currentTime - lastUpdateTime;
+            if (timeSinceLastUpdate >= frameDelay) {
+                // Draw a random hand without checking score
+                const randomCards = drawHandFromDeck(deck, HAND_SIZE);
+                if (randomCards.length === HAND_SIZE) {
+                    // Update existing elements efficiently - only change what's different
+                    randomCards.forEach((card, index) => {
+                        const element = cardElements[index];
+                        if (!element) return;
+                        
+                        // Build class string efficiently
+                        let classes = "poker-hand-card";
+                        if (card.color === "red") {
+                            classes += " red";
+                        }
+                        classes += ` suit-${card.suitName}`;
+                        // No highlighting during animation (no "scoring" class)
+                        
+                        // Only update if changed
+                        if (element.className !== classes) {
+                            element.className = classes;
+                        }
+                        
+                        // Update text content only if changed
+                        const textContent = `${card.rank}${card.suit}`;
+                        if (element.textContent !== textContent) {
+                            element.textContent = textContent;
+                        }
+                        
+                        // Update title only if changed
+                        if (element.title !== card.label) {
+                            element.title = card.label;
+                        }
+                    });
+                }
+                lastUpdateTime = currentTime;
+            }
+
+            animationFrameId = requestAnimationFrame(updateAnimation);
+        };
+
+        animationFrameId = requestAnimationFrame(updateAnimation);
+    });
+}
+
+async function handleDraw(state) {
     if (!state) {
         return;
     }
-    const cards = drawHandFromDeck(getDeckCardsFromSlots(state.deckSlots), HAND_SIZE);
-    if (cards.length < HAND_SIZE) {
+
+    // Prevent overlapping actions - check both animation and pending states
+    if (state.isAnimating || state.pendingDraw) {
+        return;
+    }
+
+    // Check deck size first
+    const deck = getCachedDeckCards(state);
+    if (deck.length < HAND_SIZE) {
         state.dom.result.textContent = "need at least five cards in the deck";
         state.dom.result.classList.remove("success");
         state.dom.result.classList.add("fail");
         return;
     }
-    const classification = classifyHand(cards);
-    const success = classification.id === state.config.target;
 
-    if (success) {
-        state.streak += 1;
-    } else {
-        state.streak = 0;
-    }
+    // Set states to prevent overlapping actions
+    state.isAnimating = true;
+    state.pendingDraw = true;
+    state.dom.button.disabled = true;
 
-    const highlightIndices = success ? getHighlightIndices(cards, classification.id) : [];
-    updateHandDisplay(state.dom.handContainer, cards, highlightIndices);
+    try {
+        // Run shuffling animation
+        await animateShuffle(state, state.animationDuration);
 
-    const message = buildResultMessage({
-        success,
-        classification,
-        streak: state.streak
-    });
+        // After animation, perform the actual draw
+        const cards = drawHandFromDeck(deck, HAND_SIZE);
+        if (cards.length < HAND_SIZE) {
+            state.dom.result.textContent = "need at least five cards in the deck";
+            state.dom.result.classList.remove("success");
+            state.dom.result.classList.add("fail");
+            return;
+        }
 
-    state.dom.result.textContent = message;
-    state.dom.result.classList.toggle("success", success);
-    state.dom.result.classList.toggle("fail", !success);
+        const classification = classifyHand(cards);
+        const success = classification.id === state.config.target;
 
-    if (state.streak >= STREAK_TARGET) {
-        state.dom.button.disabled = true;
+        if (success) {
+            state.streak += 1;
+            if (state.streak >= STREAK_TARGET) {
+                state.permanentlyCompleted = true;
+                state.navButton.classList.add("completed");
+            }
+        } else {
+            state.streak = 0;
+            // Only remove completed class if not permanently completed
+            if (!state.permanentlyCompleted) {
+                state.navButton.classList.remove("completed");
+            }
+        }
+
+        const highlightIndices = success ? getHighlightIndices(cards, classification.id) : [];
+        updateHandDisplay(state.dom.handContainer, cards, highlightIndices);
+
+        const message = buildResultMessage({
+            success,
+            classification,
+            streak: state.streak,
+            permanentlyCompleted: state.permanentlyCompleted
+        });
+
+        state.dom.result.textContent = message;
+        state.dom.result.classList.toggle("success", success);
+        state.dom.result.classList.toggle("fail", !success);
+    } finally {
+        // Re-enable button and clear animation state
+        state.isAnimating = false;
+        state.pendingDraw = false;
+        state.dom.button.disabled = false;
     }
 }
 
@@ -755,6 +992,12 @@ function initPokerPage() {
             const isActive = entry === state;
             entry.navButton.classList.toggle("active", isActive);
             entry.navButton.setAttribute("aria-pressed", isActive ? "true" : "false");
+            // Check permanent completion state, not just current streak
+            if (entry.permanentlyCompleted) {
+                entry.navButton.classList.add("completed");
+            } else {
+                entry.navButton.classList.remove("completed");
+            }
         });
     };
 
@@ -773,14 +1016,25 @@ function initPokerPage() {
             dom,
             navButton,
             streak: 0,
+            permanentlyCompleted: false,
             deckSlots: createDeckSlotsFromCards(initialCards),
-            dragSourceSlot: null
+            dragSourceSlot: null,
+            isAnimating: false,
+            animationDuration: 2000, // Can be upgraded to reduce time between draws
+            animationFrameDelay: 70, // Delay between frame updates in ms (0 = max speed, higher = slower)
+            pendingDraw: false // Track if a draw is queued to prevent overlapping actions
         };
 
         setupDeckManagement(state);
 
         navButton.addEventListener("click", () => activateDeck(state));
+        
+        // Set up button click handler
         state.dom.button.addEventListener("click", () => handleDraw(state));
+        
+        // Set up keyboard handlers for Enter and Space
+        setupKeyboardControls(state);
+        
         tabList.append(navButton);
         deckStates.push(state);
 
