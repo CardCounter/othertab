@@ -1,5 +1,5 @@
 const STREAK_TARGET = 10;
-
+const HAND_SIZE = 5;
 const RANKS = [
     { symbol: "2", value: 2, name: "two" },
     { symbol: "3", value: 3, name: "three" },
@@ -22,6 +22,15 @@ const SUITS = [
     { symbol: "♥", name: "hearts", color: "red" },
     { symbol: "♦", name: "diamonds", color: "red" }
 ];
+
+const SUIT_DISPLAY_ORDER = ["♠", "♥", "♣", "♦"];
+const RANK_DISPLAY_ORDER = [...RANKS].slice().reverse().map((rank) => rank.symbol);
+const SUIT_ORDER_INDEX = new Map(SUIT_DISPLAY_ORDER.map((suit, index) => [suit, index]));
+const RANK_ORDER_INDEX = new Map(RANK_DISPLAY_ORDER.map((symbol, index) => [symbol, index]));
+const CARDS_PER_ROW = RANK_DISPLAY_ORDER.length;
+const EXTRA_BOTTOM_SLOTS = 8;
+const TOTAL_MAIN_SLOTS = SUIT_DISPLAY_ORDER.length * CARDS_PER_ROW;
+const TOTAL_SLOTS = TOTAL_MAIN_SLOTS + EXTRA_BOTTOM_SLOTS;
 
 const HAND_LABELS = {
     high_card: "high card",
@@ -109,7 +118,7 @@ const DECKS = [
     }
 ];
 
-function createDeck() {
+function createStandardDeck() {
     const deck = [];
     RANKS.forEach((rank) => {
         SUITS.forEach((suit) => {
@@ -127,15 +136,131 @@ function createDeck() {
     return deck;
 }
 
-function drawHand() {
-    const deck = createDeck();
-    for (let i = 0; i < 5; i += 1) {
-        const swapIndex = i + Math.floor(Math.random() * (deck.length - i));
-        const temp = deck[i];
-        deck[i] = deck[swapIndex];
-        deck[swapIndex] = temp;
+function createRankFilteredDeck(allowedRanks) {
+    const rankSet = new Set(allowedRanks);
+    return createStandardDeck().filter((card) => rankSet.has(card.rank));
+}
+
+function createSuitFilteredDeck(allowedSuits, allowedRanks = RANKS.map((rank) => rank.symbol)) {
+    const suitSet = new Set(Array.isArray(allowedSuits) ? allowedSuits : [allowedSuits]);
+    const rankSet = new Set(allowedRanks);
+    return createStandardDeck().filter(
+        (card) => suitSet.has(card.suit) && rankSet.has(card.rank)
+    );
+}
+
+function sortDeckCards(cards) {
+    return [...cards].sort((a, b) => {
+        const suitA = SUIT_ORDER_INDEX.get(a.suit) ?? Number.MAX_SAFE_INTEGER;
+        const suitB = SUIT_ORDER_INDEX.get(b.suit) ?? Number.MAX_SAFE_INTEGER;
+        if (suitA !== suitB) {
+            return suitA - suitB;
+        }
+        const rankA = RANK_ORDER_INDEX.get(a.rank) ?? Number.MAX_SAFE_INTEGER;
+        const rankB = RANK_ORDER_INDEX.get(b.rank) ?? Number.MAX_SAFE_INTEGER;
+        return rankA - rankB;
+    });
+}
+
+function getSlotIndexForCard(card) {
+    const suitIndex = card?.suit ? SUIT_ORDER_INDEX.get(card.suit) : undefined;
+    const rankIndex = card?.rank ? RANK_ORDER_INDEX.get(card.rank) : undefined;
+    if (suitIndex == null || rankIndex == null) {
+        return null;
     }
-    return deck.slice(0, 5);
+    return suitIndex * CARDS_PER_ROW + rankIndex;
+}
+
+function createDeckSlotsFromCards(cards) {
+    const slots = Array(TOTAL_SLOTS).fill(null);
+    cards.forEach((card) => {
+        const slotIndex = getSlotIndexForCard(card);
+        if (slotIndex == null) {
+            const fallbackIndex = slots.findIndex((entry) => entry === null);
+            if (fallbackIndex !== -1) {
+                slots[fallbackIndex] = card;
+            }
+            return;
+        }
+        if (slots[slotIndex]) {
+            const fallbackIndex = slots.findIndex((entry, index) => entry === null && index !== slotIndex);
+            if (fallbackIndex !== -1) {
+                slots[fallbackIndex] = card;
+            }
+            return;
+        }
+        slots[slotIndex] = card;
+    });
+    return slots;
+}
+
+function getDeckCardsFromSlots(slots) {
+    return slots.filter((card) => card);
+}
+
+function getDeckCardCountFromSlots(slots) {
+    return slots.reduce((count, card) => (card ? count + 1 : count), 0);
+}
+
+function getSlotIndexFromTarget(target) {
+    if (!target) {
+        return null;
+    }
+    const slotEl = target.closest("[data-slot]");
+    if (!slotEl) {
+        return null;
+    }
+    const slotIndex = Number.parseInt(slotEl.dataset.slot ?? "", 10);
+    if (Number.isNaN(slotIndex)) {
+        return null;
+    }
+    return slotIndex;
+}
+
+function getInitialDeckForChallenge(deckId) {
+    switch (deckId) {
+        case "pair":
+            return sortDeckCards(
+                createRankFilteredDeck(["2", "3", "4", "5", "6", "7", "8", "9", "10"])
+            );
+        case "two_pair":
+            return sortDeckCards(createRankFilteredDeck(["5", "6", "7", "8", "9", "10", "J"]));
+        case "three_kind":
+            return sortDeckCards(createRankFilteredDeck(["8", "9", "10", "J", "Q", "K", "A"]));
+        case "straight":
+            return sortDeckCards(createRankFilteredDeck(["4", "5", "6", "7", "8", "9", "10"]));
+        case "flush":
+            return sortDeckCards(
+                createSuitFilteredDeck(["♠", "♣"], ["2", "3", "4", "5", "6", "7", "8", "9"])
+            );
+        case "full_house":
+            return sortDeckCards(
+                createSuitFilteredDeck(["♥", "♦"], ["8", "9", "10", "J", "Q", "K"])
+            );
+        case "four_kind":
+            return sortDeckCards(createRankFilteredDeck(["Q", "K", "A"]));
+        case "straight_flush":
+            return sortDeckCards(createSuitFilteredDeck("♣", ["5", "6", "7", "8", "9", "10", "J", "Q"]));
+        case "royal_flush":
+            return sortDeckCards(createSuitFilteredDeck("♥", ["10", "J", "Q", "K", "A"]));
+        case "high_card":
+        default:
+            return sortDeckCards(createStandardDeck());
+    }
+}
+
+function drawHandFromDeck(deck, handSize = HAND_SIZE) {
+    if (!Array.isArray(deck) || deck.length < handSize) {
+        return [];
+    }
+    const pool = [...deck];
+    for (let i = pool.length - 1; i > 0; i -= 1) {
+        const swapIndex = Math.floor(Math.random() * (i + 1));
+        const temp = pool[i];
+        pool[i] = pool[swapIndex];
+        pool[swapIndex] = temp;
+    }
+    return pool.slice(0, handSize);
 }
 
 function isStraight(values) {
@@ -249,14 +374,269 @@ function createDeckElement(config) {
     result.setAttribute("aria-live", "polite");
     result.textContent = "";
 
-    root.append(row, result);
+    const managementSection = document.createElement("section");
+    managementSection.className = "poker-card-management";
+
+    const deckColumn = document.createElement("div");
+    deckColumn.className = "deck-column";
+
+    const deckGrid = document.createElement("div");
+    deckGrid.className = "deck-grid";
+    deckGrid.setAttribute("role", "list");
+    deckGrid.setAttribute("aria-label", "deck cards");
+
+    const sortButton = document.createElement("button");
+    sortButton.type = "button";
+    sortButton.className = "deck-sort-button";
+    sortButton.textContent = "sort deck";
+
+    const cardShop = document.createElement("div");
+    cardShop.className = "card-shop";
+    cardShop.textContent = "card shop";
+
+    deckColumn.append(deckGrid, cardShop);
+
+    const upgradeColumn = document.createElement("div");
+    upgradeColumn.className = "upgrade-column";
+    upgradeColumn.textContent = "upgrades";
+
+    managementSection.append(deckColumn, upgradeColumn);
+
+    root.append(row, result, managementSection);
 
     return {
         root,
         button,
         handContainer,
-        result
+        result,
+        deckGrid,
+        sortButton,
+        cardShop,
+        upgradeColumn
     };
+}
+
+function buildDeckCardClasses(card) {
+    const classes = ["deck-card", `suit-${card.suitName}`];
+    if (card.color === "red") {
+        classes.push("red");
+    }
+    return classes.join(" ");
+}
+
+function moveCardInSlots(slots, fromSlot, toSlot) {
+    if (
+        !Array.isArray(slots) ||
+        fromSlot === toSlot ||
+        fromSlot == null ||
+        toSlot == null ||
+        fromSlot < 0 ||
+        toSlot < 0 ||
+        fromSlot >= slots.length ||
+        toSlot >= slots.length
+    ) {
+        return;
+    }
+    const fromCard = slots[fromSlot];
+    if (!fromCard) {
+        return;
+    }
+    const toCard = slots[toSlot] ?? null;
+    slots[toSlot] = fromCard;
+    slots[fromSlot] = toCard;
+}
+
+function renderDeckGrid(state) {
+    if (!state?.dom?.deckGrid) {
+        return;
+    }
+
+    const fragment = document.createDocumentFragment();
+    for (let suitIndex = 0; suitIndex < SUIT_DISPLAY_ORDER.length; suitIndex += 1) {
+        for (let rankIndex = 0; rankIndex < CARDS_PER_ROW; rankIndex += 1) {
+            const slotIndex = suitIndex * CARDS_PER_ROW + rankIndex;
+            const card = state.deckSlots?.[slotIndex] ?? null;
+            if (card) {
+                const button = document.createElement("button");
+                button.type = "button";
+                button.className = buildDeckCardClasses(card);
+                button.textContent = `${card.rank}${card.suit}`;
+                button.title = card.label;
+                button.dataset.slot = `${slotIndex}`;
+                button.draggable = true;
+                fragment.append(button);
+            } else {
+                const placeholder = document.createElement("div");
+                placeholder.className = "deck-slot";
+                placeholder.dataset.slot = `${slotIndex}`;
+                fragment.append(placeholder);
+            }
+        }
+    }
+
+    for (let extraIndex = 0; extraIndex < EXTRA_BOTTOM_SLOTS; extraIndex += 1) {
+        const slotIndex = TOTAL_MAIN_SLOTS + extraIndex;
+        const card = state.deckSlots?.[slotIndex] ?? null;
+        if (card) {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = buildDeckCardClasses(card);
+            button.textContent = `${card.rank}${card.suit}`;
+            button.title = card.label;
+            button.dataset.slot = `${slotIndex}`;
+            button.draggable = true;
+            fragment.append(button);
+        } else {
+            const placeholder = document.createElement("div");
+            placeholder.className = "deck-slot";
+            placeholder.dataset.slot = `${slotIndex}`;
+            fragment.append(placeholder);
+        }
+    }
+
+    if (state.dom.sortButton) {
+        const sortButton = state.dom.sortButton;
+        const startCol = RANK_DISPLAY_ORDER.indexOf("6") + 1;
+        const endCol = RANK_DISPLAY_ORDER.indexOf("2") + 2;
+        sortButton.style.gridRow = `${SUIT_DISPLAY_ORDER.length + 1}`;
+        sortButton.style.gridColumn = `${startCol} / ${endCol}`;
+        fragment.append(sortButton);
+    }
+
+    state.dom.deckGrid.replaceChildren(fragment);
+}
+
+let activeDeckDelete = null;
+
+function clearPendingDelete() {
+    if (!activeDeckDelete) {
+        return;
+    }
+    const { element } = activeDeckDelete;
+    if (element?.isConnected) {
+        element.classList.remove("delete-pending");
+    }
+    activeDeckDelete = null;
+}
+
+function setPendingDelete(state, element, slot) {
+    if (!state || !element) {
+        return;
+    }
+    clearPendingDelete();
+    element.classList.add("delete-pending");
+    activeDeckDelete = { state, element, slot };
+}
+
+document.addEventListener("click", (event) => {
+    if (!activeDeckDelete) {
+        return;
+    }
+    const { state } = activeDeckDelete;
+    if (!state?.dom?.deckGrid?.contains(event.target)) {
+        clearPendingDelete();
+    }
+});
+
+function setupDeckManagement(state) {
+    if (!state?.dom?.deckGrid) {
+        return;
+    }
+
+    const grid = state.dom.deckGrid;
+    state.dragSourceSlot = null;
+
+    renderDeckGrid(state);
+
+    if (state.dom.sortButton) {
+        state.dom.sortButton.addEventListener("click", () => {
+            clearPendingDelete();
+            const sortedCards = sortDeckCards(getDeckCardsFromSlots(state.deckSlots));
+            state.deckSlots = createDeckSlotsFromCards(sortedCards);
+            renderDeckGrid(state);
+        });
+    }
+
+    grid.addEventListener("dragstart", (event) => {
+        const card = event.target.closest(".deck-card");
+        if (!card) {
+            return;
+        }
+        const slot = Number.parseInt(card.dataset.slot ?? "", 10);
+        if (Number.isNaN(slot)) {
+            return;
+        }
+        clearPendingDelete();
+        state.dragSourceSlot = slot;
+        card.classList.add("dragging");
+        event.dataTransfer.effectAllowed = "move";
+        event.dataTransfer.setData("text/plain", `${slot}`);
+    });
+
+    grid.addEventListener("dragend", (event) => {
+        const card = event.target.closest(".deck-card");
+        if (card) {
+            card.classList.remove("dragging");
+        }
+        state.dragSourceSlot = null;
+    });
+
+    grid.addEventListener("dragover", (event) => {
+        if (state.dragSourceSlot == null) {
+            return;
+        }
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "move";
+    });
+
+    grid.addEventListener("drop", (event) => {
+        if (state.dragSourceSlot == null) {
+            return;
+        }
+        event.preventDefault();
+        const fromSlot = state.dragSourceSlot;
+        const toSlot = getSlotIndexFromTarget(event.target);
+        clearPendingDelete();
+        if (toSlot != null) {
+            moveCardInSlots(state.deckSlots, fromSlot, toSlot);
+        }
+        state.dragSourceSlot = null;
+        renderDeckGrid(state);
+    });
+
+    grid.addEventListener("click", (event) => {
+        const card = event.target.closest(".deck-card");
+        if (!card) {
+            return;
+        }
+        const slot = Number.parseInt(card.dataset.slot ?? "", 10);
+        if (Number.isNaN(slot)) {
+            return;
+        }
+
+        if (card.classList.contains("delete-pending")) {
+            if (getDeckCardCountFromSlots(state.deckSlots) <= HAND_SIZE) {
+                clearPendingDelete();
+                state.dom.result.textContent = "deck must keep at least five cards";
+                state.dom.result.classList.remove("success");
+                state.dom.result.classList.add("fail");
+                return;
+            }
+            clearPendingDelete();
+            state.deckSlots[slot] = null;
+            renderDeckGrid(state);
+            return;
+        }
+
+        if (getDeckCardCountFromSlots(state.deckSlots) <= HAND_SIZE) {
+            state.dom.result.textContent = "deck must keep at least five cards";
+            state.dom.result.classList.remove("success");
+            state.dom.result.classList.add("fail");
+            return;
+        }
+
+        setPendingDelete(state, card, slot);
+    });
 }
 
 function updateHandDisplay(container, cards, highlightIndices = []) {
@@ -322,7 +702,13 @@ function handleDraw(state) {
     if (!state) {
         return;
     }
-    const cards = drawHand();
+    const cards = drawHandFromDeck(getDeckCardsFromSlots(state.deckSlots), HAND_SIZE);
+    if (cards.length < HAND_SIZE) {
+        state.dom.result.textContent = "need at least five cards in the deck";
+        state.dom.result.classList.remove("success");
+        state.dom.result.classList.add("fail");
+        return;
+    }
     const classification = classifyHand(cards);
     const success = classification.id === state.config.target;
 
@@ -363,6 +749,7 @@ function initPokerPage() {
         if (!state) {
             return;
         }
+        clearPendingDelete();
         display.replaceChildren(state.dom.root);
         deckStates.forEach((entry) => {
             const isActive = entry === state;
@@ -380,12 +767,17 @@ function initPokerPage() {
         navButton.setAttribute("aria-controls", dom.root.id);
         navButton.setAttribute("aria-pressed", "false");
 
+        const initialCards = getInitialDeckForChallenge(config.id);
         const state = {
             config,
             dom,
             navButton,
-            streak: 0
+            streak: 0,
+            deckSlots: createDeckSlotsFromCards(initialCards),
+            dragSourceSlot: null
         };
+
+        setupDeckManagement(state);
 
         navButton.addEventListener("click", () => activateDeck(state));
         state.dom.button.addEventListener("click", () => handleDraw(state));
