@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="stack poker hands until ten streaks fall in a row">
+    <meta name="description" content="stack poker hands until nine streaks fall in a row">
     <link rel="icon" href="../images/o_t-40px.png" type="image/png" media="(prefers-color-scheme: light)">
     <link rel="icon" href="../images/o_t-40px-dark.png" type="image/png" media="(prefers-color-scheme: dark)">
-    <title>10card</title>
+    <title>9card</title>
     <style>
         html.js-loading {
           visibility: hidden;
@@ -15,31 +15,34 @@
     </style>
     <script>document.documentElement.classList.add('js-loading');</script>
     <script>
-        window.OTHERTAB_MOBILE_HEADER = '10CARD';
-        window.OTHERTAB_MOBILE_MESSAGE = '10card plays best with a keyboard or mouse. stacking cards on desktop is ideal.';
+        window.OTHERTAB_MOBILE_HEADER = '9CARD';
+        window.OTHERTAB_MOBILE_MESSAGE = '9card plays best with a keyboard or mouse. stacking cards on desktop is ideal.';
     </script>
     <link rel="stylesheet" href="../css/global.css">
     <link rel="stylesheet" href="../css/header-footer.css">
     <link rel="stylesheet" href="../css/link.css">
-    <link rel="stylesheet" href="10card.css">
+    <link rel="stylesheet" href="9card.css">
 </head>
 <body>
     <header>
         <a href="../"><button id="home-button" class="page-button">o_t</button></a>
-        <p class="title">10CARD</p>
+        <p class="title">9CARD</p>
         <button id="dark-toggle" class="page-button">d_m</button>
     </header>
 
-    <main class="tencard-main">
+    <main class="ninecard-main">
         <nav class="poker-tabs" aria-label="poker decks">
             <div id="poker-tabs" class="poker-tabs-list"></div>
+            <div id="chip-counter" class="chip-counter" role="status" aria-live="polite">
+                <span class="chip-counter-value" data-chip-value>0⛁</span>
+            </div>
         </nav>
         <section id="poker-display" class="poker-display" aria-live="polite"></section>
     </main>
 
     <footer class="footer-m">
         <div class="footer-center">
-            <p>o_10</p>
+            <p>o_9</p>
             <a href="../privacy/" class="footer-link">privacy</a>
             <a href="https://ko-fi.com/othertab" class="footer-link">support</a>
         </div>
@@ -47,7 +50,11 @@
     <script type="module" src="../scripts/mobile-block.js"></script>
     <script type="module" src="../scripts/darkmode.js"></script>
     <script type="module" src="../scripts/fouc.js"></script>
-    <script type="module" src="10card.js"></script>
+    <script type="module" src="9card.js"></script>
 </body>
 </html>
 
+
+<!-- todo
+fix deck sorting bug 
+-->
