@@ -408,11 +408,11 @@ footer {
 }
 
 .poker-result.fail {
-    color: #b00000;
+    color: black;
 }
 
 .dark-mode .poker-result.fail {
-    color: #ff8080;
+    color: white;
 }
 
 .poker-card-management {
@@ -562,12 +562,12 @@ footer {
 
 .deck-sort-button:hover,
 .deck-sort-button:focus-visible {
-    background-color: rgba(0, 0, 255, 0.15);
+    background-color: grey;
 }
 
 .dark-mode .deck-sort-button:hover,
 .dark-mode .deck-sort-button:focus-visible {
-    background-color: rgba(255, 0, 0, 0.15);
+    background-color: grey;
 }
 
 .card-shop {
@@ -603,8 +603,7 @@ footer {
 }
 
 .card-shop-discard-value {
-    font-weight: 700;
-    font-size: 1.05rem;
+    font-size: 1rem;
 }
 
 .card-shop-reroll {
@@ -622,12 +621,12 @@ footer {
 
 .card-shop-reroll:hover,
 .card-shop-reroll:focus-visible {
-    background-color: rgba(0, 0, 255, 0.15);
+    background-color: grey;
 }
 
 .dark-mode .card-shop-reroll:hover,
 .dark-mode .card-shop-reroll:focus-visible {
-    background-color: rgba(255, 0, 0, 0.15);
+    background-color: grey;
 }
 
 .card-shop-reroll-label {
@@ -635,7 +634,7 @@ footer {
 }
 
 .card-shop-reroll-price {
-    font-weight: 600;
+    font-size: 1rem;
 }
 
 .card-shop-slots {
@@ -837,11 +836,11 @@ footer {
 }
 
 .upgrade-card-purchased {
-    opacity: 0.65;
+    /* reserved for future purchased styling */
 }
 
 .upgrade-card-stat {
-    font-size: 0.95rem;
+    font-size: 1rem;
     letter-spacing: 0.02em;
     text-align: center;
 }
@@ -857,14 +856,16 @@ footer {
     color: inherit;
     padding: 0.45rem 1rem;
     cursor: pointer;
-    font-size: 0.95rem;
+    font-size: 1rem;
     text-transform: lowercase;
     min-width: 120px;
+    opacity: 1;
+    transition: opacity 0.2s ease;
 }
 
 .upgrade-card-button:disabled {
     cursor: default;
-    opacity: 0.7;
+    opacity: 0.35;
 }
 
 .upgrade-card-button:hover:not(:disabled),
@@ -880,12 +881,13 @@ footer {
 }
 
 .upgrade-card-button-active {
-    background-color: transparent;
+    /* background-color: transparent; */
+    opacity: 1;
 }
 
 .upgrade-empty {
     margin: 0;
-    font-size: 0.9rem;
+    font-size: 1rem;
     opacity: 0.75;
 }
 
@@ -917,6 +919,8 @@ footer {
 
     .card-shop-reroll {
         margin-left: 0;
+        justify-content: center;
+        text-align: center;
     }
 
     .card-shop-slots {

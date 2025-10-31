@@ -127,9 +127,10 @@ export async function handleDraw(state) {
         removeCardsFromDeck(state, cards);
 
         let reachedTarget = false;
+        let payout = 0;
         if (success) {
             state.streak += 1;
-            awardChips({
+            payout = awardChips({
                 baseAmount: state.baseChipReward,
                 streak: state.streak,
                 streakMultiplier: state.chipStreakMultiplier
@@ -159,7 +160,8 @@ export async function handleDraw(state) {
             success,
             classification,
             streak: state.streak,
-            permanentlyCompleted: state.permanentlyCompleted
+            permanentlyCompleted: state.permanentlyCompleted,
+            payout
         });
 
         state.dom.result.textContent = message;

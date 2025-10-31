@@ -12,7 +12,19 @@ const chipState = {
     valueElement: null
 };
 
+const chipListeners = new Set();
+
 const SCIENTIFIC_NOTATION_THRESHOLD = 100_000_000;
+
+function notifyChipListeners() {
+    chipListeners.forEach((listener) => {
+        try {
+            listener(chipState.total);
+        } catch {
+            // ignore listener errors to avoid disrupting other subscribers
+        }
+    });
+}
 
 export function initChipDisplay(options = {}) {
     if (Number.isFinite(options.basePayout) && options.basePayout >= 0) {
@@ -49,6 +61,44 @@ export function initChipDisplay(options = {}) {
 
 export function getChipTotal() {
     return chipState.total;
+}
+
+export function subscribeToChipChanges(listener) {
+    if (typeof listener !== "function") {
+        return () => {};
+    }
+    chipListeners.add(listener);
+    return () => {
+        chipListeners.delete(listener);
+    };
+}
+
+export function canAffordChips(amount) {
+    if (!Number.isFinite(amount)) {
+        return false;
+    }
+    if (amount <= 0) {
+        return true;
+    }
+    const cost = Math.ceil(Math.max(0, amount));
+    return chipState.total >= cost;
+}
+
+export function spendChips(amount) {
+    if (!Number.isFinite(amount)) {
+        return false;
+    }
+    if (amount <= 0) {
+        return true;
+    }
+    const cost = Math.ceil(Math.max(0, amount));
+    if (chipState.total < cost) {
+        return false;
+    }
+    chipState.total = ensureInteger(chipState.total - cost);
+    updateChipDisplay();
+    notifyChipListeners();
+    return true;
 }
 
 export function setBaseChipPayout(value) {
@@ -93,6 +143,7 @@ export function awardChips({
 
     chipState.total = ensureInteger(chipState.total + reward);
     updateChipDisplay();
+    notifyChipListeners();
     return reward;
 }
 

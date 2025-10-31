@@ -1,106 +1,90 @@
-export const BASIC_UPGRADE_SETTINGS = {
-    increase_payout: {
-        cost: 25,
-        costGrowthRate: 1.35,
-        costLinearCoefficient: 0.25,
-        options: {
-            amount: 1
-        }
-    },
-    increase_streak_multiplier: {
-        cost: 50,
-        costGrowthRate: 1.4,
-        costLinearCoefficient: 0.3,
-        options: {
-            amount: 0.25
-        }
-    },
-    decrease_draw_time: {
-        cost: 100,
-        costGrowthRate: 1.5,
-        costLinearCoefficient: 0.4,
-        options: {
-            amount: 150,
-            minimumDuration: 250
-        }
-    }
-};
-
 /**
- * Deck-specific upgrade overrides.
+ * Deck-specific upgrade settings.
  *
- * Shape:
- * {
- *   default: { basic, unique },
- *   high_card: { basic, unique },
- *   ...
- * }
+ * Each deck entry can provide:
+ * - baseChipsAmount: starting chip payout for the deck (applied on setup)
+ * - baseMultiplierAmount: starting streak multiplier for the deck
+ * - baseDrawTime: initial shuffle animation duration in ms
+ * - basic: map of upgrade id -> config
+ * - unique: list of deck-only upgrades (id or config objects)
  *
- * - basic      : map of upgrade id -> overrides
- *                Set { enabled: false } to remove a basic upgrade for that deck.
- *                Any property (cost, costGrowthRate, costLinearCoefficient, amount, etc.)
- *                can be overridden per deck.
- * - unique     : array of upgrade configs. Each entry is only available to that deck.
- *                You can reference an existing upgrade id (registered via registerUpgrade)
- *                or provide a `definition` to register a new deck-only upgrade.
- *
- * Unique entry shape:
- * {
- *   id: "unique_upgrade_id",
- *   definition: { ...optional definition to register if not already declared },
- *   cost: ...,
- *   costGrowthRate: ...,
- *   costLinearCoefficient: ...,
- *   baseAmount: ...,
- *   options: { ... },
- *   resolveAmount: (state, upgrade) => number
- * }
- *
- * A minimal override can just specify { cost: 200 } to tweak pricing.
+ * Upgrade config fields:
+ * - cost, costGrowthRate, costLinearCoefficient, baseCost (optional)
+ * - increaseAmount / baseAmount to set how much the upgrade changes the stat each purchase
+ * - options: arbitrary additional data passed to the upgrade implementation
+ * - minimumDuration, amount, etc. can be set directly or inside options
+ * - resolveAmount, title, description, type, definition (for unique upgrades)
  */
 export const DECK_UPGRADE_CONFIG = {
     default: {
-        basic: {
-            increase_payout: {},
-            increase_streak_multiplier: {},
-            decrease_draw_time: {}
-        },
-        unique: []
-    },
-    high_card: {
+        baseChipsAmount: 1,
+        baseMultiplierAmount: 1.0,
+        baseDrawTime: 2000,
         basic: {
             increase_payout: {
                 cost: 25,
-                costGrowthRate: 1.3,
-                costLinearCoefficient: 0.22,
-                options: {
-                    amount: 1
-                }
+                costGrowthRate: 1.35,
+                costLinearCoefficient: 0.25,
+                increaseAmount: 1
             },
             increase_streak_multiplier: {
-                cost: 45,
-                costGrowthRate: 1.28,
-                costLinearCoefficient: 0.25
+                cost: 50,
+                costGrowthRate: 1.4,
+                costLinearCoefficient: 0.3,
+                increaseAmount: 0.25
             },
             decrease_draw_time: {
-                cost: 110,
-                costGrowthRate: 1.45,
-                costLinearCoefficient: 0.35
+                cost: 100,
+                costGrowthRate: 1.5,
+                costLinearCoefficient: 0.4,
+                increaseAmount: 150,
+                options: {
+                    minimumDuration: 250
+                }
             }
         },
         unique: []
     },
-    pair: { 
-        basic: {}, 
-        unique: [] 
+    high_card: {
+        baseChipsAmount: 1000000000000000000000000,
+        baseMultiplierAmount: 1.0,
+        baseDrawTime: 2000,
+        basic: {
+            increase_payout: {
+                cost: 5,
+                costGrowthRate: 1.2,
+                costLinearCoefficient: 0.22,
+                increaseAmount: 1
+            },
+            increase_streak_multiplier: {
+                cost: 50,
+                costGrowthRate: 2.2,
+                costLinearCoefficient: 0.25,
+                increaseAmount: 0.1
+            },
+            decrease_draw_time: {
+                cost: 500,
+                costGrowthRate: 3.2,
+                costLinearCoefficient: 0.35,
+                increaseAmount: 50,
+                options: {
+                    minimumDuration: 0
+                }
+            }
+        },
+        unique: []
     },
-    two_pair: { 
-        basic: {}, 
-        unique: [] 
+    pair: {
+        basic: {},
+        unique: []
     },
-    three_kind: { 
-        basic: {}, 
-        unique: [] 
+    two_pair: {
+        basic: {},
+        unique: []
+    },
+    three_kind: {
+        basic: {},
+        unique: []
     },
     straight: {
         basic: {
@@ -108,27 +92,20 @@ export const DECK_UPGRADE_CONFIG = {
                 cost: 80,
                 costGrowthRate: 1.5,
                 costLinearCoefficient: 0.42,
-                baseAmount: 5,
-                options: {
-                    amount: 5
-                }
+                increaseAmount: 5
             },
             increase_streak_multiplier: {
                 cost: 65,
                 costGrowthRate: 1.4,
                 costLinearCoefficient: 0.32,
-                baseAmount: 0.35,
-                options: {
-                    amount: 0.35
-                }
+                increaseAmount: 0.35
             },
             decrease_draw_time: {
                 cost: 160,
                 costGrowthRate: 1.6,
                 costLinearCoefficient: 0.5,
-                baseAmount: 120,
+                increaseAmount: 120,
                 options: {
-                    amount: 120,
                     minimumDuration: 250
                 }
             }

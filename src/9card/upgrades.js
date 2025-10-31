@@ -2,8 +2,8 @@ import {
     DEFAULT_BASE_CHIP_PAYOUT,
     DEFAULT_STREAK_CHIP_MULTIPLIER
 } from "./config.js";
-import { formatChipAmount } from "./chips.js";
-import { BASIC_UPGRADE_SETTINGS, DECK_UPGRADE_CONFIG } from "./upgrade-config.js";
+import { canAffordChips, formatChipAmount, spendChips, subscribeToChipChanges } from "./chips.js";
+import { DECK_UPGRADE_CONFIG } from "./upgrade-config.js";
 
 export const UPGRADE_TYPES = {
     BASIC: "basic",
@@ -87,7 +87,7 @@ registerConfigDefinitions(DECK_UPGRADE_CONFIG);
 registerUpgrade({
     id: "increase_streak_multiplier",
     type: UPGRADE_TYPES.BASIC,
-    title: "multiplier",
+    title: "streak multiplier",
     description: "boost the chip payout multiplier for streaks.",
     cost: 50,
     costGrowthRate: 1.4,
@@ -247,6 +247,16 @@ function createUpgradeInstance(entry) {
         options.amount = baseAmountValue;
     }
 
+    const increaseAmountValue = Number.isFinite(overrides.increaseAmount)
+        ? overrides.increaseAmount
+        : Number.isFinite(overrides.baseAmount)
+          ? overrides.baseAmount
+          : Number.isFinite(options?.amount)
+            ? options.amount
+            : Number.isFinite(definition.defaults?.amount)
+              ? definition.defaults.amount
+              : null;
+
     const amountResolver =
         typeof overrides.resolveAmount === "function"
             ? overrides.resolveAmount
@@ -271,7 +281,58 @@ function createUpgradeInstance(entry) {
         amountResolver
     };
 
+    if (Number.isFinite(increaseAmountValue)) {
+        instance.increaseAmount = increaseAmountValue;
+    }
+
     return instance;
+}
+
+function cloneUpgradeConfig(entry) {
+    if (!entry || typeof entry !== "object") {
+        return null;
+    }
+    const clone = { ...entry };
+    if (entry.options && typeof entry.options === "object") {
+        clone.options = { ...entry.options };
+    }
+    return clone;
+}
+
+function mergeUpgradeConfig(baseEntry, overrideEntry) {
+    if (!baseEntry && !overrideEntry) {
+        return null;
+    }
+    if (overrideEntry && overrideEntry.enabled === false) {
+        return { enabled: false };
+    }
+    if (!baseEntry) {
+        return cloneUpgradeConfig(overrideEntry);
+    }
+    if (!overrideEntry) {
+        return cloneUpgradeConfig(baseEntry);
+    }
+
+    const merged = cloneUpgradeConfig(baseEntry) ?? {};
+
+    Object.entries(overrideEntry).forEach(([key, value]) => {
+        if (value === undefined) {
+            return;
+        }
+        if (key === "options" && value && typeof value === "object") {
+            merged.options = { ...(merged.options ?? {}) };
+            Object.entries(value).forEach(([optionKey, optionValue]) => {
+                if (optionValue === undefined) {
+                    return;
+                }
+                merged.options[optionKey] = optionValue;
+            });
+        } else {
+            merged[key] = value;
+        }
+    });
+
+    return merged;
 }
 
 function resolveDeckUpgradeProfile(deckId) {
@@ -282,67 +343,119 @@ function resolveDeckUpgradeProfile(deckId) {
     const defaultBasics = defaults.basic ?? {};
     const deckBasics = deckProfile.basic ?? {};
 
-    const combinedBasics = { ...defaultBasics, ...deckBasics };
+    const combinedBasics = {};
+    const basicKeys = new Set([
+        ...Object.keys(defaultBasics),
+        ...Object.keys(deckBasics)
+    ]);
+    basicKeys.forEach((id) => {
+        const merged = mergeUpgradeConfig(defaultBasics[id], deckBasics[id]);
+        if (merged) {
+            combinedBasics[id] = merged;
+        }
+    });
 
     const defaultUnique = Array.isArray(defaults.unique) ? defaults.unique : [];
     const deckUnique = Array.isArray(deckProfile.unique) ? deckProfile.unique : [];
 
+    const baseChipsAmount = Number.isFinite(deckProfile.baseChipsAmount)
+        ? deckProfile.baseChipsAmount
+        : Number.isFinite(defaults.baseChipsAmount)
+          ? defaults.baseChipsAmount
+          : null;
+    const baseMultiplierAmount = Number.isFinite(deckProfile.baseMultiplierAmount)
+        ? deckProfile.baseMultiplierAmount
+        : Number.isFinite(defaults.baseMultiplierAmount)
+          ? defaults.baseMultiplierAmount
+          : null;
+    const baseDrawTime = Number.isFinite(deckProfile.baseDrawTime)
+        ? deckProfile.baseDrawTime
+        : Number.isFinite(defaults.baseDrawTime)
+          ? defaults.baseDrawTime
+          : null;
+
     return {
         basic: combinedBasics,
-        unique: [...defaultUnique, ...deckUnique]
+        unique: [...defaultUnique, ...deckUnique],
+        baseChipsAmount,
+        baseMultiplierAmount,
+        baseDrawTime
     };
 }
 
-function normalizeUpgradeEntry(id, baseSettings = {}, overrides = {}) {
-    const baseOptions = { ...(baseSettings.options ?? {}) };
-    if (baseSettings.amount != null) {
-        baseOptions.amount ??= baseSettings.amount;
+function normalizeUpgradeEntry(id, config = {}) {
+    if (!config) {
+        return null;
     }
-    if (baseSettings.minimumDuration != null) {
-        baseOptions.minimumDuration ??= baseSettings.minimumDuration;
+    if (typeof config === "string") {
+        return { id: config };
     }
-
-    const overrideOptions = { ...(overrides.options ?? {}) };
-    if (overrides.amount != null) {
-        overrideOptions.amount = overrides.amount;
-    }
-    if (overrides.minimumDuration != null) {
-        overrideOptions.minimumDuration = overrides.minimumDuration;
+    if (config.enabled === false) {
+        return null;
     }
 
-    const options = { ...baseOptions, ...overrideOptions };
+    const options = { ...(config.options ?? {}) };
+
+    if (config.minimumDuration != null) {
+        options.minimumDuration = config.minimumDuration;
+    }
+    if (config.amount != null) {
+        options.amount = config.amount;
+    }
+    if (config.increaseAmount != null) {
+        options.amount ??= config.increaseAmount;
+    }
+    if (config.baseAmount != null) {
+        options.amount ??= config.baseAmount;
+    }
+
+    const cost = Number.isFinite(config.cost) ? config.cost : undefined;
+    const baseCost = Number.isFinite(config.baseCost) ? config.baseCost : cost;
+    const costGrowthRate = Number.isFinite(config.costGrowthRate) ? config.costGrowthRate : undefined;
+    const costLinearCoefficient = Number.isFinite(config.costLinearCoefficient)
+        ? config.costLinearCoefficient
+        : undefined;
 
     const entry = {
         id,
-        cost: overrides.cost ?? baseSettings.cost,
-        baseCost: overrides.baseCost ?? overrides.cost ?? baseSettings.baseCost ?? baseSettings.cost,
-        costGrowthRate: overrides.costGrowthRate ?? baseSettings.costGrowthRate,
-        costLinearCoefficient: overrides.costLinearCoefficient ?? baseSettings.costLinearCoefficient,
+        cost,
+        baseCost,
+        costGrowthRate,
+        costLinearCoefficient,
         options
     };
 
-    if (overrides.baseAmount != null) {
-        entry.baseAmount = overrides.baseAmount;
-    } else if (baseSettings.baseAmount != null) {
-        entry.baseAmount = baseSettings.baseAmount;
+    if (config.baseAmount != null) {
+        entry.baseAmount = config.baseAmount;
+    } else if (config.increaseAmount != null) {
+        entry.baseAmount = config.increaseAmount;
     } else if (options.amount != null) {
         entry.baseAmount = options.amount;
     }
 
-    if (typeof overrides.resolveAmount === "function") {
-        entry.resolveAmount = overrides.resolveAmount;
-    } else if (typeof overrides.amountResolver === "function") {
-        entry.resolveAmount = overrides.amountResolver;
+    if (config.increaseAmount != null) {
+        entry.increaseAmount = config.increaseAmount;
+    } else if (entry.baseAmount != null) {
+        entry.increaseAmount = entry.baseAmount;
     }
 
-    if (overrides.title) {
-        entry.title = overrides.title;
+    if (typeof config.resolveAmount === "function") {
+        entry.resolveAmount = config.resolveAmount;
+    } else if (typeof config.amountResolver === "function") {
+        entry.resolveAmount = config.amountResolver;
     }
-    if (overrides.description) {
-        entry.description = overrides.description;
+
+    if (config.title) {
+        entry.title = config.title;
     }
-    if (overrides.type) {
-        entry.type = overrides.type;
+    if (config.description) {
+        entry.description = config.description;
+    }
+    if (config.type) {
+        entry.type = config.type;
+    }
+    if (config.definition) {
+        entry.definition = config.definition;
     }
 
     return entry;
@@ -351,15 +464,38 @@ function normalizeUpgradeEntry(id, baseSettings = {}, overrides = {}) {
 function buildDeckUpgradeList(config) {
     const deckId = config?.id ?? null;
     const profile = resolveDeckUpgradeProfile(deckId);
-    const basics = BASIC_UPGRADE_IDS.map((id) => {
-        const baseSettings = BASIC_UPGRADE_SETTINGS[id] ?? {};
-        const overrides = profile.basic?.[id] ?? {};
-        const entry = normalizeUpgradeEntry(id, baseSettings, overrides);
-        if (!entry) {
-            return null;
+    const basics = [];
+    const seenBasics = new Set();
+
+    const addBasicUpgrade = (id, settings) => {
+        if (seenBasics.has(id)) {
+            return;
         }
-        return createUpgradeInstance(entry);
-    }).filter(Boolean);
+        seenBasics.add(id);
+        const normalized = normalizeUpgradeEntry(id, settings);
+        if (!normalized) {
+            return;
+        }
+        const instance = createUpgradeInstance(normalized);
+        if (instance) {
+            basics.push(instance);
+        }
+    };
+
+    BASIC_UPGRADE_IDS.forEach((id) => {
+        if (profile.basic && Object.prototype.hasOwnProperty.call(profile.basic, id)) {
+            addBasicUpgrade(id, profile.basic[id]);
+        }
+    });
+
+    if (profile.basic) {
+        Object.entries(profile.basic).forEach(([id, settings]) => {
+            if (seenBasics.has(id)) {
+                return;
+            }
+            addBasicUpgrade(id, settings);
+        });
+    }
 
     const extras = profile.unique
         .map((entry) => {
@@ -373,8 +509,7 @@ function buildDeckUpgradeList(config) {
             if (!entryId) {
                 return null;
             }
-            const baseSettings = BASIC_UPGRADE_SETTINGS[entryId] ?? {};
-            const normalized = normalizeUpgradeEntry(entryId, baseSettings, entry);
+            const normalized = normalizeUpgradeEntry(entryId, entry);
             if (!normalized) {
                 return null;
             }
@@ -382,7 +517,12 @@ function buildDeckUpgradeList(config) {
         })
         .filter(Boolean);
 
-    return [...basics, ...extras];
+    return {
+        upgrades: [...basics, ...extras],
+        baseChipsAmount: profile.baseChipsAmount,
+        baseMultiplierAmount: profile.baseMultiplierAmount,
+        baseDrawTime: profile.baseDrawTime
+    };
 }
 
 function calculateUpgradeCost(upgrade) {
@@ -476,17 +616,30 @@ function renderUpgrades(state) {
 
         const cost = calculateUpgradeCost(upgrade);
         const amount = calculateUpgradeAmount(state, upgrade);
-        const shouldDisable = amount <= 0 || cost <= 0 || !Number.isFinite(cost);
+        const isMaxed = amount <= 0 || cost <= 0 || !Number.isFinite(cost);
+        const insufficientFunds = !isMaxed && !canAffordChips(cost);
+        const shouldDisable = isMaxed || insufficientFunds;
+
         button.disabled = shouldDisable;
-        button.textContent = shouldDisable ? "maxed" : formatChipAmount(cost);
-        upgrade.cost = shouldDisable ? 0 : cost;
-        button.setAttribute(
-            "aria-label",
-            shouldDisable
-                ? `upgrade ${upgrade.title ?? upgrade.id} maxed`
-                : `upgrade ${upgrade.title ?? upgrade.id} for ${formatChipAmount(cost)}`
-        );
-        button.dataset.cost = `${cost}`;
+        button.textContent = isMaxed ? "maxed" : formatChipAmount(cost);
+
+        upgrade.cost = isMaxed ? 0 : cost;
+
+        const formattedCost = Number.isFinite(cost) ? formatChipAmount(cost) : "";
+        const upgradeLabel = upgrade.title ?? upgrade.id;
+        if (isMaxed) {
+            button.setAttribute("aria-label", `upgrade ${upgradeLabel} maxed`);
+        } else if (insufficientFunds) {
+            button.setAttribute("aria-label", `upgrade ${upgradeLabel} for ${formattedCost} (not enough chips)`);
+        } else {
+            button.setAttribute("aria-label", `upgrade ${upgradeLabel} for ${formattedCost}`);
+        }
+
+        if (Number.isFinite(cost)) {
+            button.dataset.cost = `${cost}`;
+        } else {
+            delete button.dataset.cost;
+        }
         button.dataset.amount = `${amount}`;
 
         body.append(button);
@@ -527,6 +680,10 @@ function handleUpgradeClick(state, event) {
     if (!upgrade || button.disabled) {
         return;
     }
+    const cost = Number(button.dataset.cost ?? upgrade.cost ?? 0);
+    if (!spendChips(cost)) {
+        return;
+    }
     applyUpgrade(state, upgrade);
     renderUpgrades(state);
 }
@@ -535,18 +692,42 @@ export function setupDeckUpgrades(state) {
     if (!state?.dom?.upgradeColumn || !state.dom.upgradeList) {
         return;
     }
-    state.upgrades = buildDeckUpgradeList(state.config).map((upgrade) => ({
+    const {
+        upgrades: deckUpgrades,
+        baseChipsAmount,
+        baseMultiplierAmount,
+        baseDrawTime
+    } = buildDeckUpgradeList(state.config);
+
+    if (Number.isFinite(baseChipsAmount)) {
+        state.baseChipReward = baseChipsAmount;
+    }
+    if (Number.isFinite(baseMultiplierAmount) && baseMultiplierAmount > 0) {
+        state.chipStreakMultiplier = baseMultiplierAmount;
+    }
+    if (Number.isFinite(baseDrawTime) && baseDrawTime > 0) {
+        state.animationDuration = baseDrawTime;
+    }
+
+    state.upgrades = deckUpgrades.map((upgrade) => ({
         ...upgrade,
         cost: calculateUpgradeCost(upgrade),
         getCurrentValue: upgradeRegistry.get(upgrade.id)?.getCurrentValue
     }));
+
+    if (typeof state.unsubscribeChipListener === "function") {
+        state.unsubscribeChipListener();
+    }
+
+    state.renderUpgrades = () => renderUpgrades(state);
+    state.unsubscribeChipListener = subscribeToChipChanges(() => renderUpgrades(state));
 
     if (!state.dom.upgradeList.dataset.listenerAttached) {
         state.dom.upgradeList.dataset.listenerAttached = "true";
         state.dom.upgradeList.addEventListener("click", (event) => handleUpgradeClick(state, event));
     }
 
-    renderUpgrades(state);
+    state.renderUpgrades();
 }
 
 export function getBasicUpgradeIds() {

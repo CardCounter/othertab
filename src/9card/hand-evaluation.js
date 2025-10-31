@@ -1,4 +1,5 @@
 import { HAND_LABELS, HAND_SIZE, STREAK_TARGET } from "./config.js";
+import { formatChipAmount } from "./chips.js";
 
 export function isStraight(values) {
     const sorted = [...values].sort((a, b) => a - b);
@@ -116,12 +117,13 @@ export function getHighlightIndices(cards, classificationId) {
     }
 }
 
-export function buildResultMessage({ success, classification, streak, permanentlyCompleted }) {
+export function buildResultMessage({ success, classification, streak, permanentlyCompleted, payout = 0 }) {
     if (success) {
+        const formattedPayout = formatChipAmount(payout, { includeSymbol: false });
         if (permanentlyCompleted || streak >= STREAK_TARGET) {
-            return `hit ${classification.label}, streak: ${streak}`;
+            return `hit ${classification.label}, streak: ${streak}, payout: ${formattedPayout}⛁`;
         }
-        return `hit ${classification.label} ${streak}/${STREAK_TARGET}`;
+        return `hit ${classification.label} ${streak}/${STREAK_TARGET}, payout: ${formattedPayout}⛁`;
     }
     return `missed (${classification.label})`;
 }
