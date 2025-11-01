@@ -321,6 +321,9 @@ function cloneUpgradeConfig(entry) {
     if (entry.options && typeof entry.options === "object") {
         clone.options = { ...entry.options };
     }
+    if (entry.definition && typeof entry.definition === "object") {
+        clone.definition = { ...entry.definition };
+    }
     return clone;
 }
 
@@ -358,6 +361,22 @@ function mergeUpgradeConfig(baseEntry, overrideEntry) {
     });
 
     return merged;
+}
+
+function getUpgradeEntryId(entry) {
+    if (typeof entry === "string") {
+        return entry;
+    }
+    if (!entry || typeof entry !== "object") {
+        return null;
+    }
+    if (entry.id) {
+        return entry.id;
+    }
+    if (entry.definition && typeof entry.definition === "object" && entry.definition.id) {
+        return entry.definition.id;
+    }
+    return null;
 }
 
 function extractPoolEntriesFromConfig(poolConfig) {
@@ -521,6 +540,54 @@ function resolveDeckUpgradeProfile(deckId) {
     const defaultUnique = Array.isArray(defaults.unique) ? defaults.unique : [];
     const deckUnique = Array.isArray(deckProfile.unique) ? deckProfile.unique : [];
 
+    const uniqueOrder = [];
+    const uniqueMap = new Map();
+
+    const addUniqueEntry = (entry) => {
+        if (entry == null) {
+            return;
+        }
+        const id = getUpgradeEntryId(entry);
+        if (!id) {
+            return;
+        }
+        if (!uniqueMap.has(id)) {
+            uniqueOrder.push(id);
+        }
+        if (typeof entry === "string") {
+            uniqueMap.set(id, entry);
+            return;
+        }
+        if (entry.enabled === false) {
+            uniqueMap.set(id, { id, enabled: false });
+            return;
+        }
+        const clone = cloneUpgradeConfig(entry) ?? { ...entry };
+        clone.id = clone.id ?? id;
+        uniqueMap.set(id, clone);
+    };
+
+    defaultUnique.forEach(addUniqueEntry);
+    deckUnique.forEach(addUniqueEntry);
+
+    const combinedUnique = uniqueOrder
+        .map((id) => {
+            const entry = uniqueMap.get(id);
+            if (!entry) {
+                return null;
+            }
+            if (typeof entry === "object" && entry.enabled === false) {
+                return null;
+            }
+            if (typeof entry === "string") {
+                return entry;
+            }
+            const clone = cloneUpgradeConfig(entry) ?? { ...entry };
+            clone.id = clone.id ?? id;
+            return clone;
+        })
+        .filter(Boolean);
+
     const defaultUniquePools = getPoolEntriesFromConfig(defaults.uniquePools);
     const deckUniquePools = getPoolEntriesFromConfig(deckProfile.uniquePools);
 
@@ -575,7 +642,7 @@ function resolveDeckUpgradeProfile(deckId) {
 
     return {
         basic: combinedBasics,
-        unique: [...defaultUnique, ...deckUnique],
+        unique: combinedUnique,
         uniquePools: combinedPools,
         baseChipsAmount,
         baseMultiplierAmount,
