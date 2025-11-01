@@ -375,13 +375,19 @@ function resolveDeckUpgradeProfile(deckId) {
         : Number.isFinite(defaults.baseDrawTime)
           ? defaults.baseDrawTime
           : null;
+    const baseHandSize = Number.isFinite(deckProfile.baseHandSize)
+        ? deckProfile.baseHandSize
+        : Number.isFinite(defaults.baseHandSize)
+          ? defaults.baseHandSize
+          : null;
 
     return {
         basic: combinedBasics,
         unique: [...defaultUnique, ...deckUnique],
         baseChipsAmount,
         baseMultiplierAmount,
-        baseDrawTime
+        baseDrawTime,
+        baseHandSize
     };
 }
 
@@ -804,7 +810,8 @@ export function setupDeckUpgrades(state) {
         upgrades: deckUpgrades,
         baseChipsAmount,
         baseMultiplierAmount,
-        baseDrawTime
+        baseDrawTime,
+        baseHandSize
     } = buildDeckUpgradeList(state.config);
 
     if (Number.isFinite(baseChipsAmount)) {
@@ -815,6 +822,9 @@ export function setupDeckUpgrades(state) {
     }
     if (Number.isFinite(baseDrawTime) && baseDrawTime > 0) {
         state.animationDuration = baseDrawTime;
+    }
+    if (Number.isFinite(baseHandSize) && baseHandSize > 0) {
+        state.handSize = baseHandSize;
     }
 
     state.upgrades = deckUpgrades.map((upgrade) => ({

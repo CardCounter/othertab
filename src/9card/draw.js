@@ -1,4 +1,4 @@
-import { HAND_SIZE, STREAK_TARGET } from "./config.js";
+import { STREAK_TARGET } from "./config.js";
 import {
     drawHandFromDeck,
     getCachedDeckCards,
@@ -32,7 +32,21 @@ function scheduleNextAutoDraw(state) {
     }, state.autoDrawInterval ?? 0);
 }
 
-function animateShuffle(state, durationMs) {
+function resolveHandSize(state) {
+    const candidate = Number.isFinite(state?.handSize) ? Math.floor(state.handSize) : null;
+    if (candidate != null && candidate > 0) {
+        return candidate;
+    }
+    const configSize = Number.isFinite(state?.config?.handSize)
+        ? Math.floor(state.config.handSize)
+        : null;
+    if (configSize != null && configSize > 0) {
+        return configSize;
+    }
+    return 5;
+}
+
+function animateShuffle(state, durationMs, handSize) {
     return new Promise((resolve) => {
         if (!state || durationMs <= 0) {
             resolve();
@@ -40,7 +54,7 @@ function animateShuffle(state, durationMs) {
         }
 
         const deck = getCachedDeckCards(state);
-        if (deck.length < HAND_SIZE) {
+        if (deck.length < handSize) {
             resolve();
             return;
         }
@@ -52,10 +66,10 @@ function animateShuffle(state, durationMs) {
         let lastUpdateTime = startTime;
 
         let cardElements = Array.from(container.children);
-        if (cardElements.length !== HAND_SIZE) {
+        if (cardElements.length !== handSize) {
             container.replaceChildren();
             cardElements = [];
-            for (let i = 0; i < HAND_SIZE; i += 1) {
+            for (let i = 0; i < handSize; i += 1) {
                 const span = document.createElement("span");
                 span.className = "poker-hand-card";
                 container.appendChild(span);
@@ -75,8 +89,8 @@ function animateShuffle(state, durationMs) {
 
             const timeSinceLastUpdate = currentTime - lastUpdateTime;
             if (timeSinceLastUpdate >= frameDelay) {
-                const randomCards = drawHandFromDeck(deck, HAND_SIZE);
-                if (randomCards.length === HAND_SIZE) {
+                const randomCards = drawHandFromDeck(deck, handSize);
+                if (randomCards.length === handSize) {
                     randomCards.forEach((card, index) => {
                         const element = cardElements[index];
                         if (!element) {
@@ -115,9 +129,10 @@ export async function handleDraw(state) {
         return;
     }
 
+    const handSize = resolveHandSize(state);
     const deck = getCachedDeckCards(state);
-    if (deck.length < HAND_SIZE) {
-        state.dom.result.textContent = "need at least five cards in the deck";
+    if (deck.length < handSize) {
+        state.dom.result.textContent = `need at least ${handSize} cards in the deck`;
         state.dom.result.classList.remove("success");
         state.dom.result.classList.add("fail");
         if (state.autoDrawEnabled && typeof state.setAutoDrawEnabled === "function") {
@@ -133,11 +148,11 @@ export async function handleDraw(state) {
     state.dom.button.disabled = true;
 
     try {
-        await animateShuffle(state, state.animationDuration);
+        await animateShuffle(state, state.animationDuration, handSize);
 
-        const cards = drawHandFromDeck(deck, HAND_SIZE);
-        if (cards.length < HAND_SIZE) {
-            state.dom.result.textContent = "need at least five cards in the deck";
+        const cards = drawHandFromDeck(deck, handSize);
+        if (cards.length < handSize) {
+            state.dom.result.textContent = `need at least ${handSize} cards in the deck`;
             state.dom.result.classList.remove("success");
             state.dom.result.classList.add("fail");
             if (state.autoDrawEnabled && typeof state.setAutoDrawEnabled === "function") {
@@ -146,7 +161,7 @@ export async function handleDraw(state) {
             return;
         }
 
-        const classification = classifyHand(cards);
+        const classification = classifyHand(cards, handSize);
         const success = classification.id === state.config.target;
 
         removeCardsFromDeck(state, cards);
@@ -178,8 +193,8 @@ export async function handleDraw(state) {
             renderDeckGrid(state);
         }
 
-        const highlightIndices = success ? getHighlightIndices(cards, classification.id) : [];
-        updateHandDisplay(state.dom.handContainer, cards, highlightIndices);
+        const highlightIndices = success ? getHighlightIndices(cards, classification.id, handSize) : [];
+        updateHandDisplay(state.dom.handContainer, cards, highlightIndices, handSize);
 
         const message = buildResultMessage({
             success,

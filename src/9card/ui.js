@@ -230,11 +230,21 @@ export function renderDeckGrid(state) {
     state.dom.deckGrid.replaceChildren(fragment);
 }
 
-export function updateHandDisplay(container, cards, highlightIndices = []) {
+export function updateHandDisplay(container, cards, highlightIndices = [], handSize = cards.length) {
     const highlightSet = new Set(highlightIndices);
-    container.replaceChildren(
-        ...cards.map((card, index) => createHandCardElement(card, highlightSet.has(index)))
-    );
+    const total = Number.isFinite(handSize) ? Math.floor(handSize) : cards.length;
+    const elements = [];
+    for (let index = 0; index < total; index += 1) {
+        const card = cards[index];
+        if (card) {
+            elements.push(createHandCardElement(card, highlightSet.has(index)));
+        } else {
+            const span = document.createElement("span");
+            span.className = "poker-hand-card";
+            elements.push(span);
+        }
+    }
+    container.replaceChildren(...elements);
 }
 
 function formatShopPrice(value) {
