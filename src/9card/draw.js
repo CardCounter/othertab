@@ -13,6 +13,25 @@ import { clearPendingDelete, resetDeckToBaseline } from "./deck-management.js";
 import { renderDeckGrid, updateHandDisplay } from "./ui.js";
 import { awardChips } from "./chips.js";
 
+function scheduleNextAutoDraw(state) {
+    if (!state?.autoDrawEnabled || state.autoDrawScheduled) {
+        return;
+    }
+    state.autoDrawScheduled = true;
+    state.autoDrawTimerId = setTimeout(() => {
+        state.autoDrawScheduled = false;
+        state.autoDrawTimerId = null;
+        if (!state.autoDrawEnabled) {
+            return;
+        }
+        if (state.pendingDraw || state.isAnimating || state.dom.button.disabled) {
+            scheduleNextAutoDraw(state);
+            return;
+        }
+        handleDraw(state);
+    }, state.autoDrawInterval ?? 0);
+}
+
 function animateShuffle(state, durationMs) {
     return new Promise((resolve) => {
         if (!state || durationMs <= 0) {
@@ -101,6 +120,9 @@ export async function handleDraw(state) {
         state.dom.result.textContent = "need at least five cards in the deck";
         state.dom.result.classList.remove("success");
         state.dom.result.classList.add("fail");
+        if (state.autoDrawEnabled && typeof state.setAutoDrawEnabled === "function") {
+            state.setAutoDrawEnabled(false);
+        }
         return;
     }
 
@@ -118,6 +140,9 @@ export async function handleDraw(state) {
             state.dom.result.textContent = "need at least five cards in the deck";
             state.dom.result.classList.remove("success");
             state.dom.result.classList.add("fail");
+            if (state.autoDrawEnabled && typeof state.setAutoDrawEnabled === "function") {
+                state.setAutoDrawEnabled(false);
+            }
             return;
         }
 
@@ -171,5 +196,8 @@ export async function handleDraw(state) {
         state.isAnimating = false;
         state.pendingDraw = false;
         state.dom.button.disabled = false;
+        if (state.autoDrawEnabled) {
+            scheduleNextAutoDraw(state);
+        }
     }
 }
