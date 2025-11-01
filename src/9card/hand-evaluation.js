@@ -1,31 +1,35 @@
-import { HAND_LABELS, HAND_SIZE, STREAK_TARGET } from "./config.js";
+import { HAND_LABELS, STREAK_TARGET } from "./config.js";
 import { formatChipAmount } from "./chips.js";
 
-export function isStraight(values) {
+export function isStraight(values, handSize) {
+    const count = Number.isFinite(handSize) ? Math.floor(handSize) : values.length;
     const sorted = [...values].sort((a, b) => a - b);
     const unique = [...new Set(sorted)];
-    if (unique.length !== HAND_SIZE) {
+    if (unique.length !== count) {
         return { straight: false, high: null };
     }
     const first = unique[0];
-    const expected = Array.from({ length: HAND_SIZE }, (_, index) => first + index);
+    const expected = Array.from({ length: count }, (_, index) => first + index);
     const matches = expected.every((value, index) => value === unique[index]);
     if (matches) {
         return { straight: true, high: unique[unique.length - 1] };
     }
-    const wheel = [2, 3, 4, 5, 14];
-    const isWheel = wheel.every((value, index) => unique[index] === value);
-    if (isWheel) {
-        return { straight: true, high: 5 };
+    if (count === 5) {
+        const wheel = [2, 3, 4, 5, 14];
+        const isWheel = wheel.every((value, index) => unique[index] === value);
+        if (isWheel) {
+            return { straight: true, high: 5 };
+        }
     }
     return { straight: false, high: null };
 }
 
-export function classifyHand(cards) {
+export function classifyHand(cards, handSize) {
+    const count = Number.isFinite(handSize) ? Math.floor(handSize) : cards.length;
     const suits = cards.map((card) => card.suit);
     const values = cards.map((card) => card.value);
     const flush = suits.every((suit) => suit === suits[0]);
-    const { straight, high } = isStraight(values);
+    const { straight, high } = isStraight(values, count);
 
     const counts = new Map();
     values.forEach((value) => {
@@ -71,7 +75,8 @@ export function classifyHand(cards) {
     return { id: "high_card", label: HAND_LABELS.high_card };
 }
 
-export function getHighlightIndices(cards, classificationId) {
+export function getHighlightIndices(cards, classificationId, handSize) {
+    const count = Number.isFinite(handSize) ? Math.floor(handSize) : cards.length;
     const values = cards.map((card) => card.value);
     const indexMap = new Map();
     values.forEach((value, index) => {
@@ -110,7 +115,7 @@ export function getHighlightIndices(cards, classificationId) {
         case "flush":
         case "straight_flush":
         case "royal_flush": {
-            return Array.from({ length: HAND_SIZE }, (_, index) => index);
+            return Array.from({ length: count }, (_, index) => index);
         }
         default:
             return [];

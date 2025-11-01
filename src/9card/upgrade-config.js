@@ -1,25 +1,29 @@
+import { HAND_SIZE } from "./config.js";
+
 /**
- * Deck-specific upgrade settings.
+ * deck-specific upgrade settings.
  *
- * Each deck entry can provide:
- * - baseChipsAmount: starting chip payout for the deck (applied on setup)
- * - baseMultiplierAmount: starting streak multiplier for the deck
- * - baseDrawTime: initial shuffle animation duration in ms
- * - basic: map of upgrade id -> config
- * - unique: list of deck-only upgrades (id or config objects)
+ * each deck entry can provide:
+ * , baseChipsAmount: starting chip payout for the deck (applied on setup)
+ * , baseMultiplierAmount: starting streak multiplier for the deck
+ * , baseDrawTime: initial shuffle animation duration in ms
+ * , baseHandSize: starting hand size for the deck
+ * , basic: map of upgrade id -> config
+ * , unique: list of deck only upgrades (id or config objects)
  *
- * Upgrade config fields:
- * - cost, costGrowthRate, costLinearCoefficient, baseCost (optional)
- * - increaseAmount / baseAmount to set how much the upgrade changes the stat each purchase
- * - options: arbitrary additional data passed to the upgrade implementation
- * - minimumDuration, amount, etc. can be set directly or inside options
- * - resolveAmount, title, description, type, definition (for unique upgrades)
+ * upgrade config fields:
+ * , cost, costGrowthRate, costLinearCoefficient, baseCost (optional)
+ * , increaseAmount / baseAmount to set how much the upgrade changes the stat each purchase
+ * , options: arbitrary additional data passed to the upgrade implementation
+ * , minimumDuration, amount, etc. can be set directly or inside options
+ * , resolveAmount, title, description, type, definition (for unique upgrades)
  */
 export const DECK_UPGRADE_CONFIG = {
     default: {
         baseChipsAmount: 1,
         baseMultiplierAmount: 1.0,
         baseDrawTime: 2000,
+        baseHandSize: HAND_SIZE,
         basic: {
             increase_payout: {
                 cost: 25,

@@ -1,6 +1,7 @@
 import {
     DECKS,
     HAND_LABELS,
+    HAND_SIZE,
     DEFAULT_BASE_CHIP_PAYOUT,
     DEFAULT_STREAK_CHIP_MULTIPLIER
 } from "./config.js";
@@ -61,6 +62,7 @@ export function initPokerPage() {
             config,
             dom,
             navButton,
+            handSize: config.handSize ?? HAND_SIZE,
             streak: 0,
             permanentlyCompleted: false,
             deckSlots,

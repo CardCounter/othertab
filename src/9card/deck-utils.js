@@ -1,7 +1,6 @@
 import {
     RANKS,
     SUITS,
-    HAND_SIZE,
     SUIT_ORDER_INDEX,
     RANK_ORDER_INDEX,
     CARDS_PER_ROW,
@@ -338,13 +337,14 @@ export function getInitialDeckForChallenge(deckId) {
     return sortDeckCards(createStandardDeck());
 }
 
-export function drawHandFromDeck(deck, handSize = HAND_SIZE) {
-    if (!Array.isArray(deck) || deck.length < handSize) {
+export function drawHandFromDeck(deck, handSize) {
+    const count = Number.isFinite(handSize) ? Math.floor(handSize) : 0;
+    if (!Array.isArray(deck) || count <= 0 || deck.length < count) {
         return [];
     }
     const pool = [...deck];
     const hand = [];
-    for (let i = 0; i < handSize; i += 1) {
+    for (let i = 0; i < count; i += 1) {
         const randomIndex = Math.floor(Math.random() * pool.length);
         hand.push(pool[randomIndex]);
         pool[randomIndex] = pool[pool.length - 1];
