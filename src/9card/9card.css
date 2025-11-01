@@ -187,6 +187,16 @@ footer {
     color: inherit;
 }
 
+.poker-button.auto-draw-toggle.auto-draw-enabled {
+    background-color: blue;
+    color: white;
+}
+
+.dark-mode .poker-button.auto-draw-toggle.auto-draw-enabled {
+    background-color: red;
+    color: black;
+}
+
 .poker-hand {
     display: flex;
     flex-wrap: wrap;
@@ -799,7 +809,7 @@ footer {
 
 
 
-.upgrade-column {
+.upgrade-area {
     flex: 1 1 0;
     border: 1px solid currentColor;
     padding: 1rem clamp(1rem, 2vw, 1.5rem) 2.5rem;
@@ -810,6 +820,52 @@ footer {
     width: 100%;
     box-sizing: border-box;
     text-transform: lowercase;
+    gap: 1.5rem;
+}
+
+.upgrade-column {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    flex: 1 1 auto;
+}
+
+.upgrade-slots {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 0.75rem;
+}
+
+.upgrade-slot {
+    border: 1px solid currentColor;
+    min-height: 76px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+    padding: 0.4rem;
+    text-align: center;
+    background: var(--page-background-color);
+    position: relative;
+}
+
+.upgrade-slot.empty {
+    opacity: 0.4;
+}
+
+.upgrade-slot.locked {
+    visibility: hidden;
+}
+
+.upgrade-slot-title {
+    font-size: 0.95rem;
+    letter-spacing: 0.02em;
+}
+
+.upgrade-slot-detail {
+    font-size: 0.85rem;
+    letter-spacing: 0.04em;
 }
 
 .upgrade-list {
@@ -907,7 +963,7 @@ footer {
     }
 
     .deck-column,
-    .upgrade-column {
+    .upgrade-area {
         flex: 1 1 auto;
         width: 100%;
     }
@@ -925,5 +981,9 @@ footer {
 
     .card-shop-slots {
         grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    }
+
+    .upgrade-slots {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
     }
 }

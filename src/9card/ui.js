@@ -55,11 +55,17 @@ export function createDeckElement(config) {
     button.type = "button";
     button.textContent = "draw hand";
 
+    const autoButton = document.createElement("button");
+    autoButton.className = "poker-button auto-draw-toggle";
+    autoButton.type = "button";
+    autoButton.textContent = "auto: off";
+    autoButton.setAttribute("aria-pressed", "false");
+
     const handContainer = document.createElement("div");
     handContainer.className = "poker-hand";
     handContainer.setAttribute("aria-live", "polite");
 
-    row.append(button, handContainer);
+    row.append(button, autoButton, handContainer);
 
     const result = document.createElement("p");
     result.className = "poker-result";
@@ -125,16 +131,24 @@ export function createDeckElement(config) {
 
     deckColumn.append(deckGrid, cardShop);
 
+    const upgradeArea = document.createElement("div");
+    upgradeArea.className = "upgrade-area";
+
+    const upgradeSlots = document.createElement("div");
+    upgradeSlots.className = "upgrade-slots";
+    upgradeSlots.setAttribute("role", "list");
+    upgradeSlots.setAttribute("aria-label", "equipped upgrades");
+
     const upgradeColumn = document.createElement("div");
     upgradeColumn.className = "upgrade-column";
-
     const upgradeList = document.createElement("div");
     upgradeList.className = "upgrade-list";
     upgradeList.setAttribute("role", "list");
 
     upgradeColumn.append(upgradeList);
+    upgradeArea.append(upgradeSlots, upgradeColumn);
 
-    managementSection.append(deckColumn, upgradeColumn);
+    managementSection.append(deckColumn, upgradeArea);
 
     root.append(row, result, managementSection);
 
@@ -151,8 +165,11 @@ export function createDeckElement(config) {
         cardShopRerollButton,
         cardShopRerollPrice,
         cardShopDiscardValue,
+        upgradeArea,
         upgradeColumn,
-        upgradeList
+        upgradeSlots,
+        upgradeList,
+        autoButton
     };
 }
 

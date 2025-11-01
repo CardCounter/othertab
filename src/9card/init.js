@@ -71,6 +71,12 @@ export function initPokerPage() {
             animationDuration: 1000,
             animationFrameDelay: 70,
             pendingDraw: false,
+            defaultAnimationDuration: 1000,
+            defaultAnimationFrameDelay: 70,
+            autoDrawEnabled: false,
+            autoDrawScheduled: false,
+            autoDrawTimerId: null,
+            autoDrawInterval: 0,
             baseChipReward: config.baseChipReward ?? DEFAULT_BASE_CHIP_PAYOUT,
             chipStreakMultiplier:
                 config.chipStreakMultiplier ?? DEFAULT_STREAK_CHIP_MULTIPLIER
@@ -80,8 +86,48 @@ export function initPokerPage() {
         setupCardShop(state);
         setupDeckUpgrades(state);
 
+        const updateAutoButton = () => {
+            state.dom.autoButton.classList.toggle("auto-draw-enabled", state.autoDrawEnabled);
+            state.dom.autoButton.textContent = state.autoDrawEnabled ? "auto: on" : "auto: off";
+            state.dom.autoButton.setAttribute("aria-pressed", state.autoDrawEnabled ? "true" : "false");
+        };
+
+        const cancelScheduledAutoDraw = () => {
+            if (state.autoDrawTimerId !== null) {
+                clearTimeout(state.autoDrawTimerId);
+                state.autoDrawTimerId = null;
+            }
+            state.autoDrawScheduled = false;
+        };
+
+        const setAutoDrawEnabled = (enabled) => {
+            if (state.autoDrawEnabled === enabled) {
+                return;
+            }
+            state.autoDrawEnabled = enabled;
+            if (enabled) {
+                state.animationDuration = 0;
+                state.animationFrameDelay = 0;
+                updateAutoButton();
+                if (!state.pendingDraw && !state.isAnimating) {
+                    handleDraw(state);
+                }
+            } else {
+                state.animationDuration = state.defaultAnimationDuration;
+                state.animationFrameDelay = state.defaultAnimationFrameDelay;
+                cancelScheduledAutoDraw();
+                updateAutoButton();
+            }
+        };
+
+        state.setAutoDrawEnabled = setAutoDrawEnabled;
+
         navButton.addEventListener("click", () => activateDeck(state));
         state.dom.button.addEventListener("click", () => handleDraw(state));
+        updateAutoButton();
+        state.dom.autoButton.addEventListener("click", () =>
+            setAutoDrawEnabled(!state.autoDrawEnabled)
+        );
         setupKeyboardControls(state, () => handleDraw(state));
 
         tabList.append(navButton);

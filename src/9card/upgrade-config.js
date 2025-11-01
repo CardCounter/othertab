@@ -46,7 +46,7 @@ export const DECK_UPGRADE_CONFIG = {
         unique: []
     },
     high_card: {
-        baseChipsAmount: 1000000000000000000000000,
+        baseChipsAmount: 1,
         baseMultiplierAmount: 1.0,
         baseDrawTime: 2000,
         basic: {
@@ -68,7 +68,7 @@ export const DECK_UPGRADE_CONFIG = {
                 costLinearCoefficient: 0.35,
                 increaseAmount: 50,
                 options: {
-                    minimumDuration: 0
+                    minimumDuration: 1
                 }
             }
         },
@@ -117,7 +117,32 @@ export const DECK_UPGRADE_CONFIG = {
     four_kind: { basic: {}, unique: [] },
     straight_flush: { basic: {}, unique: [] },
     royal_flush: {
-        basic: {},
+        baseChipsAmount: 1,
+        baseMultiplierAmount: 1.0,
+        baseDrawTime: 2000,
+        basic: {
+            increase_payout: {
+                cost: 5,
+                costGrowthRate: 1.2,
+                costLinearCoefficient: 0.22,
+                increaseAmount: 1
+            },
+            increase_streak_multiplier: {
+                cost: 50,
+                costGrowthRate: 2.2,
+                costLinearCoefficient: 0.25,
+                increaseAmount: 0.1
+            },
+            decrease_draw_time: {
+                cost: 500,
+                costGrowthRate: 3.2,
+                costLinearCoefficient: 0.35,
+                increaseAmount: 50,
+                options: {
+                    minimumDuration: 1
+                }
+            }
+        },
         unique: []
     }
 };

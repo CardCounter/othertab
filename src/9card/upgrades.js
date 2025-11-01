@@ -11,6 +11,8 @@ export const UPGRADE_TYPES = {
 };
 
 const BASIC_UPGRADE_IDS = ["increase_payout", "increase_streak_multiplier", "decrease_draw_time"];
+const DEFAULT_UNLOCKED_UPGRADE_SLOTS = 6;
+const MAX_UPGRADE_SLOT_COUNT = 7;
 
 const upgradeRegistry = new Map();
 
@@ -566,6 +568,103 @@ function calculateUpgradeAmount(state, upgrade) {
     return baseAmount;
 }
 
+function getUnlockedUpgradeSlotCount(state) {
+    const customCount = Number.isFinite(state?.unlockedUpgradeSlots) ? state.unlockedUpgradeSlots : null;
+    const resolved = customCount != null ? customCount : DEFAULT_UNLOCKED_UPGRADE_SLOTS;
+    if (!Number.isFinite(resolved) || resolved <= 0) {
+        return 0;
+    }
+    return Math.min(Math.max(Math.floor(resolved), 0), MAX_UPGRADE_SLOT_COUNT);
+}
+
+function getPurchasedUpgradesInOrder(state) {
+    if (!state?.upgrades) {
+        return [];
+    }
+    const order = Array.isArray(state.purchasedUpgradeOrder) ? state.purchasedUpgradeOrder : [];
+    const orderSet = new Set(order);
+    const byId = new Map(state.upgrades.map((upgrade) => [upgrade.id, upgrade]));
+
+    const ordered = order
+        .map((id) => byId.get(id))
+        .filter((upgrade) => upgrade && Number.isFinite(upgrade.level) && upgrade.level > 0);
+
+    state.upgrades.forEach((upgrade) => {
+        if (!upgrade || !Number.isFinite(upgrade.level) || upgrade.level <= 0) {
+            return;
+        }
+        if (!orderSet.has(upgrade.id)) {
+            ordered.push(upgrade);
+        }
+    });
+
+    return ordered;
+}
+
+function renderUpgradeSlots(state) {
+    if (!state?.dom?.upgradeSlots) {
+        return;
+    }
+    const container = state.dom.upgradeSlots;
+    const unlockedSlots = getUnlockedUpgradeSlotCount(state);
+    const purchasedUpgrades = getPurchasedUpgradesInOrder(state);
+    const fragment = document.createDocumentFragment();
+
+    for (let index = 0; index < MAX_UPGRADE_SLOT_COUNT; index += 1) {
+        const slot = document.createElement("div");
+        slot.className = "upgrade-slot";
+        slot.setAttribute("role", "listitem");
+
+        if (index >= unlockedSlots) {
+            slot.classList.add("locked");
+            slot.setAttribute("aria-label", "locked upgrade slot");
+            const label = document.createElement("span");
+            label.className = "upgrade-slot-title";
+            label.textContent = "locked";
+            slot.append(label);
+            fragment.append(slot);
+            continue;
+        }
+
+        const upgrade = purchasedUpgrades[index];
+        if (!upgrade) {
+            slot.classList.add("empty");
+            slot.setAttribute("aria-label", "empty upgrade slot");
+            fragment.append(slot);
+            continue;
+        }
+
+        const primaryText =
+            typeof upgrade.getCurrentValue === "function"
+                ? upgrade.getCurrentValue(state)
+                : upgrade.title ?? upgrade.id;
+
+        const title = document.createElement("span");
+        title.className = "upgrade-slot-title";
+        title.textContent = primaryText;
+        slot.append(title);
+
+        const level = Number.isFinite(upgrade.level) ? Math.max(0, upgrade.level) : 0;
+        const detailText = level > 0 ? `lv ${level}` : "";
+        if (detailText) {
+            const detail = document.createElement("span");
+            detail.className = "upgrade-slot-detail";
+            detail.textContent = detailText;
+            slot.append(detail);
+        }
+
+        const ariaParts = [primaryText.trim()];
+        if (detailText) {
+            ariaParts.push(detailText);
+        }
+        slot.setAttribute("aria-label", ariaParts.join(", "));
+
+        fragment.append(slot);
+    }
+
+    container.replaceChildren(fragment);
+}
+
 function renderUpgrades(state) {
     if (!state?.dom?.upgradeList) {
         return;
@@ -580,6 +679,7 @@ function renderUpgrades(state) {
         empty.textContent = "no upgrades available";
         fragment.append(empty);
         list.replaceChildren(fragment);
+        renderUpgradeSlots(state);
         return;
     }
 
@@ -649,6 +749,7 @@ function renderUpgrades(state) {
     });
 
     list.replaceChildren(fragment);
+    renderUpgradeSlots(state);
 }
 
 function applyUpgrade(state, upgrade) {
@@ -659,11 +760,18 @@ function applyUpgrade(state, upgrade) {
     if (amount <= 0) {
         return;
     }
+    const previousLevel = Number.isFinite(upgrade.level) ? upgrade.level : 0;
     upgrade.computedAmount = amount;
     upgrade.applyEffect(state, upgrade);
     delete upgrade.computedAmount;
-    upgrade.level = (Number.isFinite(upgrade.level) ? upgrade.level : 0) + 1;
+    upgrade.level = previousLevel + 1;
     upgrade.purchased = upgrade.level > 0;
+    if (upgrade.level > 0 && previousLevel === 0) {
+        if (!Array.isArray(state.purchasedUpgradeOrder)) {
+            state.purchasedUpgradeOrder = [];
+        }
+        state.purchasedUpgradeOrder.push(upgrade.id);
+    }
     upgrade.cost = calculateUpgradeCost(upgrade);
 }
 
@@ -689,7 +797,7 @@ function handleUpgradeClick(state, event) {
 }
 
 export function setupDeckUpgrades(state) {
-    if (!state?.dom?.upgradeColumn || !state.dom.upgradeList) {
+    if (!state?.dom?.upgradeList || !state.dom.upgradeSlots) {
         return;
     }
     const {
@@ -715,11 +823,30 @@ export function setupDeckUpgrades(state) {
         getCurrentValue: upgradeRegistry.get(upgrade.id)?.getCurrentValue
     }));
 
+    if (!Array.isArray(state.purchasedUpgradeOrder)) {
+        state.purchasedUpgradeOrder = [];
+    }
+    const purchaseOrderSet = new Set(state.purchasedUpgradeOrder);
+    state.upgrades.forEach((upgrade) => {
+        if (!upgrade || !Number.isFinite(upgrade.level) || upgrade.level <= 0) {
+            return;
+        }
+        if (!purchaseOrderSet.has(upgrade.id)) {
+            state.purchasedUpgradeOrder.push(upgrade.id);
+            purchaseOrderSet.add(upgrade.id);
+        }
+    });
+
+    if (!Number.isFinite(state.unlockedUpgradeSlots) || state.unlockedUpgradeSlots < 0) {
+        state.unlockedUpgradeSlots = DEFAULT_UNLOCKED_UPGRADE_SLOTS;
+    }
+
     if (typeof state.unsubscribeChipListener === "function") {
         state.unsubscribeChipListener();
     }
 
     state.renderUpgrades = () => renderUpgrades(state);
+    state.renderUpgradeSlots = () => renderUpgradeSlots(state);
     state.unsubscribeChipListener = subscribeToChipChanges(() => renderUpgrades(state));
 
     if (!state.dom.upgradeList.dataset.listenerAttached) {
