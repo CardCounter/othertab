@@ -17,6 +17,7 @@ import { handleDraw } from "./draw.js";
 import { setupKeyboardControls } from "./keyboard.js";
 import { initChipDisplay } from "./chips.js";
 import { setupDeckUpgrades } from "./upgrades.js";
+import { getDeckEvaluator } from "./evaluators/index.js";
 
 export function initPokerPage() {
     const tabList = document.getElementById("poker-tabs");
@@ -81,7 +82,8 @@ export function initPokerPage() {
             autoDrawInterval: 0,
             baseChipReward: config.baseChipReward ?? DEFAULT_BASE_CHIP_PAYOUT,
             chipStreakMultiplier:
-                config.chipStreakMultiplier ?? DEFAULT_STREAK_CHIP_MULTIPLIER
+                config.chipStreakMultiplier ?? DEFAULT_STREAK_CHIP_MULTIPLIER,
+            evaluateHand: getDeckEvaluator(config.id)
         };
 
         setupDeckManagement(state);

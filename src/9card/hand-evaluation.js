@@ -1,7 +1,11 @@
 import { HAND_LABELS, STREAK_TARGET } from "./config.js";
 import { formatChipAmount } from "./chips.js";
 
-export function isStraight(values, handSize) {
+export function isStraight(values, handSize, context = {}) {
+    return detectStandardStraight(values, handSize, context);
+}
+
+export function detectStandardStraight(values, handSize, context = {}) {
     const count = Number.isFinite(handSize) ? Math.floor(handSize) : values.length;
     const sorted = [...values].sort((a, b) => a - b);
     const unique = [...new Set(sorted)];
@@ -24,55 +28,129 @@ export function isStraight(values, handSize) {
     return { straight: false, high: null };
 }
 
-export function classifyHand(cards, handSize) {
+export function analyzeHand(cards, handSize, options = {}) {
     const count = Number.isFinite(handSize) ? Math.floor(handSize) : cards.length;
     const suits = cards.map((card) => card.suit);
     const values = cards.map((card) => card.value);
-    const flush = suits.every((suit) => suit === suits[0]);
-    const { straight, high } = isStraight(values, count);
-
+    const detectStraight = typeof options.detectStraight === "function"
+        ? options.detectStraight
+        : detectStandardStraight;
+    const straight = detectStraight(values, count, options.context ?? {});
     const counts = new Map();
     values.forEach((value) => {
         counts.set(value, (counts.get(value) ?? 0) + 1);
     });
     const countValues = Array.from(counts.values()).sort((a, b) => b - a);
+    const uniqueValues = [...new Set(values)].sort((a, b) => a - b);
+    return {
+        cards,
+        count,
+        suits,
+        values,
+        flush: suits.length > 0 ? suits.every((suit) => suit === suits[0]) : false,
+        straight,
+        counts,
+        countValues,
+        uniqueValues
+    };
+}
 
-    if (straight && flush) {
-        if (high === 14) {
-            return { id: "royal_flush", label: HAND_LABELS.royal_flush };
+export const DEFAULT_CLASSIFICATION_RULES = [
+    (analysis) => {
+        if (analysis.straight?.straight && analysis.flush) {
+            if (analysis.straight.high === 14) {
+                return { id: "royal_flush" };
+            }
+            return { id: "straight_flush" };
         }
-        return { id: "straight_flush", label: HAND_LABELS.straight_flush };
-    }
-
-    if (countValues[0] === 4) {
-        return { id: "four_kind", label: HAND_LABELS.four_kind };
-    }
-
-    if (countValues[0] === 3 && countValues[1] === 2) {
-        return { id: "full_house", label: HAND_LABELS.full_house };
-    }
-
-    if (flush) {
-        return { id: "flush", label: HAND_LABELS.flush };
-    }
-
-    if (straight) {
-        return { id: "straight", label: HAND_LABELS.straight };
-    }
-
-    if (countValues[0] === 3) {
-        return { id: "three_kind", label: HAND_LABELS.three_kind };
-    }
-
-    if (countValues[0] === 2) {
-        const pairCount = countValues.filter((count) => count === 2).length;
-        if (pairCount === 2) {
-            return { id: "two_pair", label: HAND_LABELS.two_pair };
+        return null;
+    },
+    (analysis) => {
+        if (analysis.countValues[0] === 4) {
+            return { id: "four_kind" };
         }
-        return { id: "pair", label: HAND_LABELS.pair };
-    }
+        return null;
+    },
+    (analysis) => {
+        if (analysis.countValues[0] === 3 && analysis.countValues[1] === 2) {
+            return { id: "full_house" };
+        }
+        return null;
+    },
+    (analysis) => {
+        if (analysis.flush) {
+            return { id: "flush" };
+        }
+        return null;
+    },
+    (analysis) => {
+        if (analysis.straight?.straight) {
+            return { id: "straight" };
+        }
+        return null;
+    },
+    (analysis) => {
+        if (analysis.countValues[0] === 3) {
+            return { id: "three_kind" };
+        }
+        return null;
+    },
+    (analysis) => {
+        if (analysis.countValues[0] === 2) {
+            const pairCount = analysis.countValues.filter((value) => value === 2).length;
+            if (pairCount === 2) {
+                return { id: "two_pair" };
+            }
+            return { id: "pair" };
+        }
+        return null;
+    },
+    () => ({ id: "high_card" })
+];
 
-    return { id: "high_card", label: HAND_LABELS.high_card };
+function resolveHandLabels(options = {}) {
+    if (options.handLabels && typeof options.handLabels === "object") {
+        return { ...HAND_LABELS, ...options.handLabels };
+    }
+    return HAND_LABELS;
+}
+
+function applyClassificationRules(analysis, context, rules, labels) {
+    for (let index = 0; index < rules.length; index += 1) {
+        const rule = rules[index];
+        if (typeof rule !== "function") {
+            continue;
+        }
+        const result = rule(analysis, context);
+        if (!result || typeof result !== "object" || !result.id) {
+            continue;
+        }
+        if (!result.label) {
+            result.label = labels[result.id] ?? HAND_LABELS[result.id] ?? result.id;
+        }
+        return result;
+    }
+    return {
+        id: "high_card",
+        label: labels.high_card ?? HAND_LABELS.high_card
+    };
+}
+
+export function createStandardEvaluator(options = {}) {
+    const labels = resolveHandLabels(options);
+    const detectStraight = typeof options.detectStraight === "function"
+        ? options.detectStraight
+        : detectStandardStraight;
+    const rules = Array.isArray(options.rules) && options.rules.length > 0
+        ? options.rules
+        : DEFAULT_CLASSIFICATION_RULES;
+    return (cards, handSize, context = {}) => {
+        const analysis = analyzeHand(cards, handSize, {
+            detectStraight,
+            context
+        });
+        return applyClassificationRules(analysis, context, rules, labels);
+    };
 }
 
 export function getHighlightIndices(cards, classificationId, handSize) {

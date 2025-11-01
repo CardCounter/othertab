@@ -6,12 +6,12 @@ import {
 } from "./deck-utils.js";
 import {
     buildResultMessage,
-    classifyHand,
     getHighlightIndices
 } from "./hand-evaluation.js";
 import { clearPendingDelete, resetDeckToBaseline } from "./deck-management.js";
 import { renderDeckGrid, updateHandDisplay } from "./ui.js";
 import { awardChips } from "./chips.js";
+import { getDefaultDeckEvaluator } from "./evaluators/index.js";
 
 function scheduleNextAutoDraw(state) {
     if (!state?.autoDrawEnabled || state.autoDrawScheduled) {
@@ -120,6 +120,26 @@ function animateShuffle(state, durationMs, handSize) {
     });
 }
 
+function collectActiveUpgradeFlags(state) {
+    if (!state?.upgrades) {
+        return new Set();
+    }
+    const flags = new Set();
+    state.upgrades.forEach((upgrade) => {
+        if (!upgrade || !Number.isFinite(upgrade.level) || upgrade.level <= 0) {
+            return;
+        }
+        const optionFlag = typeof upgrade.options?.flag === "string" ? upgrade.options.flag : null;
+        if (optionFlag) {
+            flags.add(optionFlag);
+        }
+        if (typeof upgrade.id === "string" && upgrade.id) {
+            flags.add(upgrade.id);
+        }
+    });
+    return flags;
+}
+
 export async function handleDraw(state) {
     if (!state) {
         return;
@@ -161,7 +181,16 @@ export async function handleDraw(state) {
             return;
         }
 
-        const classification = classifyHand(cards, handSize);
+        const evaluator = typeof state.evaluateHand === "function"
+            ? state.evaluateHand
+            : getDefaultDeckEvaluator();
+        const upgradeFlags = collectActiveUpgradeFlags(state);
+        const classification = evaluator(cards, handSize, {
+            flags: upgradeFlags,
+            flagList: [...upgradeFlags],
+            upgrades: state.upgrades ?? [],
+            state
+        });
         const success = classification.id === state.config.target;
 
         removeCardsFromDeck(state, cards);
