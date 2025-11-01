@@ -1,19 +1,26 @@
 /**
- * Deck-specific upgrade settings.
+ * deck specific upgrade settings.
  *
- * Each deck entry can provide:
- * - baseChipsAmount: starting chip payout for the deck (applied on setup)
- * - baseMultiplierAmount: starting streak multiplier for the deck
- * - baseDrawTime: initial shuffle animation duration in ms
- * - basic: map of upgrade id -> config
- * - unique: list of deck-only upgrades (id or config objects)
+ * each deck entry can provide:
+ * , baseChipsAmount: starting chip payout for the deck (applied on setup)
+ * , baseMultiplierAmount: starting streak multiplier for the deck
+ * , baseDrawTime: initial shuffle animation duration in ms
+ * , basic: map of upgrade id -> config
+ * , unique: list of deck only upgrades (id or config objects)
+ * , uniquePools: map of pool id -> config for rotating upgrade pools
  *
- * Upgrade config fields:
- * - cost, costGrowthRate, costLinearCoefficient, baseCost (optional)
- * - increaseAmount / baseAmount to set how much the upgrade changes the stat each purchase
- * - options: arbitrary additional data passed to the upgrade implementation
- * - minimumDuration, amount, etc. can be set directly or inside options
- * - resolveAmount, title, description, type, definition (for unique upgrades)
+ * upgrade config fields:
+ * , cost, costGrowthRate, costLinearCoefficient, baseCost (optional)
+ * , increaseAmount or baseAmount to set how much the upgrade changes the stat each purchase
+ * , options: arbitrary additional data passed to the upgrade implementation
+ * , minimumDuration, amount, etc can be set directly or inside options
+ * , resolveAmount, title, description, type, definition (for unique upgrades)
+ *
+ * unique pool config fields:
+ * , drawCount: number of upgrades drawn from the pool (defaults to all entries)
+ * , refreshMode: set to "session" to persist picks or "always" to redraw each setup
+ * , refreshToken: optional marker that forces a redraw when it changes
+ * , entries: array of upgrade ids or config objects (same format as the unique list)
  */
 export const DECK_UPGRADE_CONFIG = {
     default: {
@@ -43,7 +50,8 @@ export const DECK_UPGRADE_CONFIG = {
                 }
             }
         },
-        unique: []
+        unique: [],
+        uniquePools: {}
     },
     high_card: {
         baseChipsAmount: 1,

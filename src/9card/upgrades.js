@@ -45,6 +45,29 @@ function registerConfigDefinitions(configMap) {
             seen.add(id);
             registerUpgrade({ id, ...definition });
         });
+
+        const uniquePools = deckConfig.uniquePools;
+        const poolConfigs = Array.isArray(uniquePools)
+            ? uniquePools
+            : uniquePools && typeof uniquePools === "object"
+              ? Object.values(uniquePools)
+              : [];
+
+        poolConfigs.forEach((poolConfig) => {
+            const entries = extractPoolEntriesFromConfig(poolConfig);
+            entries.forEach((entry) => {
+                if (!entry || typeof entry !== "object") {
+                    return;
+                }
+                const definition = entry.definition ?? null;
+                const id = entry.id ?? definition?.id ?? null;
+                if (!definition || !id || seen.has(id) || upgradeRegistry.has(id)) {
+                    return;
+                }
+                seen.add(id);
+                registerUpgrade({ id, ...definition });
+            });
+        });
     });
 }
 
@@ -337,6 +360,144 @@ function mergeUpgradeConfig(baseEntry, overrideEntry) {
     return merged;
 }
 
+function extractPoolEntriesFromConfig(poolConfig) {
+    if (!poolConfig || typeof poolConfig !== "object") {
+        return [];
+    }
+    if (Array.isArray(poolConfig.entries)) {
+        return poolConfig.entries;
+    }
+    if (Array.isArray(poolConfig.upgrades)) {
+        return poolConfig.upgrades;
+    }
+    return [];
+}
+
+function cloneUpgradePoolEntries(entries) {
+    if (!Array.isArray(entries)) {
+        return [];
+    }
+    return entries
+        .map((entry) => {
+            if (!entry || typeof entry !== "object") {
+                return entry;
+            }
+            const clone = { ...entry };
+            if (entry.options && typeof entry.options === "object") {
+                clone.options = { ...entry.options };
+            }
+            if (entry.definition && typeof entry.definition === "object") {
+                clone.definition = { ...entry.definition };
+            }
+            return clone;
+        })
+        .filter((entry) => entry !== undefined);
+}
+
+function cloneUpgradePoolConfig(entry) {
+    if (!entry || typeof entry !== "object") {
+        return null;
+    }
+    const clone = { ...entry };
+    clone.entries = cloneUpgradePoolEntries(extractPoolEntriesFromConfig(entry));
+    delete clone.upgrades;
+    if (entry.replaceEntries != null) {
+        clone.replaceEntries = entry.replaceEntries;
+    }
+    return clone;
+}
+
+function mergeUpgradePoolConfig(baseEntry, overrideEntry) {
+    if (!baseEntry && !overrideEntry) {
+        return null;
+    }
+    if (overrideEntry && overrideEntry.enabled === false) {
+        return { enabled: false };
+    }
+    if (!baseEntry) {
+        return cloneUpgradePoolConfig(overrideEntry);
+    }
+    if (!overrideEntry) {
+        return cloneUpgradePoolConfig(baseEntry);
+    }
+
+    const merged = cloneUpgradePoolConfig(baseEntry) ?? {};
+    const overrideClone = cloneUpgradePoolConfig(overrideEntry) ?? {};
+
+    const overrideEntries = Array.isArray(overrideClone.entries) ? overrideClone.entries : [];
+    if (overrideEntries.length > 0 || overrideClone.replaceEntries === true) {
+        const baseEntries = Array.isArray(merged.entries) ? merged.entries : [];
+        merged.entries =
+            overrideClone.replaceEntries === true
+                ? cloneUpgradePoolEntries(overrideEntries)
+                : [...baseEntries, ...cloneUpgradePoolEntries(overrideEntries)];
+    }
+
+    Object.entries(overrideClone).forEach(([key, value]) => {
+        if (key === "entries" || key === "replaceEntries") {
+            return;
+        }
+        if (value === undefined) {
+            return;
+        }
+        merged[key] = value;
+    });
+
+    return merged;
+}
+
+function getPoolEntriesFromConfig(source) {
+    if (!source) {
+        return [];
+    }
+    if (Array.isArray(source)) {
+        return source
+            .map((entry) => {
+                if (!entry) {
+                    return null;
+                }
+                if (typeof entry === "string") {
+                    return { id: entry };
+                }
+                if (typeof entry !== "object") {
+                    return null;
+                }
+                if (!entry.id) {
+                    return null;
+                }
+                const clone = cloneUpgradePoolConfig(entry) ?? { ...entry };
+                clone.id = entry.id;
+                return clone;
+            })
+            .filter(Boolean);
+    }
+    if (typeof source === "object") {
+        return Object.entries(source)
+            .map(([id, config]) => {
+                if (config === undefined) {
+                    return null;
+                }
+                if (config === false) {
+                    return { id, enabled: false };
+                }
+                if (typeof config === "string") {
+                    return { id: config };
+                }
+                if (!config) {
+                    return null;
+                }
+                if (typeof config !== "object") {
+                    return null;
+                }
+                const clone = cloneUpgradePoolConfig(config) ?? { ...config };
+                clone.id = clone.id ?? id;
+                return clone;
+            })
+            .filter((entry) => entry && entry.id);
+    }
+    return [];
+}
+
 function resolveDeckUpgradeProfile(deckId) {
     const defaults = DECK_UPGRADE_CONFIG?.default ?? {};
     const deckSpecific = deckId && DECK_UPGRADE_CONFIG ? DECK_UPGRADE_CONFIG[deckId] : null;
@@ -360,6 +521,42 @@ function resolveDeckUpgradeProfile(deckId) {
     const defaultUnique = Array.isArray(defaults.unique) ? defaults.unique : [];
     const deckUnique = Array.isArray(deckProfile.unique) ? deckProfile.unique : [];
 
+    const defaultUniquePools = getPoolEntriesFromConfig(defaults.uniquePools);
+    const deckUniquePools = getPoolEntriesFromConfig(deckProfile.uniquePools);
+
+    const poolOrder = [];
+    const poolMap = new Map();
+
+    const addPoolEntry = (entry) => {
+        if (!entry || !entry.id) {
+            return;
+        }
+        const existing = poolMap.get(entry.id);
+        const merged = mergeUpgradePoolConfig(existing, entry);
+        poolMap.set(entry.id, merged);
+        if (!existing) {
+            poolOrder.push(entry.id);
+        }
+    };
+
+    defaultUniquePools.forEach(addPoolEntry);
+    deckUniquePools.forEach(addPoolEntry);
+
+    const combinedPools = poolOrder
+        .map((id) => {
+            const config = poolMap.get(id);
+            if (!config || config.enabled === false) {
+                return null;
+            }
+            const normalized = cloneUpgradePoolConfig(config) ?? {};
+            normalized.id = id;
+            if (normalized.replaceEntries !== undefined) {
+                delete normalized.replaceEntries;
+            }
+            return normalized;
+        })
+        .filter((pool) => pool && Array.isArray(pool.entries) && pool.entries.length > 0);
+
     const baseChipsAmount = Number.isFinite(deckProfile.baseChipsAmount)
         ? deckProfile.baseChipsAmount
         : Number.isFinite(defaults.baseChipsAmount)
@@ -379,6 +576,7 @@ function resolveDeckUpgradeProfile(deckId) {
     return {
         basic: combinedBasics,
         unique: [...defaultUnique, ...deckUnique],
+        uniquePools: combinedPools,
         baseChipsAmount,
         baseMultiplierAmount,
         baseDrawTime
@@ -463,7 +661,190 @@ function normalizeUpgradeEntry(id, config = {}) {
     return entry;
 }
 
-function buildDeckUpgradeList(config) {
+function ensurePoolStateContainer(state) {
+    if (!state) {
+        return null;
+    }
+    if (!state.upgradePoolState || typeof state.upgradePoolState !== "object") {
+        state.upgradePoolState = {};
+    }
+    return state.upgradePoolState;
+}
+
+function getNormalizedPoolEntries(pool) {
+    if (!pool || typeof pool !== "object") {
+        return [];
+    }
+    const entries = Array.isArray(pool.entries) ? pool.entries : [];
+    return entries
+        .map((entry) => {
+            if (!entry) {
+                return null;
+            }
+            if (typeof entry === "string") {
+                return normalizeUpgradeEntry(entry, entry);
+            }
+            const entryId = entry.id ?? null;
+            if (!entryId) {
+                return null;
+            }
+            return normalizeUpgradeEntry(entryId, entry);
+        })
+        .filter(Boolean);
+}
+
+function selectRandomPoolEntries(entries, count) {
+    if (!Array.isArray(entries) || entries.length === 0 || count <= 0) {
+        return [];
+    }
+    const clonedEntries = entries
+        .map((entry) => cloneUpgradeConfig(entry))
+        .filter(Boolean);
+    if (count >= clonedEntries.length) {
+        return clonedEntries;
+    }
+    const pool = [...clonedEntries];
+    for (let index = pool.length - 1; index > 0; index -= 1) {
+        const randomIndex = Math.floor(Math.random() * (index + 1));
+        const temp = pool[index];
+        pool[index] = pool[randomIndex];
+        pool[randomIndex] = temp;
+    }
+    return pool.slice(0, Math.min(count, pool.length));
+}
+
+function shouldRefreshPoolSelection(stored, normalizedEntries, drawCount, refreshMode, refreshToken) {
+    if (!stored) {
+        return true;
+    }
+    if (refreshMode === "always") {
+        return true;
+    }
+    if ((stored.refreshToken ?? null) !== (refreshToken ?? null)) {
+        return true;
+    }
+    if ((stored.drawCount ?? null) !== drawCount) {
+        return true;
+    }
+    const storedSelection = Array.isArray(stored.selection) ? stored.selection : [];
+    if (storedSelection.length !== drawCount) {
+        return true;
+    }
+    const normalizedById = new Map(normalizedEntries.map((entry) => [entry.id, entry]));
+    for (let index = 0; index < storedSelection.length; index += 1) {
+        const entry = storedSelection[index];
+        if (!entry?.id || !normalizedById.has(entry.id)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function rehydrateStoredSelection(storedSelection, normalizedEntries) {
+    if (!Array.isArray(storedSelection)) {
+        return [];
+    }
+    const normalizedById = new Map(normalizedEntries.map((entry) => [entry.id, entry]));
+    const result = [];
+    storedSelection.forEach((entry) => {
+        if (!entry?.id) {
+            return;
+        }
+        const normalized = normalizedById.get(entry.id);
+        if (!normalized) {
+            return;
+        }
+        result.push(cloneUpgradeConfig(normalized) ?? normalized);
+    });
+    return result;
+}
+
+function resolveUpgradePoolUpgrades(state, pools) {
+    if (!Array.isArray(pools) || pools.length === 0) {
+        return [];
+    }
+
+    const upgrades = [];
+    const poolState = ensurePoolStateContainer(state);
+
+    pools.forEach((pool) => {
+        if (!pool) {
+            return;
+        }
+        const normalizedEntries = getNormalizedPoolEntries(pool);
+        if (normalizedEntries.length === 0) {
+            if (pool.id && poolState) {
+                delete poolState[pool.id];
+            }
+            return;
+        }
+
+        const requestedDrawCount = Number.isFinite(pool.drawCount)
+            ? Math.max(Math.floor(pool.drawCount), 0)
+            : normalizedEntries.length;
+        const resolvedDrawCount = Math.min(requestedDrawCount, normalizedEntries.length);
+        if (resolvedDrawCount <= 0) {
+            if (pool.id && poolState) {
+                const refreshMode = typeof pool.refreshMode === "string" ? pool.refreshMode : "session";
+                poolState[pool.id] = {
+                    selection: [],
+                    drawCount: resolvedDrawCount,
+                    refreshMode,
+                    refreshToken: pool.refreshToken ?? null
+                };
+            }
+            return;
+        }
+
+        const poolId = pool.id ?? null;
+        const stored = poolId && poolState ? poolState[poolId] : null;
+        const refreshMode = typeof pool.refreshMode === "string"
+            ? pool.refreshMode
+            : stored?.refreshMode ?? "session";
+        const refreshToken = pool.refreshToken ?? stored?.refreshToken ?? null;
+
+        let selectedEntries;
+        if (!poolId || !poolState) {
+            selectedEntries = selectRandomPoolEntries(normalizedEntries, resolvedDrawCount);
+        } else {
+            const needsRefresh = shouldRefreshPoolSelection(
+                stored,
+                normalizedEntries,
+                resolvedDrawCount,
+                refreshMode,
+                refreshToken
+            );
+            if (needsRefresh) {
+                selectedEntries = selectRandomPoolEntries(normalizedEntries, resolvedDrawCount);
+            } else {
+                selectedEntries = rehydrateStoredSelection(stored.selection, normalizedEntries);
+                if (selectedEntries.length !== resolvedDrawCount) {
+                    selectedEntries = selectRandomPoolEntries(normalizedEntries, resolvedDrawCount);
+                }
+            }
+
+            poolState[poolId] = {
+                selection: selectedEntries
+                    .map((entry) => cloneUpgradeConfig(entry))
+                    .filter(Boolean),
+                drawCount: resolvedDrawCount,
+                refreshMode,
+                refreshToken
+            };
+        }
+
+        selectedEntries.forEach((entry) => {
+            const instance = createUpgradeInstance(entry);
+            if (instance) {
+                upgrades.push(instance);
+            }
+        });
+    });
+
+    return upgrades;
+}
+
+function buildDeckUpgradeList(config, state) {
     const deckId = config?.id ?? null;
     const profile = resolveDeckUpgradeProfile(deckId);
     const basics = [];
@@ -499,7 +880,7 @@ function buildDeckUpgradeList(config) {
         });
     }
 
-    const extras = profile.unique
+    const uniqueUpgrades = profile.unique
         .map((entry) => {
             if (!entry) {
                 return null;
@@ -519,8 +900,19 @@ function buildDeckUpgradeList(config) {
         })
         .filter(Boolean);
 
+    const poolUpgrades = resolveUpgradePoolUpgrades(state, profile.uniquePools);
+
+    if (state && state.upgradePoolState && typeof state.upgradePoolState === "object") {
+        const activePoolIds = new Set((profile.uniquePools ?? []).map((pool) => pool.id));
+        Object.keys(state.upgradePoolState).forEach((poolId) => {
+            if (!activePoolIds.has(poolId)) {
+                delete state.upgradePoolState[poolId];
+            }
+        });
+    }
+
     return {
-        upgrades: [...basics, ...extras],
+        upgrades: [...basics, ...uniqueUpgrades, ...poolUpgrades],
         baseChipsAmount: profile.baseChipsAmount,
         baseMultiplierAmount: profile.baseMultiplierAmount,
         baseDrawTime: profile.baseDrawTime
@@ -800,12 +1192,15 @@ export function setupDeckUpgrades(state) {
     if (!state?.dom?.upgradeList || !state.dom.upgradeSlots) {
         return;
     }
+    if (!state.upgradePoolState || typeof state.upgradePoolState !== "object") {
+        state.upgradePoolState = {};
+    }
     const {
         upgrades: deckUpgrades,
         baseChipsAmount,
         baseMultiplierAmount,
         baseDrawTime
-    } = buildDeckUpgradeList(state.config);
+    } = buildDeckUpgradeList(state.config, state);
 
     if (Number.isFinite(baseChipsAmount)) {
         state.baseChipReward = baseChipsAmount;
