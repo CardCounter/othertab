@@ -1,163 +1,25 @@
-import { HAND_SIZE } from "./config.js";
+import defaultDeck from "./upgrade-config/default.js";
+import flush from "./upgrade-config/flush.js";
+import fourKind from "./upgrade-config/four-kind.js";
+import fullHouse from "./upgrade-config/full-house.js";
+import highCard from "./upgrade-config/high-card.js";
+import pair from "./upgrade-config/pair.js";
+import royalFlush from "./upgrade-config/royal-flush.js";
+import straight from "./upgrade-config/straight.js";
+import straightFlush from "./upgrade-config/straight-flush.js";
+import threeKind from "./upgrade-config/three-kind.js";
+import twoPair from "./upgrade-config/two-pair.js";
 
-/**
- * deck-specific upgrade settings.
- *
- * each deck entry can provide:
- * , baseChipsAmount: starting chip payout for the deck (applied on setup)
- * , baseMultiplierAmount: starting streak multiplier for the deck
- * , baseDrawTime: initial shuffle animation duration in ms
- * , baseHandSize: starting hand size for the deck
- * , basic: map of upgrade id -> config
- * , unique: list of deck only upgrades (id or config objects)
- * , unique entries can define pools by including an entries array plus drawCount or draw
- * , pool configs can include refresh or refreshSettings to describe cadence metadata
- *
- * upgrade config fields:
- * , cost, costGrowthRate, costLinearCoefficient, baseCost (optional)
- * , increaseAmount / baseAmount to set how much the upgrade changes the stat each purchase
- * , options: arbitrary additional data passed to the upgrade implementation
- * , minimumDuration, amount, etc. can be set directly or inside options
- * , resolveAmount, title, description, type, definition (for unique upgrades)
- */
 export const DECK_UPGRADE_CONFIG = {
-    default: {
-        baseChipsAmount: 1,
-        baseMultiplierAmount: 1.0,
-        baseDrawTime: 2000,
-        baseHandSize: HAND_SIZE,
-        basic: {
-            increase_payout: {
-                cost: 25,
-                costGrowthRate: 1.35,
-                costLinearCoefficient: 0.25,
-                increaseAmount: 1,
-                backgroundColor: "#fef08a",
-                glyph: "✶",
-                glyphColor: "#92400e"
-            },
-            increase_streak_multiplier: {
-                cost: 50,
-                costGrowthRate: 1.4,
-                costLinearCoefficient: 0.3,
-                increaseAmount: 0.25,
-                backgroundColor: "#e0e7ff",
-                glyph: "⨉",
-                glyphColor: "#312e81"
-            },
-            decrease_draw_time: {
-                cost: 100,
-                costGrowthRate: 1.5,
-                costLinearCoefficient: 0.4,
-                increaseAmount: 150,
-                options: {
-                    minimumDuration: 250
-                },
-                backgroundColor: "#fde2e4",
-                glyph: "⏱",
-                glyphColor: "#9f1239"
-            }
-        },
-        unique: []
-    },
-    high_card: {
-        baseChipsAmount: 1,
-        baseMultiplierAmount: 1.0,
-        baseDrawTime: 2000,
-        basic: {
-            increase_payout: {
-                cost: 5,
-                costGrowthRate: 1.2,
-                costLinearCoefficient: 0.22,
-                increaseAmount: 1
-            },
-            increase_streak_multiplier: {
-                cost: 50,
-                costGrowthRate: 2.2,
-                costLinearCoefficient: 0.25,
-                increaseAmount: 0.1
-            },
-            decrease_draw_time: {
-                cost: 500,
-                costGrowthRate: 3.2,
-                costLinearCoefficient: 0.35,
-                increaseAmount: 50,
-                options: {
-                    minimumDuration: 1
-                }
-            }
-        },
-        unique: []
-    },
-    pair: {
-        basic: {},
-        unique: []
-    },
-    two_pair: {
-        basic: {},
-        unique: []
-    },
-    three_kind: {
-        basic: {},
-        unique: []
-    },
-    straight: {
-        basic: {
-            increase_payout: {
-                cost: 80,
-                costGrowthRate: 1.5,
-                costLinearCoefficient: 0.42,
-                increaseAmount: 5
-            },
-            increase_streak_multiplier: {
-                cost: 65,
-                costGrowthRate: 1.4,
-                costLinearCoefficient: 0.32,
-                increaseAmount: 0.35
-            },
-            decrease_draw_time: {
-                cost: 160,
-                costGrowthRate: 1.6,
-                costLinearCoefficient: 0.5,
-                increaseAmount: 120,
-                options: {
-                    minimumDuration: 250
-                }
-            }
-        },
-        unique: []
-    },
-    flush: { basic: {}, unique: [] },
-    full_house: { basic: {}, unique: [] },
-    four_kind: { basic: {}, unique: [] },
-    straight_flush: { basic: {}, unique: [] },
-    royal_flush: {
-        baseChipsAmount: 1,
-        baseMultiplierAmount: 1.0,
-        baseDrawTime: 2000,
-        basic: {
-            increase_payout: {
-                cost: 5,
-                costGrowthRate: 1.2,
-                costLinearCoefficient: 0.22,
-                increaseAmount: 1
-            },
-            increase_streak_multiplier: {
-                cost: 50,
-                costGrowthRate: 2.2,
-                costLinearCoefficient: 0.25,
-                increaseAmount: 0.1
-            },
-            decrease_draw_time: {
-                cost: 500,
-                costGrowthRate: 3.2,
-                costLinearCoefficient: 0.35,
-                increaseAmount: 50,
-                options: {
-                    minimumDuration: 1
-                }
-            }
-        },
-        unique: []
-    }
+    default: defaultDeck,
+    high_card: highCard,
+    pair,
+    two_pair: twoPair,
+    three_kind: threeKind,
+    straight,
+    flush,
+    full_house: fullHouse,
+    four_kind: fourKind,
+    straight_flush: straightFlush,
+    royal_flush: royalFlush
 };

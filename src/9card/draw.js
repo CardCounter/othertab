@@ -222,7 +222,7 @@ export async function handleDraw(state) {
             renderDeckGrid(state);
         }
 
-        const highlightIndices = success ? getHighlightIndices(cards, classification.id, handSize) : [];
+        const highlightIndices = success ? getHighlightIndices(classification, cards, handSize) : [];
         updateHandDisplay(state.dom.handContainer, cards, highlightIndices, handSize);
 
         const message = buildResultMessage({

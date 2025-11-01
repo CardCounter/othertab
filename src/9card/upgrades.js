@@ -309,6 +309,9 @@ function createUpgradeInstance(entry) {
     const glyphColor = normalizeStringValue(
         overrides.glyphColor != null ? overrides.glyphColor : definition?.glyphColor
     );
+    const textSize = normalizeStringValue(
+        overrides.textSize != null ? overrides.textSize : definition?.textSize
+    );
 
     const instance = {
         id,
@@ -327,6 +330,10 @@ function createUpgradeInstance(entry) {
         amountResolver
     };
 
+    if (textSize) {
+        instance.textSize = textSize;
+    }
+
     if (Number.isFinite(increaseAmountValue)) {
         instance.increaseAmount = increaseAmountValue;
     }
@@ -340,6 +347,9 @@ function createUpgradeInstance(entry) {
     }
     if (glyphColor) {
         presentation.glyphColor = glyphColor;
+    }
+    if (textSize) {
+        presentation.textSize = textSize;
     }
     if (Object.keys(presentation).length > 0) {
         instance.presentation = presentation;
@@ -544,6 +554,10 @@ function normalizeUpgradeEntry(id, config = {}) {
     const glyphColor = normalizeStringValue(config.glyphColor);
     if (glyphColor) {
         entry.glyphColor = glyphColor;
+    }
+    const textSize = normalizeStringValue(config.textSize);
+    if (textSize) {
+        entry.textSize = textSize;
     }
 
     return entry;
@@ -784,6 +798,9 @@ function calculateUpgradeCost(upgrade) {
     if (!upgrade) {
         return 0;
     }
+    if (upgrade.type === UPGRADE_TYPES.UNIQUE && upgrade.purchased) {
+        return Number.MAX_SAFE_INTEGER;
+    }
     const baseCost = Number.isFinite(upgrade.baseCost) ? upgrade.baseCost : upgrade.cost ?? 0;
     const level = Number.isFinite(upgrade.level) && upgrade.level > 0 ? upgrade.level : 0;
     const growthRate =
@@ -806,6 +823,9 @@ function calculateUpgradeAmount(state, upgrade) {
     if (!upgrade) {
         return 0;
     }
+    if (upgrade.type === UPGRADE_TYPES.UNIQUE && upgrade.purchased) {
+        return 0;
+    }
     const baseAmount = Number.isFinite(upgrade.baseAmount)
         ? upgrade.baseAmount
         : Number.isFinite(upgrade.options?.amount)
@@ -823,7 +843,7 @@ function calculateUpgradeAmount(state, upgrade) {
 
 function getUpgradePresentation(upgrade) {
     if (!upgrade) {
-        return { backgroundColor: null, glyph: "", glyphColor: null };
+        return { backgroundColor: null, glyph: "", glyphColor: null, textSize: null };
     }
     const presentation =
         upgrade.presentation && typeof upgrade.presentation === "object" ? upgrade.presentation : {};
@@ -832,10 +852,13 @@ function getUpgradePresentation(upgrade) {
     const glyph = normalizeStringValue(upgrade.glyph) ?? normalizeStringValue(presentation.glyph);
     const glyphColor =
         normalizeStringValue(upgrade.glyphColor) ?? normalizeStringValue(presentation.glyphColor);
+    const textSize =
+        normalizeStringValue(upgrade.textSize) ?? normalizeStringValue(presentation.textSize);
     return {
         backgroundColor: backgroundColor ?? null,
         glyph: glyph ?? "",
-        glyphColor: glyphColor ?? null
+        glyphColor: glyphColor ?? null,
+        textSize: textSize ?? null
     };
 }
 
@@ -855,13 +878,22 @@ function getPurchasedUpgradesInOrder(state) {
     const order = Array.isArray(state.purchasedUpgradeOrder) ? state.purchasedUpgradeOrder : [];
     const orderSet = new Set(order);
     const byId = new Map(state.upgrades.map((upgrade) => [upgrade.id, upgrade]));
+    const isPurchased = (upgrade) => {
+        if (!upgrade) {
+            return false;
+        }
+        if (upgrade.type === UPGRADE_TYPES.UNIQUE) {
+            return upgrade.purchased === true;
+        }
+        return Number.isFinite(upgrade.level) && upgrade.level > 0;
+    };
 
     const ordered = order
         .map((id) => byId.get(id))
-        .filter((upgrade) => upgrade && Number.isFinite(upgrade.level) && upgrade.level > 0);
+        .filter((upgrade) => isPurchased(upgrade));
 
     state.upgrades.forEach((upgrade) => {
-        if (!upgrade || !Number.isFinite(upgrade.level) || upgrade.level <= 0) {
+        if (!isPurchased(upgrade)) {
             return;
         }
         if (!orderSet.has(upgrade.id)) {
@@ -879,6 +911,9 @@ function renderUpgradeSlots(state) {
     const container = state.dom.upgradeSlots;
     const unlockedSlots = getUnlockedUpgradeSlotCount(state);
     const purchasedUpgrades = getPurchasedUpgradesInOrder(state);
+    const purchasedUniqueUpgrades = purchasedUpgrades.filter(
+        (upgrade) => upgrade?.type === UPGRADE_TYPES.UNIQUE
+    );
     const fragment = document.createDocumentFragment();
 
     for (let index = 0; index < MAX_UPGRADE_SLOT_COUNT; index += 1) {
@@ -889,15 +924,11 @@ function renderUpgradeSlots(state) {
         if (index >= unlockedSlots) {
             slot.classList.add("locked");
             slot.setAttribute("aria-label", "locked upgrade slot");
-            const label = document.createElement("span");
-            label.className = "upgrade-slot-title";
-            label.textContent = "locked";
-            slot.append(label);
             fragment.append(slot);
             continue;
         }
 
-        const upgrade = purchasedUpgrades[index];
+        const upgrade = purchasedUniqueUpgrades[index];
         if (!upgrade) {
             slot.classList.add("empty");
             slot.setAttribute("aria-label", "empty upgrade slot");
@@ -905,7 +936,7 @@ function renderUpgradeSlots(state) {
             continue;
         }
 
-        const { backgroundColor, glyph, glyphColor } = getUpgradePresentation(upgrade);
+        const { backgroundColor, glyph, glyphColor, textSize } = getUpgradePresentation(upgrade);
         if (backgroundColor || glyph) {
             const visual = document.createElement("div");
             visual.className = "upgrade-slot-visual";
@@ -919,6 +950,9 @@ function renderUpgradeSlots(state) {
                 if (glyphColor) {
                     glyphElement.style.color = glyphColor;
                 }
+                if (textSize) {
+                    glyphElement.style.fontSize = textSize;
+                }
                 visual.append(glyphElement);
             }
             slot.classList.add("upgrade-slot-with-visual");
@@ -929,26 +963,7 @@ function renderUpgradeSlots(state) {
             typeof upgrade.getCurrentValue === "function"
                 ? upgrade.getCurrentValue(state)
                 : upgrade.title ?? upgrade.id;
-
-        const title = document.createElement("span");
-        title.className = "upgrade-slot-title";
-        title.textContent = primaryText;
-        slot.append(title);
-
-        const level = Number.isFinite(upgrade.level) ? Math.max(0, upgrade.level) : 0;
-        const detailText = level > 0 ? `lv ${level}` : "";
-        if (detailText) {
-            const detail = document.createElement("span");
-            detail.className = "upgrade-slot-detail";
-            detail.textContent = detailText;
-            slot.append(detail);
-        }
-
-        const ariaParts = [primaryText.trim()];
-        if (detailText) {
-            ariaParts.push(detailText);
-        }
-        slot.setAttribute("aria-label", ariaParts.join(", "));
+        slot.setAttribute("aria-label", primaryText.trim());
 
         fragment.append(slot);
     }
@@ -988,12 +1003,14 @@ function renderUpgrades(state) {
         }
         card.dataset.level = `${level}`;
 
-        const { backgroundColor, glyph, glyphColor } = getUpgradePresentation(upgrade);
+        const { backgroundColor, glyph, glyphColor, textSize } = getUpgradePresentation(upgrade);
+        const isBasicUpgrade = upgrade.type === UPGRADE_TYPES.BASIC;
+        const showVisual = !isBasicUpgrade && (backgroundColor || glyph);
 
         const header = document.createElement("div");
         header.className = "upgrade-card-header";
 
-        if (backgroundColor || glyph) {
+        if (showVisual) {
             const visual = document.createElement("div");
             visual.className = "upgrade-card-visual";
             if (backgroundColor) {
@@ -1006,6 +1023,9 @@ function renderUpgrades(state) {
                 if (glyphColor) {
                     glyphElement.style.color = glyphColor;
                 }
+                if (textSize) {
+                    glyphElement.style.fontSize = textSize;
+                }
                 visual.append(glyphElement);
             }
             header.append(visual);
@@ -1015,10 +1035,12 @@ function renderUpgrades(state) {
         const info = document.createElement("div");
         info.className = "upgrade-card-info";
 
-        const title = document.createElement("span");
-        title.className = "upgrade-card-title";
-        title.textContent = typeof upgrade.title === "string" ? upgrade.title : upgrade.id;
-        info.append(title);
+        if (!isBasicUpgrade) {
+            const title = document.createElement("span");
+            title.className = "upgrade-card-title";
+            title.textContent = typeof upgrade.title === "string" ? upgrade.title : upgrade.id;
+            info.append(title);
+        }
 
         const stat = document.createElement("div");
         stat.className = "upgrade-card-stat";
@@ -1086,10 +1108,24 @@ function applyUpgrade(state, upgrade) {
     if (amount <= 0) {
         return;
     }
+    const isUniqueUpgrade = upgrade.type === UPGRADE_TYPES.UNIQUE;
     const previousLevel = Number.isFinite(upgrade.level) ? upgrade.level : 0;
+    const wasPurchased = upgrade.purchased === true;
     upgrade.computedAmount = amount;
     upgrade.applyEffect(state, upgrade);
     delete upgrade.computedAmount;
+    if (isUniqueUpgrade) {
+        upgrade.level = 1;
+        upgrade.purchased = true;
+        if (!wasPurchased) {
+            if (!Array.isArray(state.purchasedUpgradeOrder)) {
+                state.purchasedUpgradeOrder = [];
+            }
+            state.purchasedUpgradeOrder.push(upgrade.id);
+        }
+        upgrade.cost = Number.MAX_SAFE_INTEGER;
+        return;
+    }
     upgrade.level = previousLevel + 1;
     upgrade.purchased = upgrade.level > 0;
     if (upgrade.level > 0 && previousLevel === 0) {
