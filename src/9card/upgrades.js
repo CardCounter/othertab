@@ -16,6 +16,14 @@ const MAX_UPGRADE_SLOT_COUNT = 7;
 
 const upgradeRegistry = new Map();
 
+function normalizeStringValue(value) {
+    if (typeof value !== "string") {
+        return null;
+    }
+    const trimmed = value.trim();
+    return trimmed ? trimmed : null;
+}
+
 function registerUpgrade(definition) {
     if (!definition?.id) {
         return;
@@ -294,6 +302,14 @@ function createUpgradeInstance(entry) {
               ? definition.resolveAmount
               : null;
 
+    const backgroundColor = normalizeStringValue(
+        overrides.backgroundColor != null ? overrides.backgroundColor : definition?.backgroundColor
+    );
+    const glyph = normalizeStringValue(overrides.glyph != null ? overrides.glyph : definition?.glyph);
+    const glyphColor = normalizeStringValue(
+        overrides.glyphColor != null ? overrides.glyphColor : definition?.glyphColor
+    );
+
     const instance = {
         id,
         type: resolveUpgradeType(definition, overrides),
@@ -313,6 +329,29 @@ function createUpgradeInstance(entry) {
 
     if (Number.isFinite(increaseAmountValue)) {
         instance.increaseAmount = increaseAmountValue;
+    }
+
+    const presentation = {};
+    if (backgroundColor) {
+        presentation.backgroundColor = backgroundColor;
+    }
+    if (glyph) {
+        presentation.glyph = glyph;
+    }
+    if (glyphColor) {
+        presentation.glyphColor = glyphColor;
+    }
+    if (Object.keys(presentation).length > 0) {
+        instance.presentation = presentation;
+        if (presentation.backgroundColor) {
+            instance.backgroundColor = presentation.backgroundColor;
+        }
+        if (presentation.glyph) {
+            instance.glyph = presentation.glyph;
+        }
+        if (presentation.glyphColor) {
+            instance.glyphColor = presentation.glyphColor;
+        }
     }
 
     return instance;
@@ -492,6 +531,19 @@ function normalizeUpgradeEntry(id, config = {}) {
     }
     if (config.definition) {
         entry.definition = config.definition;
+    }
+
+    const backgroundColor = normalizeStringValue(config.backgroundColor);
+    if (backgroundColor) {
+        entry.backgroundColor = backgroundColor;
+    }
+    const glyph = normalizeStringValue(config.glyph);
+    if (glyph) {
+        entry.glyph = glyph;
+    }
+    const glyphColor = normalizeStringValue(config.glyphColor);
+    if (glyphColor) {
+        entry.glyphColor = glyphColor;
     }
 
     return entry;
@@ -769,6 +821,24 @@ function calculateUpgradeAmount(state, upgrade) {
     return baseAmount;
 }
 
+function getUpgradePresentation(upgrade) {
+    if (!upgrade) {
+        return { backgroundColor: null, glyph: "", glyphColor: null };
+    }
+    const presentation =
+        upgrade.presentation && typeof upgrade.presentation === "object" ? upgrade.presentation : {};
+    const backgroundColor =
+        normalizeStringValue(upgrade.backgroundColor) ?? normalizeStringValue(presentation.backgroundColor);
+    const glyph = normalizeStringValue(upgrade.glyph) ?? normalizeStringValue(presentation.glyph);
+    const glyphColor =
+        normalizeStringValue(upgrade.glyphColor) ?? normalizeStringValue(presentation.glyphColor);
+    return {
+        backgroundColor: backgroundColor ?? null,
+        glyph: glyph ?? "",
+        glyphColor: glyphColor ?? null
+    };
+}
+
 function getUnlockedUpgradeSlotCount(state) {
     const customCount = Number.isFinite(state?.unlockedUpgradeSlots) ? state.unlockedUpgradeSlots : null;
     const resolved = customCount != null ? customCount : DEFAULT_UNLOCKED_UPGRADE_SLOTS;
@@ -835,6 +905,26 @@ function renderUpgradeSlots(state) {
             continue;
         }
 
+        const { backgroundColor, glyph, glyphColor } = getUpgradePresentation(upgrade);
+        if (backgroundColor || glyph) {
+            const visual = document.createElement("div");
+            visual.className = "upgrade-slot-visual";
+            if (backgroundColor) {
+                visual.style.backgroundColor = backgroundColor;
+            }
+            if (glyph) {
+                const glyphElement = document.createElement("span");
+                glyphElement.className = "upgrade-slot-glyph";
+                glyphElement.textContent = glyph;
+                if (glyphColor) {
+                    glyphElement.style.color = glyphColor;
+                }
+                visual.append(glyphElement);
+            }
+            slot.classList.add("upgrade-slot-with-visual");
+            slot.append(visual);
+        }
+
         const primaryText =
             typeof upgrade.getCurrentValue === "function"
                 ? upgrade.getCurrentValue(state)
@@ -898,6 +988,38 @@ function renderUpgrades(state) {
         }
         card.dataset.level = `${level}`;
 
+        const { backgroundColor, glyph, glyphColor } = getUpgradePresentation(upgrade);
+
+        const header = document.createElement("div");
+        header.className = "upgrade-card-header";
+
+        if (backgroundColor || glyph) {
+            const visual = document.createElement("div");
+            visual.className = "upgrade-card-visual";
+            if (backgroundColor) {
+                visual.style.backgroundColor = backgroundColor;
+            }
+            if (glyph) {
+                const glyphElement = document.createElement("span");
+                glyphElement.className = "upgrade-card-glyph";
+                glyphElement.textContent = glyph;
+                if (glyphColor) {
+                    glyphElement.style.color = glyphColor;
+                }
+                visual.append(glyphElement);
+            }
+            header.append(visual);
+            card.classList.add("upgrade-card-with-visual");
+        }
+
+        const info = document.createElement("div");
+        info.className = "upgrade-card-info";
+
+        const title = document.createElement("span");
+        title.className = "upgrade-card-title";
+        title.textContent = typeof upgrade.title === "string" ? upgrade.title : upgrade.id;
+        info.append(title);
+
         const stat = document.createElement("div");
         stat.className = "upgrade-card-stat";
         stat.textContent =
@@ -906,6 +1028,9 @@ function renderUpgrades(state) {
                 : typeof upgrade.title === "string"
                   ? upgrade.title
                   : upgrade.id;
+        info.append(stat);
+
+        header.append(info);
 
         const body = document.createElement("div");
         body.className = "upgrade-card-body";
@@ -945,7 +1070,7 @@ function renderUpgrades(state) {
 
         body.append(button);
 
-        card.append(stat, body);
+        card.append(header, body);
         fragment.append(card);
     });
 
