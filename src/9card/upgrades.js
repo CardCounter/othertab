@@ -23,6 +23,16 @@ function registerUpgrade(definition) {
     upgradeRegistry.set(definition.id, { ...definition });
 }
 
+function isUpgradePoolConfig(entry) {
+    if (!entry || typeof entry !== "object") {
+        return false;
+    }
+    if (!Array.isArray(entry.entries)) {
+        return false;
+    }
+    return true;
+}
+
 function registerConfigDefinitions(configMap) {
     if (!configMap || typeof configMap !== "object") {
         return;
@@ -34,7 +44,25 @@ function registerConfigDefinitions(configMap) {
         }
         const uniqueList = Array.isArray(deckConfig.unique) ? deckConfig.unique : [];
         uniqueList.forEach((entry) => {
-            if (!entry || typeof entry !== "object") {
+            if (!entry) {
+                return;
+            }
+            if (isUpgradePoolConfig(entry)) {
+                entry.entries.forEach((poolEntry) => {
+                    if (!poolEntry || typeof poolEntry !== "object") {
+                        return;
+                    }
+                    const poolDefinition = poolEntry.definition ?? null;
+                    const poolId = poolEntry.id ?? poolDefinition?.id ?? null;
+                    if (!poolDefinition || !poolId || seen.has(poolId) || upgradeRegistry.has(poolId)) {
+                        return;
+                    }
+                    seen.add(poolId);
+                    registerUpgrade({ id: poolId, ...poolDefinition });
+                });
+                return;
+            }
+            if (typeof entry !== "object") {
                 return;
             }
             const definition = entry.definition ?? null;
@@ -469,7 +497,142 @@ function normalizeUpgradeEntry(id, config = {}) {
     return entry;
 }
 
-function buildDeckUpgradeList(config) {
+function normalizeUpgradePoolDefinition(entry, fallbackIndex) {
+    if (!isUpgradePoolConfig(entry)) {
+        return null;
+    }
+    const providedIdCandidates = [entry.poolId, entry.id];
+    let poolId = null;
+    for (let index = 0; index < providedIdCandidates.length; index += 1) {
+        const candidate = providedIdCandidates[index];
+        if (typeof candidate === "string" && candidate.trim()) {
+            poolId = candidate.trim();
+            break;
+        }
+    }
+    if (!poolId) {
+        poolId = `upgrade_pool_${fallbackIndex}`;
+    }
+    const rawDrawCount = Number.isFinite(entry.drawCount)
+        ? entry.drawCount
+        : Number.isFinite(entry.draw)
+            ? entry.draw
+            : Number.isFinite(entry.count)
+                ? entry.count
+                : null;
+    const drawCount = Number.isFinite(rawDrawCount) ? Math.max(0, Math.floor(rawDrawCount)) : null;
+    let refreshSettings = null;
+    if (entry.refreshSettings && typeof entry.refreshSettings === "object") {
+        refreshSettings = { ...entry.refreshSettings };
+    } else if (entry.refresh && typeof entry.refresh === "object") {
+        refreshSettings = { ...entry.refresh };
+    } else if (entry.refresh != null) {
+        refreshSettings = { value: entry.refresh };
+    }
+    const entries = Array.isArray(entry.entries) ? entry.entries.filter((item) => item != null) : [];
+    return {
+        poolId,
+        entries,
+        drawCount,
+        refreshSettings
+    };
+}
+
+function selectPoolUpgrades(poolDefinition, existingState = null) {
+    if (!poolDefinition) {
+        return { upgrades: [], state: null };
+    }
+    const poolEntries = [];
+    const seenIds = new Set();
+    poolDefinition.entries.forEach((rawEntry) => {
+        if (!rawEntry) {
+            return;
+        }
+        if (typeof rawEntry === "string") {
+            const instance = createUpgradeInstance(rawEntry);
+            if (!instance || seenIds.has(instance.id)) {
+                return;
+            }
+            seenIds.add(instance.id);
+            poolEntries.push({ id: instance.id, instance });
+            return;
+        }
+        if (typeof rawEntry !== "object") {
+            return;
+        }
+        const entryId = rawEntry.id;
+        if (!entryId) {
+            return;
+        }
+        const normalized = normalizeUpgradeEntry(entryId, rawEntry);
+        if (!normalized) {
+            return;
+        }
+        const instance = createUpgradeInstance(normalized);
+        if (!instance || seenIds.has(instance.id)) {
+            return;
+        }
+        seenIds.add(instance.id);
+        poolEntries.push({ id: instance.id, instance });
+    });
+
+    const availableIds = poolEntries.map((entry) => entry.id);
+    const maximumSelectable = availableIds.length;
+    const configuredDrawCount = Number.isFinite(poolDefinition.drawCount)
+        ? Math.max(0, Math.floor(poolDefinition.drawCount))
+        : maximumSelectable;
+    const drawCount = Math.min(configuredDrawCount, maximumSelectable);
+
+    const previousState = existingState && typeof existingState === "object" ? existingState : null;
+    const shouldRefresh = previousState?.refreshRequested === true;
+    const preservedSelection = [];
+
+    if (!shouldRefresh && Array.isArray(previousState?.selectedIds)) {
+        previousState.selectedIds.forEach((id) => {
+            if (preservedSelection.length >= drawCount) {
+                return;
+            }
+            if (!availableIds.includes(id)) {
+                return;
+            }
+            if (preservedSelection.includes(id)) {
+                return;
+            }
+            preservedSelection.push(id);
+        });
+    }
+
+    const remainingIds = availableIds.filter((id) => !preservedSelection.includes(id));
+    while (preservedSelection.length < drawCount && remainingIds.length > 0) {
+        const randomIndex = Math.floor(Math.random() * remainingIds.length);
+        const [nextId] = remainingIds.splice(randomIndex, 1);
+        if (nextId != null) {
+            preservedSelection.push(nextId);
+        }
+    }
+
+    const selectedUpgrades = preservedSelection
+        .map((id) => poolEntries.find((entry) => entry.id === id)?.instance ?? null)
+        .filter(Boolean);
+
+    const poolState = {
+        id: poolDefinition.poolId,
+        drawCount,
+        availableIds,
+        selectedIds: preservedSelection,
+        refreshRequested: false
+    };
+    if (poolDefinition.refreshSettings) {
+        poolState.refreshSettings = poolDefinition.refreshSettings;
+    }
+
+    return {
+        upgrades: selectedUpgrades,
+        state: poolState
+    };
+}
+
+function buildDeckUpgradeList(config, existingPoolState = null) {
     const deckId = config?.id ?? null;
     const profile = resolveDeckUpgradeProfile(deckId);
     const basics = [];
@@ -505,7 +668,22 @@ function buildDeckUpgradeList(config) {
         });
     }
 
-    const extras = profile.unique
+    const uniqueEntries = Array.isArray(profile.unique) ? profile.unique : [];
+    const directUniqueEntries = [];
+    const poolDefinitions = [];
+
+    uniqueEntries.forEach((entry, index) => {
+        if (isUpgradePoolConfig(entry)) {
+            const normalizedPool = normalizeUpgradePoolDefinition(entry, index);
+            if (normalizedPool) {
+                poolDefinitions.push(normalizedPool);
+            }
+            return;
+        }
+        directUniqueEntries.push(entry);
+    });
+
+    const extras = directUniqueEntries
         .map((entry) => {
             if (!entry) {
                 return null;
@@ -525,11 +703,28 @@ function buildDeckUpgradeList(config) {
         })
         .filter(Boolean);
 
+    const poolStateResult = {};
+    poolDefinitions.forEach((poolDefinition) => {
+        const previousState =
+            existingPoolState && typeof existingPoolState === "object"
+                ? existingPoolState[poolDefinition.poolId]
+                : null;
+        const { upgrades: selected, state } = selectPoolUpgrades(poolDefinition, previousState);
+        if (Array.isArray(selected) && selected.length > 0) {
+            extras.push(...selected);
+        }
+        if (state) {
+            poolStateResult[poolDefinition.poolId] = state;
+        }
+    });
+
     return {
         upgrades: [...basics, ...extras],
         baseChipsAmount: profile.baseChipsAmount,
         baseMultiplierAmount: profile.baseMultiplierAmount,
-        baseDrawTime: profile.baseDrawTime
+        baseDrawTime: profile.baseDrawTime,
+        baseHandSize: profile.baseHandSize,
+        poolState: poolDefinitions.length > 0 ? poolStateResult : {}
     };
 }
 
@@ -806,13 +1001,15 @@ export function setupDeckUpgrades(state) {
     if (!state?.dom?.upgradeList || !state.dom.upgradeSlots) {
         return;
     }
+    const existingPoolState = state.upgradePools ?? null;
     const {
         upgrades: deckUpgrades,
         baseChipsAmount,
         baseMultiplierAmount,
         baseDrawTime,
-        baseHandSize
-    } = buildDeckUpgradeList(state.config);
+        baseHandSize,
+        poolState
+    } = buildDeckUpgradeList(state.config, existingPoolState);
 
     if (Number.isFinite(baseChipsAmount)) {
         state.baseChipReward = baseChipsAmount;
@@ -826,6 +1023,8 @@ export function setupDeckUpgrades(state) {
     if (Number.isFinite(baseHandSize) && baseHandSize > 0) {
         state.handSize = baseHandSize;
     }
+
+    state.upgradePools = poolState ?? {};
 
     state.upgrades = deckUpgrades.map((upgrade) => ({
         ...upgrade,

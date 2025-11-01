@@ -10,6 +10,8 @@ import { HAND_SIZE } from "./config.js";
  * , baseHandSize: starting hand size for the deck
  * , basic: map of upgrade id -> config
  * , unique: list of deck only upgrades (id or config objects)
+ * , unique entries can define pools by including an entries array plus drawCount or draw
+ * , pool configs can include refresh or refreshSettings to describe cadence metadata
  *
  * upgrade config fields:
  * , cost, costGrowthRate, costLinearCoefficient, baseCost (optional)
