@@ -2,11 +2,14 @@ import {
     CARD_SHOP_POOL_WEIGHTS,
     CARD_SHOP_SETTINGS,
     TOTAL_MAIN_SLOTS,
-    RANKS
+    RANKS,
+    DEFAULT_REROLL_DICE_COST,
+    DEFAULT_REROLL_DICE_INCREMENT
 } from "./config.js";
 import { createStandardDeck, invalidateDeckCache } from "./deck-utils.js";
 import { renderDeckGrid } from "./ui.js";
 import { formatChipAmount } from "./chips.js";
+import { canAffordDice, formatDiceAmount, spendDice, subscribeToDiceChanges } from "./dice.js";
 
 const DISCARD_SHOP_ITEM = {
     id: "discard",
@@ -89,15 +92,67 @@ const CARD_SHOP_POOLS = {
     }
 };
 
-const CARD_SHOP_POOL_ODDS = CARD_SHOP_POOL_WEIGHTS.map(({ id, weight }) => {
-    const pool = CARD_SHOP_POOLS[id];
-    return pool ? { pool, weight } : null;
-}).filter(Boolean);
+function resolveCardShopPoolOdds(state) {
+    const boostActive = state?.cardShopRarityBoost === true;
+    return CARD_SHOP_POOL_WEIGHTS.map(({ id, weight }) => {
+        const pool = CARD_SHOP_POOLS[id];
+        if (!pool) {
+            return null;
+        }
+        let adjustedWeight = weight;
+        if (boostActive) {
+            if (id === "uncommon") {
+                adjustedWeight *= 2;
+            } else if (id === "rare") {
+                adjustedWeight *= 3;
+            }
+        }
+        return adjustedWeight > 0 ? { pool, weight: adjustedWeight } : null;
+    }).filter(Boolean);
+}
 
 const RANK_SYMBOL_NAME_MAP = new Map(RANKS.map(({ symbol, name }) => [symbol, name]));
 
 function formatChipPrice(value) {
     return formatChipAmount(value, { includeSymbol: true });
+}
+
+function resolveRerollCost(state) {
+    const cost = state?.cardShop?.rerollDiceCost;
+    if (!Number.isFinite(cost) || cost < 0) {
+        return 0;
+    }
+    return Math.ceil(cost);
+}
+
+function resolveRerollIncrement(state) {
+    const increment = state?.cardShop?.rerollDiceIncrement;
+    if (!Number.isFinite(increment) || increment < 0) {
+        return 0;
+    }
+    return Math.ceil(increment);
+}
+
+function updateRerollDisplay(state) {
+    if (!state?.cardShop) {
+        return;
+    }
+    const cost = resolveRerollCost(state);
+    const formattedCost = formatDiceAmount(cost);
+    const priceElement = state.dom?.cardShopRerollPrice ?? null;
+    if (priceElement) {
+        priceElement.textContent = "";
+        const span = document.createElement("span");
+        span.className = "dice-text";
+        span.textContent = formattedCost;
+        priceElement.append(span);
+    }
+    const button = state.dom?.cardShopRerollButton ?? null;
+    if (button) {
+        const affordable = canAffordDice(cost);
+        button.disabled = !affordable;
+        button.setAttribute("aria-label", `reroll: ${formattedCost}`);
+    }
 }
 
 function getOfferRarity(offer) {
@@ -157,8 +212,8 @@ function selectPoolByWeight(poolOdds) {
     return poolOdds[poolOdds.length - 1] ?? null;
 }
 
-function generateCardShopOffer() {
-    const selection = selectPoolByWeight(CARD_SHOP_POOL_ODDS);
+function generateCardShopOffer(state) {
+    const selection = selectPoolByWeight(resolveCardShopPoolOdds(state));
     const pool = selection?.pool;
     if (!pool) {
         return null;
@@ -332,9 +387,7 @@ function renderCardShop(state) {
 
     state.dom.cardShopSlots.replaceChildren(slotsFragment);
 
-    if (state.dom.cardShopRerollPrice) {
-        state.dom.cardShopRerollPrice.textContent = formatChipPrice(cardShop.rerollPrice);
-    }
+    updateRerollDisplay(state);
 }
 
 export function updateDiscardDisplay(state) {
@@ -353,7 +406,7 @@ function rerollCardShop(state, { silent = false } = {}) {
     const frozenSlotIndex = state.cardShop.frozenOffer?.fromSlotIndex ?? null;
     for (let index = 0; index < state.cardShop.slots.length; index += 1) {
         if (frozenSlotIndex !== index) {
-            state.cardShop.slots[index] = generateCardShopOffer();
+            state.cardShop.slots[index] = generateCardShopOffer(state);
         }
     }
     renderCardShop(state);
@@ -420,12 +473,32 @@ export function setupCardShop(state) {
         return;
     }
 
+    if (typeof state?.cardShop?.diceUnsubscribe === "function") {
+        state.cardShop.diceUnsubscribe();
+    }
+
+    const baseRerollCostCandidate = state?.config?.rerollCost;
+    const incrementCandidate = state?.config?.rerollIncrement;
+    const baseRerollCost = Number.isFinite(baseRerollCostCandidate) && baseRerollCostCandidate >= 0
+        ? Math.ceil(baseRerollCostCandidate)
+        : DEFAULT_REROLL_DICE_COST;
+    const rerollIncrement = Number.isFinite(incrementCandidate) && incrementCandidate >= 0
+        ? Math.ceil(incrementCandidate)
+        : DEFAULT_REROLL_DICE_INCREMENT;
+
     state.cardShop = {
         slots: Array.from({ length: CARD_SHOP_SETTINGS.slotCount }, () => null),
         frozenOffer: null,
-        rerollPrice: CARD_SHOP_SETTINGS.rerollPrice,
         cardPrice: CARD_SHOP_SETTINGS.cardPrice,
-        draggingOffer: null
+        draggingOffer: null,
+        baseRerollDiceCost: baseRerollCost,
+        rerollDiceCost: baseRerollCost,
+        rerollDiceIncrement: rerollIncrement,
+        diceUnsubscribe: null
+    };
+    state.cardShop.diceUnsubscribe = subscribeToDiceChanges(() => updateRerollDisplay(state));
+    state.refreshCardShopOdds = () => {
+        rerollCardShop(state, { silent: true });
     };
 
     if (state.discards == null) {
@@ -576,9 +649,26 @@ export function setupCardShop(state) {
 
     if (state.dom.cardShopRerollButton) {
         state.dom.cardShopRerollButton.addEventListener("click", () => {
+            if (!state?.cardShop) {
+                return;
+            }
+            const cost = resolveRerollCost(state);
+            if (!canAffordDice(cost)) {
+                updateRerollDisplay(state);
+                return;
+            }
+            if (!spendDice(cost)) {
+                updateRerollDisplay(state);
+                return;
+            }
             rerollCardShop(state);
+            const increment = resolveRerollIncrement(state);
+            const nextCost = Math.max(0, cost + increment);
+            state.cardShop.rerollDiceCost = nextCost;
+            updateRerollDisplay(state);
         });
     }
 
     rerollCardShop(state, { silent: true });
+    updateRerollDisplay(state);
 }

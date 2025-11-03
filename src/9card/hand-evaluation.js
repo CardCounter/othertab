@@ -1,4 +1,4 @@
-import { HAND_LABELS, STREAK_TARGET } from "./config.js";
+import { DICE_SYMBOL, HAND_LABELS, STREAK_TARGET } from "./config.js";
 import { formatChipAmount } from "./chips.js";
 
 const FOUR_CARD_STRAIGHT_FLAG = "straight_four_card_scoring";
@@ -453,13 +453,24 @@ export function getHighlightIndices(arg1, arg2, arg3) {
     return [];
 }
 
-export function buildResultMessage({ success, classification, streak, permanentlyCompleted, payout = 0 }) {
+function formatDiceAmount(value) {
+    const integerValue = Number.isFinite(value) ? Math.ceil(Math.max(0, value)) : 0;
+    const SCIENTIFIC_NOTATION_THRESHOLD = 100_000_000;
+    if (integerValue >= SCIENTIFIC_NOTATION_THRESHOLD) {
+        return integerValue.toExponential(2).replace("e+", "e");
+    }
+    return integerValue.toLocaleString();
+}
+
+export function buildResultMessage({ success, classification, streak, permanentlyCompleted, payout = 0, diceAwarded = 0 }) {
     if (success) {
         const formattedPayout = formatChipAmount(payout, { includeSymbol: false });
+        const formattedDice = formatDiceAmount(diceAwarded);
+        const dicePart = diceAwarded > 0 ? `, ${formattedDice}${DICE_SYMBOL}` : "";
         if (permanentlyCompleted || streak >= STREAK_TARGET) {
-            return `hit ${classification.label}, streak: ${streak}, payout: ${formattedPayout}⛁`;
+            return `hit ${classification.label}, streak: ${streak}, payout: ${formattedPayout}⛁${dicePart}`;
         }
-        return `hit ${classification.label} ${streak}/${STREAK_TARGET}, payout: ${formattedPayout}⛁`;
+        return `hit ${classification.label} ${streak}/${STREAK_TARGET}, payout: ${formattedPayout}⛁${dicePart}`;
     }
     return `missed (${classification.label})`;
 }

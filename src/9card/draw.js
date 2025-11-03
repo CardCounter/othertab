@@ -11,6 +11,7 @@ import {
 import { clearPendingDelete, resetDeckToBaseline } from "./deck-management.js";
 import { renderDeckGrid, updateHandDisplay } from "./ui.js";
 import { awardChips } from "./chips.js";
+import { awardDice } from "./dice.js";
 import { getDefaultDeckEvaluator } from "./evaluators/index.js";
 
 function scheduleNextAutoDraw(state) {
@@ -29,7 +30,7 @@ function scheduleNextAutoDraw(state) {
             return;
         }
         handleDraw(state);
-    }, state.autoDrawInterval ?? 0);
+    }, 0);
 }
 
 function resolveHandSize(state) {
@@ -197,13 +198,24 @@ export async function handleDraw(state) {
 
         let reachedTarget = false;
         let payout = 0;
+        let diceAwarded = 0;
         if (success) {
             state.streak += 1;
+            const chipRewardMultiplier =
+                Number.isFinite(state?.chipRewardMultiplier) && state.chipRewardMultiplier > 0
+                    ? state.chipRewardMultiplier
+                    : 1;
+            const baseChipAmount = Number.isFinite(state.baseChipReward) ? state.baseChipReward : 0;
             payout = awardChips({
-                baseAmount: state.baseChipReward,
+                baseAmount: baseChipAmount * chipRewardMultiplier,
                 streak: state.streak,
                 streakMultiplier: state.chipStreakMultiplier
             });
+            const diceRewardMultiplier =
+                Number.isFinite(state?.diceRewardMultiplier) && state.diceRewardMultiplier > 0
+                    ? Math.max(1, Math.ceil(state.diceRewardMultiplier))
+                    : 1;
+            diceAwarded = awardDice(diceRewardMultiplier);
             if (state.streak >= STREAK_TARGET) {
                 reachedTarget = true;
                 state.permanentlyCompleted = true;
@@ -230,7 +242,8 @@ export async function handleDraw(state) {
             classification,
             streak: state.streak,
             permanentlyCompleted: state.permanentlyCompleted,
-            payout
+            payout,
+            diceAwarded
         });
 
         state.dom.result.textContent = message;

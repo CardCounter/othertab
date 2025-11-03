@@ -2,8 +2,11 @@ export const STREAK_TARGET = 9;
 export const HAND_SIZE = 5;
 export const MIN_DECK_CARD_COUNT = 45;
 export const DEFAULT_BASE_CHIP_PAYOUT = 1;
-export const DEFAULT_STREAK_CHIP_MULTIPLIER = 1.5;
+export const DEFAULT_STREAK_CHIP_MULTIPLIER = 1;
 export const CHIP_SYMBOL = "⛁";
+export const DICE_SYMBOL = "⚂";
+export const DEFAULT_REROLL_DICE_COST = 1;
+export const DEFAULT_REROLL_DICE_INCREMENT = 1;
 
 export const RANKS = [
     { symbol: "2", value: 2, name: "two" },
@@ -69,7 +72,7 @@ export const DECKS = [
         title: "pair deck",
         subtitle: "collect nine pairs back to back.",
         target: "pair",
-        successNoun: "pairs"
+        successNoun: "pair"
     },
     {
         id: "two_pair",
@@ -131,13 +134,12 @@ export const DECKS = [
 
 export const CARD_SHOP_SETTINGS = {
     cardPrice: 0,
-    rerollPrice: 0,
     slotCount: 5,
     freezeCapacity: 1
 };
 
 export const CARD_SHOP_POOL_WEIGHTS = [
-    { id: "common", weight: 80 },
-    { id: "uncommon", weight: 18 },
-    { id: "rare", weight: 2 }
+    { id: "common", weight: 75 },
+    { id: "uncommon", weight: 20 },
+    { id: "rare", weight: 5 }
 ];

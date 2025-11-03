@@ -3,6 +3,12 @@ import {
     DEFAULT_STREAK_CHIP_MULTIPLIER
 } from "./config.js";
 import { canAffordChips, formatChipAmount, spendChips, subscribeToChipChanges } from "./chips.js";
+import {
+    canAffordDice,
+    formatDiceAmount,
+    spendDice,
+    subscribeToDiceChanges
+} from "./dice.js";
 import { DECK_UPGRADE_CONFIG } from "./upgrade-config.js";
 
 export const UPGRADE_TYPES = {
@@ -11,8 +17,11 @@ export const UPGRADE_TYPES = {
 };
 
 const BASIC_UPGRADE_IDS = ["increase_payout", "increase_streak_multiplier", "decrease_draw_time"];
+const BASIC_UPGRADE_ID_SET = new Set(BASIC_UPGRADE_IDS);
 const DEFAULT_UNLOCKED_UPGRADE_SLOTS = 6;
 const MAX_UPGRADE_SLOT_COUNT = 7;
+const UNIQUE_UPGRADE_SLOT_COUNT = 3;
+const DEFAULT_UNIQUE_REROLL_COST = 1;
 
 const upgradeRegistry = new Map();
 
@@ -309,13 +318,16 @@ function createUpgradeInstance(entry) {
     const glyphColor = normalizeStringValue(
         overrides.glyphColor != null ? overrides.glyphColor : definition?.glyphColor
     );
-    const textSize = normalizeStringValue(
+    const resolvedType = resolveUpgradeType(definition, overrides);
+    const providedTextSize = normalizeStringValue(
         overrides.textSize != null ? overrides.textSize : definition?.textSize
     );
+    const textSize =
+        providedTextSize ?? (resolvedType === UPGRADE_TYPES.UNIQUE ? "4rem" : null);
 
     const instance = {
         id,
-        type: resolveUpgradeType(definition, overrides),
+        type: resolvedType,
         title: overrides.title ?? definition.title ?? id,
         description: overrides.description ?? definition.description ?? "",
         cost: Math.max(baseCost, 0),
@@ -963,7 +975,15 @@ function renderUpgradeSlots(state) {
             typeof upgrade.getCurrentValue === "function"
                 ? upgrade.getCurrentValue(state)
                 : upgrade.title ?? upgrade.id;
-        slot.setAttribute("aria-label", primaryText.trim());
+        const trimmed = typeof primaryText === "string" ? primaryText.trim() : "";
+        if (trimmed) {
+            slot.setAttribute("aria-label", trimmed);
+            const tooltip = document.createElement("div");
+            tooltip.className = "upgrade-slot-tooltip";
+            tooltip.textContent = trimmed;
+            tooltip.setAttribute("aria-hidden", "true");
+            slot.append(tooltip);
+        }
 
         fragment.append(slot);
     }
@@ -971,133 +991,472 @@ function renderUpgradeSlots(state) {
     container.replaceChildren(fragment);
 }
 
-function renderUpgrades(state) {
-    if (!state?.dom?.upgradeList) {
-        return;
+function createUpgradeCardElement(state, upgrade) {
+    if (!state || !upgrade) {
+        return null;
     }
-
-    const list = state.dom.upgradeList;
-    const fragment = document.createDocumentFragment();
-
-    if (!Array.isArray(state.upgrades) || state.upgrades.length === 0) {
-        const empty = document.createElement("p");
-        empty.className = "upgrade-empty";
-        empty.textContent = "no upgrades available";
-        fragment.append(empty);
-        list.replaceChildren(fragment);
-        renderUpgradeSlots(state);
-        return;
+    const level = Number.isFinite(upgrade?.level) ? upgrade.level : 0;
+    const card = document.createElement("article");
+    card.className = "upgrade-card";
+    card.dataset.upgradeId = upgrade.id;
+    card.setAttribute("role", "listitem");
+    if (upgrade.type === UPGRADE_TYPES.UNIQUE) {
+        card.classList.add("upgrade-card-unique");
     }
+    if (level > 0) {
+        card.classList.add("upgrade-card-purchased");
+    }
+    card.dataset.level = `${level}`;
 
-    state.upgrades.forEach((upgrade) => {
-        const level = Number.isFinite(upgrade?.level) ? upgrade.level : 0;
-        const card = document.createElement("article");
-        card.className = "upgrade-card";
-        card.dataset.upgradeId = upgrade.id;
-        card.setAttribute("role", "listitem");
-        if (upgrade.type === UPGRADE_TYPES.UNIQUE) {
-            card.classList.add("upgrade-card-unique");
+    const { backgroundColor, glyph, glyphColor, textSize } = getUpgradePresentation(upgrade);
+    const isBasicUpgrade = upgrade.type === UPGRADE_TYPES.BASIC;
+    const showVisual = !isBasicUpgrade && (backgroundColor || glyph);
+
+    const header = document.createElement("div");
+    header.className = "upgrade-card-header";
+
+    const statText =
+        typeof upgrade.getCurrentValue === "function"
+            ? upgrade.getCurrentValue(state)
+            : typeof upgrade.title === "string"
+              ? upgrade.title
+              : upgrade.id;
+
+    if (showVisual) {
+        const visual = document.createElement("div");
+        visual.className = "upgrade-card-visual";
+        if (backgroundColor) {
+            visual.style.backgroundColor = backgroundColor;
         }
-        if (level > 0) {
-            card.classList.add("upgrade-card-purchased");
-        }
-        card.dataset.level = `${level}`;
-
-        const { backgroundColor, glyph, glyphColor, textSize } = getUpgradePresentation(upgrade);
-        const isBasicUpgrade = upgrade.type === UPGRADE_TYPES.BASIC;
-        const showVisual = !isBasicUpgrade && (backgroundColor || glyph);
-
-        const header = document.createElement("div");
-        header.className = "upgrade-card-header";
-
-        if (showVisual) {
-            const visual = document.createElement("div");
-            visual.className = "upgrade-card-visual";
-            if (backgroundColor) {
-                visual.style.backgroundColor = backgroundColor;
+        if (glyph) {
+            const glyphElement = document.createElement("span");
+            glyphElement.className = "upgrade-card-glyph";
+            glyphElement.textContent = glyph;
+            if (glyphColor) {
+                glyphElement.style.color = glyphColor;
             }
-            if (glyph) {
-                const glyphElement = document.createElement("span");
-                glyphElement.className = "upgrade-card-glyph";
-                glyphElement.textContent = glyph;
-                if (glyphColor) {
-                    glyphElement.style.color = glyphColor;
-                }
-                if (textSize) {
-                    glyphElement.style.fontSize = textSize;
-                }
-                visual.append(glyphElement);
+            if (textSize) {
+                glyphElement.style.fontSize = textSize;
             }
-            header.append(visual);
-            card.classList.add("upgrade-card-with-visual");
+            visual.append(glyphElement);
+        } else {
+            const fallbackLabel =
+                typeof upgrade.title === "string" ? upgrade.title : typeof upgrade.id === "string" ? upgrade.id : "";
+            if (fallbackLabel) {
+                const fallbackElement = document.createElement("span");
+                fallbackElement.className = "upgrade-card-visual-label";
+                fallbackElement.textContent = fallbackLabel;
+                visual.append(fallbackElement);
+            }
         }
-
-        const info = document.createElement("div");
-        info.className = "upgrade-card-info";
-
-        if (!isBasicUpgrade) {
-            const title = document.createElement("span");
-            title.className = "upgrade-card-title";
-            title.textContent = typeof upgrade.title === "string" ? upgrade.title : upgrade.id;
-            info.append(title);
-        }
+        header.append(visual);
+        card.classList.add("upgrade-card-with-visual");
 
         const stat = document.createElement("div");
         stat.className = "upgrade-card-stat";
-        stat.textContent =
-            typeof upgrade.getCurrentValue === "function"
-                ? upgrade.getCurrentValue(state)
-                : typeof upgrade.title === "string"
-                  ? upgrade.title
-                  : upgrade.id;
+        stat.textContent = statText;
+        stat.setAttribute("aria-hidden", "true");
+        header.append(stat);
+        if (statText) {
+            card.setAttribute("aria-label", statText.trim());
+        }
+    } else {
+        const info = document.createElement("div");
+        info.className = "upgrade-card-info";
+
+        const stat = document.createElement("div");
+        stat.className = "upgrade-card-stat";
+        stat.textContent = statText;
         info.append(stat);
 
         header.append(info);
-
-        const body = document.createElement("div");
-        body.className = "upgrade-card-body";
-
-        const button = document.createElement("button");
-        button.type = "button";
-        button.className = "upgrade-card-button";
-        button.dataset.upgradeId = upgrade.id;
-
-        const cost = calculateUpgradeCost(upgrade);
-        const amount = calculateUpgradeAmount(state, upgrade);
-        const isMaxed = amount <= 0 || cost <= 0 || !Number.isFinite(cost);
-        const insufficientFunds = !isMaxed && !canAffordChips(cost);
-        const shouldDisable = isMaxed || insufficientFunds;
-
-        button.disabled = shouldDisable;
-        button.textContent = isMaxed ? "maxed" : formatChipAmount(cost);
-
-        upgrade.cost = isMaxed ? 0 : cost;
-
-        const formattedCost = Number.isFinite(cost) ? formatChipAmount(cost) : "";
-        const upgradeLabel = upgrade.title ?? upgrade.id;
-        if (isMaxed) {
-            button.setAttribute("aria-label", `upgrade ${upgradeLabel} maxed`);
-        } else if (insufficientFunds) {
-            button.setAttribute("aria-label", `upgrade ${upgradeLabel} for ${formattedCost} (not enough chips)`);
-        } else {
-            button.setAttribute("aria-label", `upgrade ${upgradeLabel} for ${formattedCost}`);
+        if (statText) {
+            card.setAttribute("aria-label", statText.trim());
         }
+    }
 
-        if (Number.isFinite(cost)) {
-            button.dataset.cost = `${cost}`;
+    const body = document.createElement("div");
+    body.className = "upgrade-card-body";
+
+    const buyButton = document.createElement("button");
+    buyButton.type = "button";
+    buyButton.className = "upgrade-card-button";
+    buyButton.dataset.upgradeId = upgrade.id;
+    buyButton.dataset.action = "buy";
+
+    const cost = calculateUpgradeCost(upgrade);
+    const amount = calculateUpgradeAmount(state, upgrade);
+    const isMaxed = amount <= 0 || cost <= 0 || !Number.isFinite(cost);
+    const insufficientFunds = !isMaxed && !canAffordChips(cost);
+    const shouldDisable = isMaxed || insufficientFunds;
+
+    buyButton.disabled = shouldDisable;
+    buyButton.textContent = isMaxed ? "maxed" : formatChipAmount(cost);
+
+    upgrade.cost = isMaxed ? 0 : cost;
+
+    const formattedCost = Number.isFinite(cost) ? formatChipAmount(cost) : "";
+    const upgradeLabel = upgrade.title ?? upgrade.id;
+    if (isMaxed) {
+        buyButton.setAttribute("aria-label", `upgrade ${upgradeLabel} maxed`);
+    } else if (insufficientFunds) {
+        buyButton.setAttribute("aria-label", `upgrade ${upgradeLabel} for ${formattedCost} (not enough chips)`);
+    } else {
+        buyButton.setAttribute("aria-label", `upgrade ${upgradeLabel} for ${formattedCost}`);
+    }
+
+    if (Number.isFinite(cost)) {
+        buyButton.dataset.cost = `${cost}`;
+    } else {
+        delete buyButton.dataset.cost;
+    }
+    buyButton.dataset.amount = `${amount}`;
+
+    body.append(buyButton);
+
+    if (isBasicUpgrade && BASIC_UPGRADE_ID_SET.has(upgrade.id) && !isMaxed) {
+        const maxButton = document.createElement("button");
+        maxButton.type = "button";
+        maxButton.className = "upgrade-card-button upgrade-card-button-max";
+        maxButton.dataset.upgradeId = upgrade.id;
+        maxButton.dataset.action = "buy-max";
+        maxButton.disabled = shouldDisable;
+        maxButton.textContent = "buy max";
+        if (insufficientFunds) {
+            maxButton.setAttribute(
+                "aria-label",
+                `buy max ${upgradeLabel} for ${formattedCost} (not enough chips)`
+            );
+        } else if (formattedCost) {
+            maxButton.setAttribute("aria-label", `buy maximum ${upgradeLabel} upgrades starting at ${formattedCost}`);
         } else {
-            delete button.dataset.cost;
+            maxButton.setAttribute("aria-label", `buy maximum ${upgradeLabel} upgrades`);
         }
-        button.dataset.amount = `${amount}`;
+        maxButton.dataset.amount = `${amount}`;
+        body.append(maxButton);
+    }
 
-        body.append(button);
+    card.append(header, body);
+    return card;
+}
 
-        card.append(header, body);
-        fragment.append(card);
+function renderUpgrades(state) {
+    if (!state?.dom?.upgradeList || !state.dom.upgradeUniqueList) {
+        return;
+    }
+
+    const basicContainer = state.dom.upgradeList;
+    const uniqueContainer = state.dom.upgradeUniqueList;
+    const rerollButton = state.dom.upgradeUniqueRerollButton ?? null;
+    const uniqueRow = state.dom.upgradeUniqueRow ?? null;
+
+    const upgrades = Array.isArray(state.upgrades) ? state.upgrades : [];
+    const upgradesById = new Map();
+    upgrades.forEach((upgrade) => {
+        if (upgrade?.id) {
+            upgradesById.set(upgrade.id, upgrade);
+        }
+    });
+    const basicUpgrades = upgrades.filter((upgrade) => upgrade?.type === UPGRADE_TYPES.BASIC);
+    const uniqueCandidates = getUnpurchasedUniqueUpgrades(state);
+    const deckHasUniqueUpgrades = upgrades.some((upgrade) => upgrade?.type === UPGRADE_TYPES.UNIQUE);
+    const slotIds = ensureUniqueUpgradeSlotState(state);
+    const slotUpgrades = slotIds.map((slotId) => {
+        if (!slotId) {
+            return null;
+        }
+        const upgrade = upgradesById.get(slotId) ?? null;
+        if (!upgrade || upgrade.type !== UPGRADE_TYPES.UNIQUE || upgrade.purchased === true) {
+            return null;
+        }
+        return upgrade;
     });
 
-    list.replaceChildren(fragment);
+    const basicFragment = document.createDocumentFragment();
+    if (basicUpgrades.length === 0 && uniqueCandidates.length === 0) {
+        const empty = document.createElement("p");
+        empty.className = "upgrade-empty";
+        empty.textContent = "no upgrades available";
+        basicFragment.append(empty);
+    } else {
+        basicUpgrades.forEach((upgrade) => {
+            const card = createUpgradeCardElement(state, upgrade);
+            if (card) {
+                basicFragment.append(card);
+            }
+        });
+    }
+    basicContainer.replaceChildren(basicFragment);
+
+    const uniqueFragment = document.createDocumentFragment();
+    for (let index = 0; index < slotIds.length; index += 1) {
+        const upgrade = slotUpgrades[index];
+        if (upgrade) {
+            const card = createUpgradeCardElement(state, upgrade);
+            if (card) {
+                uniqueFragment.append(card);
+            }
+            continue;
+        }
+        const placeholder = document.createElement("article");
+        placeholder.className = "upgrade-card upgrade-card-placeholder";
+        placeholder.setAttribute("role", "listitem");
+        placeholder.setAttribute("aria-hidden", "true");
+        const placeholderBody = document.createElement("div");
+        placeholderBody.className = "upgrade-card-placeholder-body";
+        placeholderBody.textContent = "empty";
+        placeholder.append(placeholderBody);
+        uniqueFragment.append(placeholder);
+    }
+    uniqueContainer.replaceChildren(uniqueFragment);
+
+    const hasUpgradePools =
+        state.upgradePools && typeof state.upgradePools === "object" && Object.keys(state.upgradePools).length > 0;
+    const shouldShowRow = deckHasUniqueUpgrades || hasUpgradePools;
+    if (uniqueRow) {
+        uniqueRow.hidden = !shouldShowRow;
+    }
+    if (rerollButton) {
+        if (!shouldShowRow) {
+            rerollButton.hidden = true;
+        } else {
+            rerollButton.hidden = false;
+            const rerollCost = resolveUniqueUpgradeRerollCost(state);
+            const formattedRerollCost = formatDiceAmount(rerollCost);
+            const hasCandidates = uniqueCandidates.length > 0;
+            const affordable = canAffordDice(rerollCost);
+            const disableReroll =
+                state.isPurchasingUpgrades === true ||
+                state.isRerollingUniqueUpgrades === true ||
+                !hasCandidates ||
+                !affordable;
+            rerollButton.disabled = disableReroll;
+            rerollButton.textContent = "reroll: ";
+            const diceSpan = document.createElement("span");
+            diceSpan.className = "dice-text";
+            diceSpan.textContent = formattedRerollCost;
+            rerollButton.append(diceSpan);
+            rerollButton.dataset.cost = `${rerollCost}`;
+
+            let ariaLabel = `reroll unique upgrades for ${formattedRerollCost}`;
+            if (state.isPurchasingUpgrades) {
+                ariaLabel = "reroll unavailable while purchasing upgrades";
+            } else if (state.isRerollingUniqueUpgrades) {
+                ariaLabel = "reroll in progress";
+            } else if (!hasCandidates) {
+                ariaLabel = "reroll unavailable (no upgrades remaining)";
+            } else if (!affordable) {
+                ariaLabel = `reroll unique upgrades for ${formattedRerollCost} (not enough dice)`;
+            }
+
+            rerollButton.setAttribute("aria-label", ariaLabel);
+        }
+    }
+
     renderUpgradeSlots(state);
+}
+
+function ensureUniqueUpgradeSlotState(state) {
+    if (!state) {
+        return [];
+    }
+    if (!Array.isArray(state.uniqueUpgradeSlots) || state.uniqueUpgradeSlots.length !== UNIQUE_UPGRADE_SLOT_COUNT) {
+        state.uniqueUpgradeSlots = new Array(UNIQUE_UPGRADE_SLOT_COUNT).fill(null);
+    }
+    return state.uniqueUpgradeSlots;
+}
+
+function resetUniqueUpgradeSlots(state) {
+    if (!state) {
+        return;
+    }
+    state.uniqueUpgradeSlotsInitialized = false;
+    state.uniqueUpgradeSlots = new Array(UNIQUE_UPGRADE_SLOT_COUNT).fill(null);
+}
+
+function getUnpurchasedUniqueUpgrades(state) {
+    if (!state?.upgrades) {
+        return [];
+    }
+    return state.upgrades.filter(
+        (upgrade) => upgrade?.type === UPGRADE_TYPES.UNIQUE && upgrade.purchased !== true
+    );
+}
+
+function shuffleArray(values) {
+    const copy = [...values];
+    for (let index = copy.length - 1; index > 0; index -= 1) {
+        const swapIndex = Math.floor(Math.random() * (index + 1));
+        const temp = copy[index];
+        copy[index] = copy[swapIndex];
+        copy[swapIndex] = temp;
+    }
+    return copy;
+}
+
+function fillUniqueUpgradeSlots(state, { randomize = false, force = false } = {}) {
+    if (!state) {
+        return;
+    }
+    const slots = ensureUniqueUpgradeSlotState(state);
+    if (!force && state.uniqueUpgradeSlotsInitialized) {
+        return;
+    }
+    const candidates = getUnpurchasedUniqueUpgrades(state);
+    const candidateIds = candidates.map((upgrade) => upgrade.id);
+    const orderedIds = randomize ? shuffleArray(candidateIds) : candidateIds;
+    for (let index = 0; index < slots.length; index += 1) {
+        slots[index] = orderedIds[index] ?? null;
+    }
+    state.uniqueUpgradeSlotsInitialized = true;
+}
+
+function removeUniqueFromSlots(state, upgradeId) {
+    if (!state || !Array.isArray(state.uniqueUpgradeSlots) || !upgradeId) {
+        return;
+    }
+    const index = state.uniqueUpgradeSlots.indexOf(upgradeId);
+    if (index >= 0) {
+        state.uniqueUpgradeSlots[index] = null;
+    }
+}
+
+function resolveUniqueUpgradeRerollCost(state) {
+    if (!state) {
+        return DEFAULT_UNIQUE_REROLL_COST;
+    }
+    const current = Number.isFinite(state.uniqueUpgradeRerollCost)
+        ? Math.max(DEFAULT_UNIQUE_REROLL_COST, Math.floor(state.uniqueUpgradeRerollCost))
+        : DEFAULT_UNIQUE_REROLL_COST;
+    state.uniqueUpgradeRerollCost = current;
+    return current;
+}
+
+function mergeRerolledUpgrades(state, nextUpgrades) {
+    const previous = Array.isArray(state?.upgrades) ? state.upgrades : [];
+    const previousById = new Map();
+    previous.forEach((upgrade) => {
+        if (!upgrade || !upgrade.id) {
+            return;
+        }
+        previousById.set(upgrade.id, upgrade);
+    });
+
+    const merged = [];
+
+    nextUpgrades.forEach((upgrade) => {
+        if (!upgrade || !upgrade.id) {
+            return;
+        }
+        const existing = previousById.get(upgrade.id);
+        const getter = upgradeRegistry.get(upgrade.id)?.getCurrentValue;
+        const base = {
+            ...upgrade
+        };
+        if (getter) {
+            base.getCurrentValue = getter;
+        } else {
+            delete base.getCurrentValue;
+        }
+        if (existing) {
+            base.level = Number.isFinite(existing.level) ? existing.level : Number.isFinite(base.level) ? base.level : 0;
+            base.purchased = existing.purchased === true || (Number.isFinite(base.level) && base.level > 0);
+        } else {
+            base.level = Number.isFinite(base.level) ? base.level : 0;
+            base.purchased = base.purchased === true && base.level > 0;
+        }
+        base.cost = calculateUpgradeCost(base);
+        merged.push(base);
+    });
+
+    previous.forEach((upgrade) => {
+        if (!upgrade || !upgrade.id) {
+            return;
+        }
+        if (merged.some((entry) => entry.id === upgrade.id)) {
+            return;
+        }
+        if (upgrade.type === UPGRADE_TYPES.UNIQUE && upgrade.purchased) {
+            const getter = upgradeRegistry.get(upgrade.id)?.getCurrentValue;
+            if (getter) {
+                upgrade.getCurrentValue = getter;
+            } else {
+                delete upgrade.getCurrentValue;
+            }
+            upgrade.cost = calculateUpgradeCost(upgrade);
+            merged.push(upgrade);
+        }
+    });
+
+    return merged;
+}
+
+function rerollUniqueUpgrades(state) {
+    if (!state?.config) {
+        return;
+    }
+
+    const currentPools =
+        state.upgradePools && typeof state.upgradePools === "object" ? state.upgradePools : {};
+    const hasUpgradePools = Object.keys(currentPools).length > 0;
+    const availableBefore = getUnpurchasedUniqueUpgrades(state);
+    if (availableBefore.length === 0 && !hasUpgradePools) {
+        return;
+    }
+
+    const rerollCost = resolveUniqueUpgradeRerollCost(state);
+    if (!spendDice(rerollCost)) {
+        // ensure we respect the minimum cost if spending fails
+        state.uniqueUpgradeRerollCost = Math.max(rerollCost, DEFAULT_UNIQUE_REROLL_COST);
+        renderUpgrades(state);
+        return;
+    }
+    state.uniqueUpgradeRerollCost = rerollCost + 1;
+    state.isRerollingUniqueUpgrades = true;
+
+    try {
+        if (hasUpgradePools) {
+            const refreshState = {};
+            Object.entries(currentPools).forEach(([poolId, poolState]) => {
+                if (!poolId) {
+                    return;
+                }
+                const clonedState =
+                    poolState && typeof poolState === "object" ? { ...poolState } : {};
+                clonedState.refreshRequested = true;
+                refreshState[poolId] = clonedState;
+            });
+
+            const {
+                upgrades: nextDeckUpgrades,
+                poolState
+            } = buildDeckUpgradeList(state.config, refreshState);
+
+            const mergedUpgrades = mergeRerolledUpgrades(state, nextDeckUpgrades);
+            state.upgrades = mergedUpgrades;
+            state.upgradePools = poolState ?? {};
+        }
+
+        if (!Array.isArray(state.purchasedUpgradeOrder)) {
+            state.purchasedUpgradeOrder = [];
+        }
+        const purchaseOrderSet = new Set(state.purchasedUpgradeOrder);
+        state.upgrades.forEach((upgrade) => {
+            if (!upgrade || !upgrade.purchased) {
+                return;
+            }
+            if (!purchaseOrderSet.has(upgrade.id)) {
+                state.purchasedUpgradeOrder.push(upgrade.id);
+                purchaseOrderSet.add(upgrade.id);
+            }
+        });
+
+        fillUniqueUpgradeSlots(state, { randomize: true, force: true });
+    } finally {
+        state.isRerollingUniqueUpgrades = false;
+    }
+
+    renderUpgrades(state);
 }
 
 function applyUpgrade(state, upgrade) {
@@ -1117,6 +1476,7 @@ function applyUpgrade(state, upgrade) {
     if (isUniqueUpgrade) {
         upgrade.level = 1;
         upgrade.purchased = true;
+        removeUniqueFromSlots(state, upgrade.id);
         if (!wasPurchased) {
             if (!Array.isArray(state.purchasedUpgradeOrder)) {
                 state.purchasedUpgradeOrder = [];
@@ -1137,6 +1497,60 @@ function applyUpgrade(state, upgrade) {
     upgrade.cost = calculateUpgradeCost(upgrade);
 }
 
+function purchaseSingleUpgrade(state, upgrade) {
+    if (!state || !upgrade) {
+        return false;
+    }
+    const amount = calculateUpgradeAmount(state, upgrade);
+    if (amount <= 0) {
+        return false;
+    }
+    const cost = calculateUpgradeCost(upgrade);
+    if (!Number.isFinite(cost) || cost <= 0) {
+        return false;
+    }
+    if (!spendChips(cost)) {
+        return false;
+    }
+    applyUpgrade(state, upgrade);
+    return true;
+}
+
+function purchaseUpgradeToMax(state, upgrade) {
+    if (!state || !upgrade) {
+        return false;
+    }
+    // prevent re-renders during purchase loop to avoid lag and missed clicks
+    state.isPurchasingUpgrades = true;
+    let purchasedAny = false;
+    try {
+        while (true) {
+            const amount = calculateUpgradeAmount(state, upgrade);
+            if (amount <= 0) {
+                break;
+            }
+            const cost = calculateUpgradeCost(upgrade);
+            if (!Number.isFinite(cost) || cost <= 0) {
+                break;
+            }
+            if (!canAffordChips(cost)) {
+                break;
+            }
+            if (!spendChips(cost)) {
+                break;
+            }
+            applyUpgrade(state, upgrade);
+            purchasedAny = true;
+            if (upgrade.type === UPGRADE_TYPES.UNIQUE) {
+                break;
+            }
+        }
+    } finally {
+        state.isPurchasingUpgrades = false;
+    }
+    return purchasedAny;
+}
+
 function handleUpgradeClick(state, event) {
     const button = event.target.closest(".upgrade-card-button");
     if (!button) {
@@ -1150,16 +1564,20 @@ function handleUpgradeClick(state, event) {
     if (!upgrade || button.disabled) {
         return;
     }
-    const cost = Number(button.dataset.cost ?? upgrade.cost ?? 0);
-    if (!spendChips(cost)) {
-        return;
+    const action = button.dataset.action ?? "buy";
+    let purchased = false;
+    if (action === "buy-max") {
+        purchased = purchaseUpgradeToMax(state, upgrade);
+    } else {
+        purchased = purchaseSingleUpgrade(state, upgrade);
     }
-    applyUpgrade(state, upgrade);
-    renderUpgrades(state);
+    if (purchased) {
+        renderUpgrades(state);
+    }
 }
 
 export function setupDeckUpgrades(state) {
-    if (!state?.dom?.upgradeList || !state.dom.upgradeSlots) {
+    if (!state?.dom?.upgradeList || !state.dom.upgradeSlots || !state.dom.upgradeUniqueList) {
         return;
     }
     const existingPoolState = state.upgradePools ?? null;
@@ -1193,6 +1611,11 @@ export function setupDeckUpgrades(state) {
         getCurrentValue: upgradeRegistry.get(upgrade.id)?.getCurrentValue
     }));
 
+    state.uniqueUpgradeRerollCost = DEFAULT_UNIQUE_REROLL_COST;
+    state.isRerollingUniqueUpgrades = false;
+    resetUniqueUpgradeSlots(state);
+    fillUniqueUpgradeSlots(state);
+
     if (!Array.isArray(state.purchasedUpgradeOrder)) {
         state.purchasedUpgradeOrder = [];
     }
@@ -1214,14 +1637,40 @@ export function setupDeckUpgrades(state) {
     if (typeof state.unsubscribeChipListener === "function") {
         state.unsubscribeChipListener();
     }
+    if (typeof state.unsubscribeDiceListener === "function") {
+        state.unsubscribeDiceListener();
+    }
 
     state.renderUpgrades = () => renderUpgrades(state);
     state.renderUpgradeSlots = () => renderUpgradeSlots(state);
-    state.unsubscribeChipListener = subscribeToChipChanges(() => renderUpgrades(state));
+    state.unsubscribeChipListener = subscribeToChipChanges(() => {
+        // skip re-rendering during purchase operations to prevent lag and missed clicks
+        if (state.isPurchasingUpgrades) {
+            return;
+        }
+        renderUpgrades(state);
+    });
+    state.unsubscribeDiceListener = subscribeToDiceChanges(() => {
+        if (state.isPurchasingUpgrades || state.isRerollingUniqueUpgrades) {
+            return;
+        }
+        renderUpgrades(state);
+    });
 
-    if (!state.dom.upgradeList.dataset.listenerAttached) {
-        state.dom.upgradeList.dataset.listenerAttached = "true";
-        state.dom.upgradeList.addEventListener("click", (event) => handleUpgradeClick(state, event));
+    const upgradeClickTarget = state.dom.upgradeColumn ?? state.dom.upgradeList;
+    if (upgradeClickTarget && !upgradeClickTarget.dataset.listenerAttached) {
+        upgradeClickTarget.dataset.listenerAttached = "true";
+        upgradeClickTarget.addEventListener("click", (event) => handleUpgradeClick(state, event));
+    }
+
+    if (
+        state.dom.upgradeUniqueRerollButton &&
+        !state.dom.upgradeUniqueRerollButton.dataset.listenerAttached
+    ) {
+        state.dom.upgradeUniqueRerollButton.dataset.listenerAttached = "true";
+        state.dom.upgradeUniqueRerollButton.addEventListener("click", () => {
+            rerollUniqueUpgrades(state);
+        });
     }
 
     state.renderUpgrades();

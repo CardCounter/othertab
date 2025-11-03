@@ -1,5 +1,5 @@
 export default {
-    baseChipsAmount: 1,
+    baseChipsAmount: 100000000000000000,
     baseMultiplierAmount: 1.0,
     baseDrawTime: 2000,
     basic: {
@@ -17,11 +17,11 @@ export default {
         },
         decrease_draw_time: {
             cost: 500,
-            costGrowthRate: 3.2,
+            costGrowthRate: 1.2,
             costLinearCoefficient: 0.35,
             increaseAmount: 50,
             options: {
-                minimumDuration: 1
+                minimumDuration: 50
             }
         }
     },

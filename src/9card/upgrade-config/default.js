@@ -37,5 +37,152 @@ export default {
             glyphColor: "#9f1239"
         }
     },
-    unique: []
+    unique: [
+        {
+            id: "auto_draw_unlock",
+            cost: 250,
+            costGrowthRate: 1,
+            costLinearCoefficient: 0,
+            title: "auto draw",
+            definition: {
+                id: "auto_draw_unlock",
+                type: "unique",
+                defaults: {
+                    amount: 1
+                },
+                apply(state) {
+                    if (!state) {
+                        return;
+                    }
+                    if (typeof state.setAutoDrawUnlocked === "function") {
+                        state.setAutoDrawUnlocked(true);
+                        return;
+                    }
+                    state.autoDrawUnlocked = true;
+                    if (typeof state.updateAutoButton === "function") {
+                        state.updateAutoButton();
+                    }
+                },
+                getCurrentValue(state) {
+                    // Change these strings to update the hover description
+                    return state?.autoDrawUnlocked
+                        ? "auto draw unlocked"
+                        : "auto draw hand";
+                },
+                resolveAmount(state, upgrade) {
+                    return upgrade?.purchased ? 0 : 1;
+                }
+            },
+            backgroundColor: "grey",
+            glyph: "A",
+            glyphColor: "black"
+        },
+        {
+            id: "double_dice_rewards",
+            cost: 350,
+            costGrowthRate: 1,
+            costLinearCoefficient: 0,
+            title: "double dice",
+            definition: {
+                id: "double_dice_rewards",
+                type: "unique",
+                defaults: {
+                    amount: 1
+                },
+                apply(state) {
+                    if (!state) {
+                        return;
+                    }
+                    const current =
+                        Number.isFinite(state.diceRewardMultiplier) && state.diceRewardMultiplier > 0
+                            ? state.diceRewardMultiplier
+                            : 1;
+                    state.diceRewardMultiplier = Math.max(current, 2);
+                },
+                getCurrentValue(state) {
+                    // Change these strings to update the hover description
+                    return Number.isFinite(state?.diceRewardMultiplier) && state.diceRewardMultiplier >= 2
+                        ? "dice rewards doubled"
+                        : "double dice rewards";
+                },
+                resolveAmount(state, upgrade) {
+                    return upgrade?.purchased ? 0 : 1;
+                }
+            },
+            backgroundColor: "pink",
+            glyph: "⚂",
+            glyphColor: "purple"
+        },
+        {
+            id: "double_chip_rewards",
+            cost: 450,
+            costGrowthRate: 1,
+            costLinearCoefficient: 0,
+            title: "double chips",
+            definition: {
+                id: "double_chip_rewards",
+                type: "unique",
+                defaults: {
+                    amount: 1
+                },
+                apply(state) {
+                    if (!state) {
+                        return;
+                    }
+                    const current =
+                        Number.isFinite(state.chipRewardMultiplier) && state.chipRewardMultiplier > 0
+                            ? state.chipRewardMultiplier
+                            : 1;
+                    state.chipRewardMultiplier = Math.max(current, 2);
+                },
+                getCurrentValue(state) {
+                    // Change these strings to update the hover description
+                    return Number.isFinite(state?.chipRewardMultiplier) && state.chipRewardMultiplier >= 2
+                        ? "chip rewards doubled" // bought hover description
+                        : "double chip rewards";
+                },
+                resolveAmount(state, upgrade) {
+                    return upgrade?.purchased ? 0 : 1;
+                }
+            },
+            backgroundColor: "gold",
+            glyph: "⛁",
+            glyphColor: "brown"
+        },
+        {
+            id: "enhanced_card_rarity",
+            cost: 300,
+            costGrowthRate: 1,
+            costLinearCoefficient: 0,
+            title: "rarity boost",
+            definition: {
+                id: "enhanced_card_rarity",
+                type: "unique",
+                defaults: {
+                    amount: 1
+                },
+                apply(state) {
+                    if (!state) {
+                        return;
+                    }
+                    state.cardShopRarityBoost = true;
+                    if (typeof state.refreshCardShopOdds === "function") {
+                        state.refreshCardShopOdds();
+                    }
+                },
+                getCurrentValue(state) {
+                    // Change these strings to update the hover description
+                    return state?.cardShopRarityBoost
+                        ? "rarity odds increased"
+                        : "more uncommon and rare cards";
+                },
+                resolveAmount(state, upgrade) {
+                    return upgrade?.purchased ? 0 : 1;
+                }
+            },
+            backgroundColor: "lavender",
+            glyph: "☆",
+            glyphColor: "navy"
+        }
+    ]
 };

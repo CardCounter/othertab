@@ -21,7 +21,7 @@ export default {
             costLinearCoefficient: 0.5,
             increaseAmount: 120,
             options: {
-                minimumDuration: 250
+                minimumDuration: 50
             }
         }
     },
@@ -34,8 +34,6 @@ export default {
             definition: {
                 id: "straight_four_card_scoring",
                 type: "unique",
-                title: "short straight",
-                description: "straights with four consecutive cards now count as wins.",
                 defaults: {
                     amount: 1,
                     flag: "straight_four_card_scoring"
@@ -47,18 +45,19 @@ export default {
                     state.straightFourCardActive = true;
                 },
                 getCurrentValue(state) {
+                    // Change these strings to update the hover description
                     return state?.straightFourCardActive
                         ? "4-card straights score"
-                        : "unlock 4-card straights";
+                        : "straights can be made with four cards";
                 },
                 resolveAmount(state, upgrade) {
                     return upgrade?.purchased ? 0 : 1;
                 }
             },
-            backgroundColor: "#f7b731",
+            backgroundColor: "gold",
             glyph: "4",
             glyphColor: "#1a1a1a",
-            textSize: "2rem"
+            textSize: "4rem"
         }
     ]
 };

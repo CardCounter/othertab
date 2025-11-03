@@ -1,12 +1,11 @@
 import {
-    CARD_SHOP_SETTINGS,
     CARDS_PER_ROW,
     EXTRA_BOTTOM_SLOTS,
     RANK_DISPLAY_ORDER,
     SUIT_DISPLAY_ORDER,
     TOTAL_MAIN_SLOTS
 } from "./config.js";
-import { formatChipAmount } from "./chips.js";
+import { formatDiceAmount } from "./dice.js";
 
 function isCardDrawn(state, card) {
     if (!card) {
@@ -65,7 +64,7 @@ export function createDeckElement(config) {
     handContainer.className = "poker-hand";
     handContainer.setAttribute("aria-live", "polite");
 
-    row.append(button, autoButton, handContainer);
+    row.append(button, handContainer, autoButton);
 
     const result = document.createElement("p");
     result.className = "poker-result";
@@ -117,7 +116,10 @@ export function createDeckElement(config) {
 
     const cardShopRerollPrice = document.createElement("span");
     cardShopRerollPrice.className = "card-shop-reroll-price";
-    cardShopRerollPrice.textContent = formatShopPrice(CARD_SHOP_SETTINGS.rerollPrice);
+    const initialReroll = document.createElement("span");
+    initialReroll.className = "dice-text";
+    initialReroll.textContent = formatDiceAmount(0);
+    cardShopRerollPrice.append(initialReroll);
 
     cardShopRerollButton.append(cardShopRerollLabel, cardShopRerollPrice);
 
@@ -141,11 +143,26 @@ export function createDeckElement(config) {
 
     const upgradeColumn = document.createElement("div");
     upgradeColumn.className = "upgrade-column";
+
     const upgradeList = document.createElement("div");
     upgradeList.className = "upgrade-list";
     upgradeList.setAttribute("role", "list");
 
-    upgradeColumn.append(upgradeList);
+    const upgradeUniqueRow = document.createElement("div");
+    upgradeUniqueRow.className = "unique-upgrade-row";
+
+    const upgradeUniqueList = document.createElement("div");
+    upgradeUniqueList.className = "unique-upgrade-list";
+    upgradeUniqueList.setAttribute("role", "list");
+    upgradeUniqueList.setAttribute("aria-label", "unique upgrades");
+
+    const upgradeUniqueRerollButton = document.createElement("button");
+    upgradeUniqueRerollButton.type = "button";
+    upgradeUniqueRerollButton.className = "unique-upgrade-reroll";
+    upgradeUniqueRerollButton.textContent = "reroll";
+
+    upgradeUniqueRow.append(upgradeUniqueList, upgradeUniqueRerollButton);
+    upgradeColumn.append(upgradeList, upgradeUniqueRow);
     upgradeArea.append(upgradeSlots, upgradeColumn);
 
     managementSection.append(deckColumn, upgradeArea);
@@ -169,41 +186,33 @@ export function createDeckElement(config) {
         upgradeColumn,
         upgradeSlots,
         upgradeList,
+        upgradeUniqueRow,
+        upgradeUniqueList,
+        upgradeUniqueRerollButton,
         autoButton
     };
 }
 
-export function renderDeckGrid(state) {
+function ensureDeckGridStructure(state) {
     if (!state?.dom?.deckGrid) {
-        return;
+        return null;
+    }
+    if (
+        Array.isArray(state.dom.deckGridMainCells) &&
+        state.dom.deckGridMainCells.length === TOTAL_MAIN_SLOTS
+    ) {
+        return state.dom.deckGridMainCells;
     }
 
     const fragment = document.createDocumentFragment();
-    for (let suitIndex = 0; suitIndex < SUIT_DISPLAY_ORDER.length; suitIndex += 1) {
-        for (let rankIndex = 0; rankIndex < CARDS_PER_ROW; rankIndex += 1) {
-            const slotIndex = suitIndex * CARDS_PER_ROW + rankIndex;
-            const card = state.deckSlots?.[slotIndex] ?? null;
-            const baselineCard = state.deckBaselineSlots?.[slotIndex] ?? null;
-            const cell = document.createElement("div");
-            cell.className = "deck-cell";
-            cell.dataset.slot = `${slotIndex}`;
-            const cardToRender =
-                card || (baselineCard && baselineCard.isDrawn ? baselineCard : null);
-            if (cardToRender) {
-                const button = document.createElement("button");
-                button.type = "button";
-                const drawn = cardToRender.isDrawn === true;
-                button.className = buildDeckCardClasses(cardToRender, drawn);
-                button.textContent = `${cardToRender.rank}${cardToRender.suit}`;
-                button.dataset.slot = `${slotIndex}`;
-                button.draggable = true;
-                cell.classList.add("has-card");
-                cell.append(button);
-            } else {
-                cell.classList.add("deck-slot");
-            }
-            fragment.append(cell);
-        }
+    const mainCells = [];
+
+    for (let slotIndex = 0; slotIndex < TOTAL_MAIN_SLOTS; slotIndex += 1) {
+        const cell = document.createElement("div");
+        cell.className = "deck-cell deck-slot";
+        cell.dataset.slot = `${slotIndex}`;
+        fragment.append(cell);
+        mainCells.push(cell);
     }
 
     for (let extraIndex = 0; extraIndex < EXTRA_BOTTOM_SLOTS; extraIndex += 1) {
@@ -225,9 +234,79 @@ export function renderDeckGrid(state) {
         actionCell.style.gridColumn = `${startCol} / ${endCol}`;
         actionCell.append(sortButton);
         fragment.append(actionCell);
+        state.dom.sortButtonCell = actionCell;
     }
 
     state.dom.deckGrid.replaceChildren(fragment);
+    state.dom.deckGridMainCells = mainCells;
+    state.dom.deckCardButtons = new Array(TOTAL_MAIN_SLOTS).fill(null);
+
+    return mainCells;
+}
+
+export function renderDeckGrid(state) {
+    if (!state?.dom?.deckGrid) {
+        return;
+    }
+
+    const cells = ensureDeckGridStructure(state);
+    if (!Array.isArray(cells) || cells.length === 0) {
+        return;
+    }
+
+    if (!Array.isArray(state.dom.deckCardButtons)) {
+        state.dom.deckCardButtons = new Array(TOTAL_MAIN_SLOTS).fill(null);
+    }
+
+    for (let slotIndex = 0; slotIndex < cells.length; slotIndex += 1) {
+        const cell = cells[slotIndex];
+        if (!cell) {
+            continue;
+        }
+
+        cell.dataset.slot = `${slotIndex}`;
+        cell.classList.remove("has-card");
+        cell.classList.add("deck-slot");
+
+        const card = state.deckSlots?.[slotIndex] ?? null;
+        const baselineCard = state.deckBaselineSlots?.[slotIndex] ?? null;
+        const cardToRender =
+            card || (baselineCard && baselineCard.isDrawn ? baselineCard : null);
+
+        if (cardToRender) {
+            cell.classList.add("has-card");
+            cell.classList.remove("deck-slot");
+
+            let button = state.dom.deckCardButtons[slotIndex];
+            if (!button) {
+                button = document.createElement("button");
+                button.type = "button";
+                state.dom.deckCardButtons[slotIndex] = button;
+            }
+            button.dataset.slot = `${slotIndex}`;
+            button.draggable = true;
+
+            const drawn = cardToRender.isDrawn === true;
+            const classes = buildDeckCardClasses(cardToRender, drawn);
+            if (button.className !== classes) {
+                button.className = classes;
+            }
+
+            const textContent = `${cardToRender.rank}${cardToRender.suit}`;
+            if (button.textContent !== textContent) {
+                button.textContent = textContent;
+            }
+
+            if (button.parentNode !== cell) {
+                cell.append(button);
+            }
+        } else {
+            const existingButton = state.dom.deckCardButtons[slotIndex];
+            if (existingButton && existingButton.parentNode === cell) {
+                cell.removeChild(existingButton);
+            }
+        }
+    }
 }
 
 export function updateHandDisplay(container, cards, highlightIndices = [], handSize = cards.length) {
@@ -245,8 +324,4 @@ export function updateHandDisplay(container, cards, highlightIndices = [], handS
         }
     }
     container.replaceChildren(...elements);
-}
-
-function formatShopPrice(value) {
-    return formatChipAmount(value, { includeSymbol: true });
 }

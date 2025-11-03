@@ -16,6 +16,7 @@ import { setupCardShop } from "./shop.js";
 import { handleDraw } from "./draw.js";
 import { setupKeyboardControls } from "./keyboard.js";
 import { initChipDisplay } from "./chips.js";
+import { initDiceDisplay } from "./dice.js";
 import { setupDeckUpgrades } from "./upgrades.js";
 import { getDeckEvaluator } from "./evaluators/index.js";
 
@@ -29,6 +30,7 @@ export function initPokerPage() {
     const deckStates = [];
 
     initChipDisplay();
+    initDiceDisplay();
 
     const activateDeck = (state) => {
         if (!state) {
@@ -77,58 +79,107 @@ export function initPokerPage() {
             defaultAnimationDuration: 1000,
             defaultAnimationFrameDelay: 70,
             autoDrawEnabled: false,
+            autoDrawUnlocked: false,
             autoDrawScheduled: false,
             autoDrawTimerId: null,
             autoDrawInterval: 0,
+            chipRewardMultiplier: 1,
+            diceRewardMultiplier: 1,
+            cardShopRarityBoost: false,
             baseChipReward: config.baseChipReward ?? DEFAULT_BASE_CHIP_PAYOUT,
             chipStreakMultiplier:
                 config.chipStreakMultiplier ?? DEFAULT_STREAK_CHIP_MULTIPLIER,
             evaluateHand: getDeckEvaluator(config.id)
         };
 
-        setupDeckManagement(state);
-        setupCardShop(state);
-        setupDeckUpgrades(state);
+        function updateAutoButton() {
+            const button = state.dom.autoButton;
+            if (!button) {
+                return;
+            }
+            const unlocked = state.autoDrawUnlocked === true;
+            button.hidden = !unlocked;
+            if (unlocked) {
+                button.removeAttribute("aria-hidden");
+                button.tabIndex = 0;
+            } else {
+                button.setAttribute("aria-hidden", "true");
+                button.tabIndex = -1;
+            }
+            button.disabled = !unlocked;
+            if (!unlocked) {
+                button.classList.remove("auto-draw-enabled");
+                button.setAttribute("aria-pressed", "false");
+                button.textContent = "auto: off";
+                return;
+            }
+            button.classList.toggle("auto-draw-enabled", state.autoDrawEnabled);
+            button.textContent = state.autoDrawEnabled ? "auto: on" : "auto: off";
+            button.setAttribute("aria-pressed", state.autoDrawEnabled ? "true" : "false");
+        }
 
-        const updateAutoButton = () => {
-            state.dom.autoButton.classList.toggle("auto-draw-enabled", state.autoDrawEnabled);
-            state.dom.autoButton.textContent = state.autoDrawEnabled ? "auto: on" : "auto: off";
-            state.dom.autoButton.setAttribute("aria-pressed", state.autoDrawEnabled ? "true" : "false");
-        };
-
-        const cancelScheduledAutoDraw = () => {
+        function cancelScheduledAutoDraw() {
             if (state.autoDrawTimerId !== null) {
                 clearTimeout(state.autoDrawTimerId);
                 state.autoDrawTimerId = null;
             }
             state.autoDrawScheduled = false;
-        };
+        }
 
-        const setAutoDrawEnabled = (enabled) => {
-            if (state.autoDrawEnabled === enabled) {
+        function setAutoDrawEnabled(enabled) {
+            const nextEnabled = enabled === true;
+            if (nextEnabled && !state.autoDrawUnlocked) {
+                updateAutoButton();
                 return;
             }
-            state.autoDrawEnabled = enabled;
-            if (enabled) {
-                state.animationDuration = 0;
-                state.animationFrameDelay = 0;
+            if (state.autoDrawEnabled === nextEnabled) {
+                updateAutoButton();
+                return;
+            }
+            state.autoDrawEnabled = nextEnabled;
+            if (nextEnabled) {
                 updateAutoButton();
                 if (!state.pendingDraw && !state.isAnimating) {
                     handleDraw(state);
                 }
-            } else {
-                state.animationDuration = state.defaultAnimationDuration;
-                state.animationFrameDelay = state.defaultAnimationFrameDelay;
-                cancelScheduledAutoDraw();
-                updateAutoButton();
+                return;
             }
-        };
+            cancelScheduledAutoDraw();
+            updateAutoButton();
+        }
 
+        function setAutoDrawUnlocked(unlocked) {
+            const nextUnlocked = unlocked === true;
+            if (!nextUnlocked && state.autoDrawEnabled) {
+                state.autoDrawEnabled = false;
+                cancelScheduledAutoDraw();
+            }
+            if (state.autoDrawUnlocked === nextUnlocked) {
+                updateAutoButton();
+                return;
+            }
+            state.autoDrawUnlocked = nextUnlocked;
+            updateAutoButton();
+        }
+
+        state.updateAutoButton = updateAutoButton;
         state.setAutoDrawEnabled = setAutoDrawEnabled;
+        state.setAutoDrawUnlocked = setAutoDrawUnlocked;
+
+        setAutoDrawUnlocked(false);
+
+        setupDeckManagement(state);
+        setupCardShop(state);
+        setupDeckUpgrades(state);
+
+        const autoDrawUpgrade = state.upgrades?.find((upgrade) => upgrade?.id === "auto_draw_unlock");
+        const autoDrawPurchased =
+            autoDrawUpgrade?.purchased === true ||
+            (Number.isFinite(autoDrawUpgrade?.level) && autoDrawUpgrade.level > 0);
+        setAutoDrawUnlocked(autoDrawPurchased);
 
         navButton.addEventListener("click", () => activateDeck(state));
         state.dom.button.addEventListener("click", () => handleDraw(state));
-        updateAutoButton();
         state.dom.autoButton.addEventListener("click", () =>
             setAutoDrawEnabled(!state.autoDrawEnabled)
         );
