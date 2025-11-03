@@ -18,8 +18,8 @@ export const UPGRADE_TYPES = {
 
 const BASIC_UPGRADE_IDS = ["increase_payout", "increase_streak_multiplier", "decrease_draw_time"];
 const BASIC_UPGRADE_ID_SET = new Set(BASIC_UPGRADE_IDS);
-const DEFAULT_UNLOCKED_UPGRADE_SLOTS = 6;
-const MAX_UPGRADE_SLOT_COUNT = 7;
+const DEFAULT_UNLOCKED_UPGRADE_SLOTS = 5;
+const MAX_UPGRADE_SLOT_COUNT = 5;
 const UNIQUE_UPGRADE_SLOT_COUNT = 3;
 const DEFAULT_UNIQUE_REROLL_COST = 1;
 

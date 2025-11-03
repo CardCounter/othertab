@@ -54,22 +54,34 @@ export function createDeckElement(config) {
     button.type = "button";
     button.textContent = "draw hand";
 
+    const controlsGroup = document.createElement("div");
+    controlsGroup.className = "poker-controls-group";
+
+    const handContainer = document.createElement("div");
+    handContainer.className = "poker-hand";
+    handContainer.setAttribute("aria-live", "polite");
+
     const autoButton = document.createElement("button");
     autoButton.className = "poker-button auto-draw-toggle";
     autoButton.type = "button";
     autoButton.textContent = "auto: off";
     autoButton.setAttribute("aria-pressed", "false");
 
-    const handContainer = document.createElement("div");
-    handContainer.className = "poker-hand";
-    handContainer.setAttribute("aria-live", "polite");
-
-    row.append(button, handContainer, autoButton);
+    controlsGroup.append(button, handContainer, autoButton);
 
     const result = document.createElement("p");
     result.className = "poker-result";
     result.setAttribute("aria-live", "polite");
     result.textContent = "";
+
+    const controlsColumn = document.createElement("div");
+    controlsColumn.className = "poker-controls-column";
+    controlsColumn.append(controlsGroup, result);
+
+    const upgradeSlotBar = document.createElement("div");
+    upgradeSlotBar.className = "upgrade-slot-bar";
+
+    row.append(controlsColumn, upgradeSlotBar);
 
     const managementSection = document.createElement("section");
     managementSection.className = "poker-card-management";
@@ -140,6 +152,7 @@ export function createDeckElement(config) {
     upgradeSlots.className = "upgrade-slots";
     upgradeSlots.setAttribute("role", "list");
     upgradeSlots.setAttribute("aria-label", "equipped upgrades");
+    upgradeSlotBar.append(upgradeSlots);
 
     const upgradeColumn = document.createElement("div");
     upgradeColumn.className = "upgrade-column";
@@ -163,11 +176,11 @@ export function createDeckElement(config) {
 
     upgradeUniqueRow.append(upgradeUniqueList, upgradeUniqueRerollButton);
     upgradeColumn.append(upgradeList, upgradeUniqueRow);
-    upgradeArea.append(upgradeSlots, upgradeColumn);
+    upgradeArea.append(upgradeColumn);
 
     managementSection.append(deckColumn, upgradeArea);
 
-    root.append(row, result, managementSection);
+    root.append(row, managementSection);
 
     return {
         root,
