@@ -42,7 +42,7 @@ export const RANK_ORDER_INDEX = new Map(
 );
 
 export const CARDS_PER_ROW = RANK_DISPLAY_ORDER.length;
-export const EXTRA_BOTTOM_SLOTS = 8;
+export const EXTRA_BOTTOM_SLOTS = 13;
 export const TOTAL_MAIN_SLOTS = SUIT_DISPLAY_ORDER.length * CARDS_PER_ROW;
 export const TOTAL_SLOTS = TOTAL_MAIN_SLOTS + EXTRA_BOTTOM_SLOTS;
 
@@ -139,7 +139,7 @@ export const CARD_SHOP_SETTINGS = {
 };
 
 export const CARD_SHOP_POOL_WEIGHTS = [
-    { id: "common", weight: 75 },
-    { id: "uncommon", weight: 20 },
-    { id: "rare", weight: 5 }
+    { id: "common", weight: 0 },
+    { id: "uncommon", weight: 50 },
+    { id: "rare", weight: 50 }
 ];

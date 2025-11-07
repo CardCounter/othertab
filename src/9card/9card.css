@@ -14,6 +14,20 @@ footer {
     background-color: inherit;
 }
 
+:root {
+    --ninecard-button-bg: lightgrey;
+    --ninecard-button-hover-bg: grey;
+    --ninecard-button-border-light: white;
+    --ninecard-button-border-dark: grey;
+}
+
+.dark-mode {
+    --ninecard-button-bg: #2e2e2e;
+    --ninecard-button-hover-bg: #3a3a3a;
+    --ninecard-button-border-light: #4e4e4e;
+    --ninecard-button-border-dark: black;
+}
+
 .ninecard-main {
     flex: 1 1 auto;
     /* padding: 2rem clamp(1rem, 4vw, 3rem) clamp(2.5rem, 5vw, 4rem); */
@@ -57,7 +71,7 @@ footer {
 }
 
 .chip-counter-value {
-    font-size: 1rem;
+    font-size: 1.5rem;
     font-variant-numeric: tabular-nums;
 }
 
@@ -67,37 +81,55 @@ footer {
 }
 
 .poker-tab-button {
-    border: none;
-    background-color: var(--page-background-color);
+    background-color: var(--ninecard-button-bg);
     color: inherit;
-    padding: 0;
+    padding: 1;
     text-transform: lowercase;
     letter-spacing: normal;
     cursor: pointer;
     font-size: 1rem;
     font-family: "Times New Roman", Times, serif;
+    border-top: 4px solid var(--ninecard-button-border-light);
+    border-left: 4px solid var(--ninecard-button-border-light);
+    border-right: 4px solid var(--ninecard-button-border-dark);
+    border-bottom: 4px solid var(--ninecard-button-border-dark);
 }
 
 .poker-tab-button:hover,
 .poker-tab-button:focus-visible {
-    background-color: grey;
+    background-color: var(--ninecard-button-bg);
     color: black;
 }
 
 .dark-mode .poker-tab-button:hover,
 .dark-mode .poker-tab-button:focus-visible {
-    background-color: grey;
+    background-color: var(--ninecard-button-bg);
     color: white;
+}
+
+.poker-tab-button:active {
+    border-top: 2px solid var(--ninecard-button-border-dark);
+    border-left: 2px solid var(--ninecard-button-border-dark);
+    border-right: 2px solid var(--ninecard-button-border-light);
+    border-bottom: 2px solid var(--ninecard-button-border-light);
 }
 
 .poker-tab-button.active {
-    background-color: grey;
+    background-color: var(--ninecard-button-hover-bg);
     color: black;
+    border-top: 4px solid var(--ninecard-button-border-dark);
+    border-left: 4px solid var(--ninecard-button-border-dark);
+    border-right: 4px solid var(--ninecard-button-border-light);
+    border-bottom: 4px solid var(--ninecard-button-border-light);
 }
 
 .dark-mode .poker-tab-button.active {
-    background-color: grey;
+    background-color: var(--ninecard-button-hover-bg);
     color: white;
+    border-top: 4px solid var(--ninecard-button-border-dark);
+    border-left: 4px solid var(--ninecard-button-border-dark);
+    border-right: 4px solid var(--ninecard-button-border-light);
+    border-bottom: 4px solid var(--ninecard-button-border-light);
 }
 
 .poker-tab-button.completed {
@@ -178,25 +210,82 @@ footer {
 }
 
 .poker-button {
-    border: 1px solid currentColor;
-    background: none;
-    color: inherit;
     padding: 0.35rem 0.7rem;
     text-transform: lowercase;
     cursor: pointer;
     font-size: 1rem;
 }
 
-.poker-button:hover,
-.poker-button:focus-visible {
-    background-color: blue;
-    color: white;
+:is(
+    .poker-button,
+    .card-shop-reroll,
+    .card-shop-discard-button,
+    .card-shop-freeze-button,
+    .unique-upgrade-reroll,
+    .upgrade-card-button
+) {
+    background-color: var(--ninecard-button-bg);
+    color: inherit;
+    border-top: 4px solid var(--ninecard-button-border-light);
+    border-left: 4px solid var(--ninecard-button-border-light);
+    border-right: 4px solid var(--ninecard-button-border-dark);
+    border-bottom: 4px solid var(--ninecard-button-border-dark);
+    box-shadow: none;
+    border-radius: 0;
 }
 
-.dark-mode .poker-button:hover,
-.dark-mode .poker-button:focus-visible {
-    background-color: red;
-    color: black;
+:is(
+    .poker-button,
+    .card-shop-reroll,
+    .card-shop-discard-button,
+    .card-shop-freeze-button,
+    .unique-upgrade-reroll,
+    .upgrade-card-button
+):hover,
+:is(
+    .poker-button,
+    .card-shop-reroll,
+    .card-shop-discard-button,
+    .card-shop-freeze-button,
+    .unique-upgrade-reroll,
+    .upgrade-card-button
+):focus-visible {
+    background-color: var(--ninecard-button-bg);
+    color: inherit;
+}
+
+:is(
+    .poker-button,
+    .card-shop-reroll,
+    .card-shop-discard-button,
+    .card-shop-freeze-button,
+    .unique-upgrade-reroll,
+    .upgrade-card-button
+):active {
+    border-top: 4px solid var(--ninecard-button-border-dark);
+    border-left: 4px solid var(--ninecard-button-border-dark);
+    border-right: 4px solid var(--ninecard-button-border-light);
+    border-bottom: 4px solid var(--ninecard-button-border-light);
+    background-color: var(--ninecard-button-bg);
+}
+
+:is(
+    .poker-button,
+    .card-shop-reroll,
+    .card-shop-discard-button,
+    .card-shop-freeze-button,
+    .unique-upgrade-reroll,
+    .upgrade-card-button
+):disabled:hover,
+:is(
+    .poker-button,
+    .card-shop-reroll,
+    .card-shop-discard-button,
+    .card-shop-freeze-button,
+    .unique-upgrade-reroll,
+    .upgrade-card-button
+):disabled:focus-visible {
+    background-color: var(--ninecard-button-bg);
 }
 
 .poker-button:disabled {
@@ -205,13 +294,17 @@ footer {
 
 .poker-button:disabled:hover,
 .poker-button:disabled:focus-visible {
-    background-color: transparent;
+    background-color: var(--ninecard-button-bg);
     color: inherit;
 }
 
 .poker-button.auto-draw-toggle.auto-draw-enabled {
     background-color: blue;
     color: white;
+    border-top: 4px solid var(--ninecard-button-border-dark);
+    border-left: 4px solid var(--ninecard-button-border-dark);
+    border-right: 4px solid var(--ninecard-button-border-light);
+    border-bottom: 4px solid var(--ninecard-button-border-light);
 }
 
 .dark-mode .poker-button.auto-draw-toggle.auto-draw-enabled {
@@ -464,10 +557,14 @@ footer {
     flex: 0 0 auto;
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: 0.5rem;
     min-height: 0;
     width: max-content;
     max-width: 100%;
+    border: 1px dashed currentColor;
+    padding: 1rem;
+    box-sizing: border-box;
+    background: var(--page-background-color);
 }
 
 .deck-grid {
@@ -479,8 +576,7 @@ footer {
     grid-template-columns: repeat(13, var(--deck-card-width));
     grid-auto-rows: var(--deck-card-height);
     gap: 0;
-    padding: 0.5rem;
-    border: 1px solid currentColor;
+    /* padding: 0.5rem; */
     overflow: auto;
     align-content: start;
     justify-content: start;
@@ -514,30 +610,23 @@ footer {
     background-color: rgba(255, 255, 255, 0.06);
 }
 
-.deck-cell.deck-slot-locked {
-    background-color: var(--page-background-color);
-    position: relative;
-    box-shadow: none;
+.deck-cell.deck-slot-extra {
+    background-color: rgba(0, 0, 0, 0.04);
 }
 
-.dark-mode .deck-cell.deck-slot-locked {
-    box-shadow: none;
-}
-
-.deck-action-cell {
-    align-items: center;
-    justify-content: center;
+.dark-mode .deck-cell.deck-slot-extra {
+    background-color: rgba(255, 255, 255, 0.1);
 }
 
 .deck-card {
-    border: 1px solid currentColor;
+    /* border: 1px solid currentColor; */
     background: var(--page-background-color);
     color: inherit;
     padding: 0;
     font-size: 1rem;
     line-height: 1;
     font-family: inherit;
-    cursor: grab;
+    cursor: pointer;
     user-select: none;
     position: relative;
     display: flex;
@@ -560,79 +649,100 @@ footer {
     outline-offset: 2px;
 }
 
-.deck-card:active {
-    cursor: grabbing;
-}
-
-.deck-card.dragging {
-    opacity: 0.5;
-}
-
-.deck-card.delete-pending::after {
+.deck-grid.deck-discard-active .deck-card:not(.drawn)::after {
     content: "X";
     position: absolute;
     inset: -1px;
     display: flex;
     align-items: center;
     justify-content: center;
-    background-color: rgba(220, 53, 69, 0.4);
     border: 1px solid currentColor;
     font-weight: 700;
     font-size: 1.1rem;
     pointer-events: none;
+    background-color: rgba(220, 53, 69, 0.18);
+    opacity: 0;
+    transform: scale(0.96);
 }
 
-.deck-sort-button {
-    border: 1px solid currentColor;
-    background: var(--page-background-color);
-    color: inherit;
-    text-transform: lowercase;
-    font-size: 1rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0.25rem;
-    cursor: pointer;
-    width: 100%;
-    height: 100%;
+.deck-grid.deck-discard-active .deck-card:not(.drawn):hover::after,
+.deck-grid.deck-discard-active .deck-card:not(.drawn):focus-visible::after {
+    opacity: 1;
+    transform: scale(1);
+    background-color: rgba(220, 53, 69, 0.38);
 }
 
-.deck-sort-button:hover,
-.deck-sort-button:focus-visible {
-    background-color: grey;
-}
-
-.dark-mode .deck-sort-button:hover,
-.dark-mode .deck-sort-button:focus-visible {
-    background-color: grey;
+.deck-grid.deck-discard-active .deck-card.drawn::after {
+    content: none;
 }
 
 .card-shop {
-    border: 1px dashed currentColor;
-    padding: 1rem;
     text-transform: lowercase;
     width: 100%;
     flex: 1 1 auto;
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
+    display: grid;
+    grid-template-rows: minmax(auto, 1fr) auto;
+    gap: 0.75rem;
     box-sizing: border-box;
     min-height: 260px;
 }
 
 .card-shop-upper {
-    display: flex;
-    align-items: flex-start;
-    justify-content: flex-start;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: stretch;
     gap: 1rem;
-    flex-wrap: wrap;
+}
+
+.card-shop-upper > * {
+    min-width: 0;
 }
 
 .card-shop-discard {
-    display: inline-flex;
-    align-items: baseline;
+    display: flex;
+    width: 100%;
+    height: 100%;
+    align-items: stretch;
+}
+
+.card-shop-discard-button,
+.card-shop-reroll {
+    height: 100%;
+    padding-block: clamp(0.45rem, 0.35rem + 0.8vw, 0.85rem);
+    padding-inline: clamp(1rem, 0.9rem + 1.2vw, 1.75rem);
+    font-size: clamp(1rem, 0.96rem + 0.2vw, 1.15rem);
+}
+
+.card-shop-discard-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
     gap: 0.35rem;
     text-transform: lowercase;
+    cursor: pointer;
+    line-height: 1.05;
+    width: 100%;
+}
+
+.card-shop-discard-button:disabled {
+    cursor: default;
+    opacity: 0.45;
+    box-shadow: none;
+    transform: none;
+}
+
+.card-shop-discard-button.is-active,
+.card-shop-discard-button[aria-pressed="true"] {
+    background-color: blue;
+    color: white;
+    box-shadow: none;
+    transform: translateY(1px);
+}
+
+.dark-mode .card-shop-discard-button.is-active,
+.dark-mode .card-shop-discard-button[aria-pressed="true"] {
+    background-color: red;
+    color: black;
 }
 
 .card-shop-discard-label {
@@ -644,32 +754,20 @@ footer {
 }
 
 .card-shop-reroll {
-    margin-left: auto;
-    border: 1px solid currentColor;
-    background: none;
-    color: inherit;
+    margin-left: 0;
     text-transform: lowercase;
-    padding: 0.5rem 0.75rem;
-    display: inline-flex;
+    display: flex;
     align-items: center;
+    justify-content: center;
     gap: 0.5rem;
     cursor: pointer;
-}
-
-.card-shop-reroll:hover,
-.card-shop-reroll:focus-visible {
-    background-color: grey;
+    width: 100%;
+    text-align: center;
 }
 
 .card-shop-reroll:disabled {
     cursor: default;
     opacity: 0.45;
-    background-color: grey;
-}
-
-.dark-mode .card-shop-reroll:hover,
-.dark-mode .card-shop-reroll:focus-visible {
-    background-color: grey;
 }
 
 .card-shop-reroll-label {
@@ -682,12 +780,18 @@ footer {
 
 .dice-text {
     display: inline-block;
+    font-size: 1.5rem;
+    line-height: 1;
+}
+
+.dice-shop-text {
+    display: inline-block;
     font-size: 1rem;
     line-height: 1;
 }
 
 .card-shop-slots {
-    margin-top: auto;
+    margin-top: 0;
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 0.75rem;
@@ -702,7 +806,6 @@ footer {
 
 .card-shop-slot {
     /* border: 1px solid currentColor; */
-    padding: 0.5rem;
     min-height: 120px;
     display: flex;
     flex-direction: column;
@@ -752,9 +855,6 @@ footer {
     width: 100%;
     font-size: 1rem;
     padding: 0.4rem;
-    border: 1px solid currentColor;
-    background: var(--page-background-color);
-    color: inherit;
     text-transform: lowercase;
     cursor: pointer;
     text-align: center;
@@ -873,8 +973,9 @@ footer {
 .upgrade-column {
     display: flex;
     flex-direction: column;
-    gap: 0;
+    gap: 1.5rem;
     flex: 1 1 auto;
+    min-height: 0;
 }
 
 .upgrade-slots {
@@ -956,31 +1057,35 @@ footer {
 
 .unique-upgrade-row {
     display: flex;
+    flex-direction: column;
     align-items: stretch;
+    flex: 1 1 auto;
     gap: 1.5rem;
+    min-height: 0;
 }
 
 .unique-upgrade-list {
-    flex: 1 1 auto;
+    flex: 0 0 auto;
     display: grid;
     grid-template-columns: repeat(3, minmax(160px, 1fr));
     gap: 1.5rem;
+    align-content: start;
+    justify-items: stretch;
 }
 
 .unique-upgrade-reroll {
-    flex: 0 0 auto;
+    flex: 1 1 auto;
     align-self: stretch;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 0.4rem;
-    border: 1px solid currentColor;
-    background: none;
-    color: inherit;
-    padding: 0.6rem 1.25rem;
+    padding: 0.75rem 1.25rem;
     cursor: pointer;
     font-size: 1rem;
-    min-width: 120px;
+    min-width: 0;
+    width: 100%;
+    margin-top: auto;
 }
 
 .unique-upgrade-reroll:disabled {
@@ -1098,28 +1203,22 @@ footer {
 }
 
 .upgrade-card-button {
-    border: 1px solid currentColor;
-    background: none;
-    color: inherit;
     padding: 0.4rem 0.85rem;
     cursor: pointer;
     font-size: 1rem;
     min-width: 100px;
     opacity: 1;
-    transition: opacity 0.2s ease;
 }
 
 .upgrade-card-placeholder {
     justify-content: center;
     align-items: center;
     gap: 0;
-    opacity: 0.45;
+    opacity: 0.25;
     pointer-events: none;
-}
-
-.upgrade-card-placeholder-body {
-    font-size: 0.95rem;
-    letter-spacing: 0.04em;
+    border: none;
+    background: transparent;
+    box-shadow: none;
 }
 
 .upgrade-card-button-max {
@@ -1131,18 +1230,6 @@ footer {
 .upgrade-card-button:disabled {
     cursor: default;
     opacity: 0.35;
-}
-
-.upgrade-card-button:hover:not(:disabled),
-.upgrade-card-button:focus-visible:not(:disabled) {
-    background-color: blue;
-    color: white;
-}
-
-.dark-mode .upgrade-card-button:hover:not(:disabled),
-.dark-mode .upgrade-card-button:focus-visible:not(:disabled) {
-    background-color: red;
-    color: black;
 }
 
 .upgrade-card-button-active {
@@ -1178,14 +1265,7 @@ footer {
     }
 
     .card-shop-upper {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-
-    .card-shop-reroll {
-        margin-left: 0;
-        justify-content: center;
-        text-align: center;
+        grid-template-columns: 1fr;
     }
 
     .card-shop-slots {
@@ -1203,6 +1283,15 @@ footer {
         justify-content: center;
         flex-wrap: wrap;
         gap: 0.35rem;
+    }
+
+    .unique-upgrade-list {
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 1rem;
+    }
+
+    .unique-upgrade-row {
+        gap: 0.5rem;
     }
 
     .poker-row {

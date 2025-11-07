@@ -1,7 +1,26 @@
-import { DICE_SYMBOL, HAND_LABELS, STREAK_TARGET } from "./config.js";
+import { DICE_SYMBOL, HAND_LABELS, STREAK_TARGET, RANKS, SUITS } from "./config.js";
 import { formatChipAmount } from "./chips.js";
 
 const FOUR_CARD_STRAIGHT_FLAG = "straight_four_card_scoring";
+const CLASSIFICATION_PRIORITY = [
+    "royal_flush",
+    "straight_flush",
+    "four_kind",
+    "full_house",
+    "flush",
+    "straight",
+    "three_kind",
+    "two_pair",
+    "pair",
+    "high_card"
+];
+const CLASSIFICATION_PRIORITY_INDEX = new Map(
+    CLASSIFICATION_PRIORITY.map((id, index) => [id, index])
+);
+const VALUE_TO_RANK_SYMBOL = new Map(RANKS.map(({ value, symbol }) => [value, symbol]));
+const SUIT_SYMBOL_TO_NAME = new Map(SUITS.map(({ symbol, name }) => [symbol, name]));
+const SUIT_SYMBOL_TO_COLOR = new Map(SUITS.map(({ symbol, color }) => [symbol, color]));
+const SUIT_SYMBOLS = SUITS.map(({ symbol }) => symbol);
 
 function hasUpgradeFlag(context, flag) {
     if (!context || !flag) {
@@ -370,6 +389,285 @@ function applyClassificationRules(analysis, context, rules, labels) {
     return fallback;
 }
 
+function evaluateHandWithWildcards(cards, handSize, context, detectStraight, rules, labels) {
+    if (!Array.isArray(cards) || cards.length === 0) {
+        const analysis = analyzeHand([], handSize, {
+            detectStraight,
+            context
+        });
+        return applyClassificationRules(analysis, context, rules, labels);
+    }
+
+    const markWildcardContribution = (classification, cardList) => {
+        if (!classification || typeof classification !== "object") {
+            return;
+        }
+        const highlights = Array.isArray(classification.highlightIndices)
+            ? classification.highlightIndices
+            : [];
+        if (highlights.length === 0) {
+            classification.wildcardsContributed = false;
+            if ("wildcardIndices" in classification) {
+                delete classification.wildcardIndices;
+            }
+            return;
+        }
+        const wildcardIndices = [];
+        highlights.forEach((index) => {
+            if (!Array.isArray(cardList)) {
+                return;
+            }
+            const card = cardList[index];
+            if (card?.wildAssigned === true || card?.isWild === true) {
+                wildcardIndices.push(index);
+            }
+        });
+        classification.wildcardsContributed = wildcardIndices.length > 0;
+        if (wildcardIndices.length > 0) {
+            classification.wildcardIndices = wildcardIndices;
+        } else if ("wildcardIndices" in classification) {
+            delete classification.wildcardIndices;
+        }
+    };
+
+    const wildIndices = [];
+    const nonWildCards = [];
+    cards.forEach((card, index) => {
+        if (card?.isWild === true) {
+            wildIndices.push(index);
+        } else if (card) {
+            nonWildCards.push({ card, index });
+        }
+    });
+
+    const wildCount = wildIndices.length;
+    if (wildCount === 0) {
+        const analysis = analyzeHand(cards, handSize, {
+            detectStraight,
+            context
+        });
+        const classification = applyClassificationRules(analysis, context, rules, labels);
+        markWildcardContribution(classification, cards);
+        return classification;
+    }
+
+    const getPriorityIndex = (id) =>
+        CLASSIFICATION_PRIORITY_INDEX.get(id) ?? CLASSIFICATION_PRIORITY.length;
+
+    const targetId = typeof context?.state?.config?.target === "string"
+        ? context.state.config.target
+        : null;
+
+    let flushCompatible = true;
+    let strictFlushSuit = null;
+    if (nonWildCards.length === 0) {
+        strictFlushSuit = null;
+    } else {
+        for (let i = 0; i < nonWildCards.length; i += 1) {
+            const suit = nonWildCards[i].card?.suit ?? null;
+            if (!suit) {
+                flushCompatible = false;
+                break;
+            }
+            if (strictFlushSuit == null) {
+                strictFlushSuit = suit;
+            } else if (strictFlushSuit !== suit) {
+                flushCompatible = false;
+                break;
+            }
+        }
+    }
+
+    let flushSuitOptions = [];
+    if (!flushCompatible) {
+        flushSuitOptions = [];
+    } else if (strictFlushSuit) {
+        flushSuitOptions = [strictFlushSuit];
+    } else {
+        flushSuitOptions = [...SUIT_SYMBOLS];
+    }
+
+    const suitModes = [];
+    flushSuitOptions.forEach((suit) => {
+        suitModes.push({ type: "flush", suit });
+    });
+    suitModes.push({
+        type: "mixed",
+        avoidSuit: flushSuitOptions.length === 1 ? flushSuitOptions[0] : null
+    });
+
+    const compareValueVectors = (a, b) => {
+        const length = Math.max(a.length, b.length);
+        for (let index = 0; index < length; index += 1) {
+            const aValue = a[index] ?? Number.NEGATIVE_INFINITY;
+            const bValue = b[index] ?? Number.NEGATIVE_INFINITY;
+            if (aValue !== bValue) {
+                return bValue - aValue;
+            }
+        }
+        return 0;
+    };
+
+    const compareResults = (entryA, entryB) => {
+        const priorityDiff = getPriorityIndex(entryA.classification.id)
+            - getPriorityIndex(entryB.classification.id);
+        if (priorityDiff !== 0) {
+            return priorityDiff;
+        }
+        const wildcardDiff = entryA.wildcardUseCount - entryB.wildcardUseCount;
+        if (wildcardDiff !== 0) {
+            return wildcardDiff;
+        }
+        const valueDiff = compareValueVectors(entryA.valuesDescending, entryB.valuesDescending);
+        if (valueDiff !== 0) {
+            return valueDiff;
+        }
+        return 0;
+    };
+
+    const compareTargetResults = (entryA, entryB) => {
+        const wildcardDiff = entryA.wildcardUseCount - entryB.wildcardUseCount;
+        if (wildcardDiff !== 0) {
+            return wildcardDiff;
+        }
+        const valueDiff = compareValueVectors(entryA.valuesDescending, entryB.valuesDescending);
+        if (valueDiff !== 0) {
+            return valueDiff;
+        }
+        return 0;
+    };
+
+    const resolveMixedSuit = (wildIndex, card, avoidSuit) => {
+        if (card?.suit && card.suit !== "*" && (!avoidSuit || card.suit !== avoidSuit)) {
+            return card.suit;
+        }
+        for (let offset = 0; offset < SUIT_SYMBOLS.length; offset += 1) {
+            const candidate = SUIT_SYMBOLS[(wildIndex + offset) % SUIT_SYMBOLS.length];
+            if (!avoidSuit || candidate !== avoidSuit) {
+                return candidate;
+            }
+        }
+        return SUIT_SYMBOLS[0];
+    };
+
+    const buildResolvedCards = (comboValues, suitMode) => {
+        let assignmentIndex = 0;
+        return cards.map((card) => {
+            if (!card) {
+                return card;
+            }
+            if (card.isWild === true) {
+                const assignedValue = comboValues[assignmentIndex] ?? 14;
+                let assignedSuit;
+                if (suitMode.type === "flush") {
+                    assignedSuit = suitMode.suit;
+                } else {
+                    assignedSuit = resolveMixedSuit(assignmentIndex, card, suitMode.avoidSuit);
+                }
+                const suitName = SUIT_SYMBOL_TO_NAME.get(assignedSuit) ?? card.suitName ?? "wild";
+                const suitColor = SUIT_SYMBOL_TO_COLOR.get(assignedSuit) ?? card.color ?? "wild";
+                const rankSymbol = VALUE_TO_RANK_SYMBOL.get(assignedValue) ?? card.rank;
+                assignmentIndex += 1;
+                return {
+                    ...card,
+                    rank: rankSymbol,
+                    value: assignedValue,
+                    suit: assignedSuit,
+                    suitName,
+                    color: suitColor,
+                    wildAssigned: true
+                };
+            }
+            return card;
+        });
+    };
+
+    const createAssignmentKey = (resolvedCards, suitMode) => {
+        const valuePart = resolvedCards
+            .map((card) => (Number.isFinite(card?.value) ? card.value : "x"))
+            .join("-");
+        const suitPart = resolvedCards.map((card) => card?.suit ?? "*").join("");
+        return `${valuePart}|${suitPart}|${suitMode.type === "flush" ? `F-${suitMode.suit}` : "M"}`;
+    };
+
+    const visited = new Set();
+    let targetResult = null;
+    let bestResult = null;
+
+    const processResolvedCards = (resolvedCards, suitMode) => {
+        const key = createAssignmentKey(resolvedCards, suitMode);
+        if (visited.has(key)) {
+            return;
+        }
+        visited.add(key);
+
+        const analysis = analyzeHand(resolvedCards, handSize, {
+            detectStraight,
+            context
+        });
+        const classification = applyClassificationRules(analysis, context, rules, labels);
+        markWildcardContribution(classification, resolvedCards);
+        const wildcardUseCount = Array.isArray(classification.wildcardIndices)
+            ? classification.wildcardIndices.length
+            : 0;
+        const valuesDescending = resolvedCards
+            .map((entry) => (Number.isFinite(entry?.value) ? entry.value : Number.NEGATIVE_INFINITY))
+            .sort((a, b) => b - a);
+        const result = {
+            classification,
+            wildcardUseCount,
+            valuesDescending
+        };
+
+        if (targetId && classification.id === targetId) {
+            if (!targetResult || compareTargetResults(result, targetResult) < 0) {
+                targetResult = result;
+            }
+        }
+
+        if (!bestResult || compareResults(result, bestResult) < 0) {
+            bestResult = result;
+        }
+    };
+
+    const wildcardValues = [];
+    const generateValueCombinations = (minValue, depth) => {
+        if (depth === wildCount) {
+            suitModes.forEach((suitMode) => {
+                const resolvedCards = buildResolvedCards(wildcardValues, suitMode);
+                processResolvedCards(resolvedCards, suitMode);
+            });
+            return;
+        }
+        for (let value = minValue; value <= 14; value += 1) {
+            wildcardValues[depth] = value;
+            generateValueCombinations(value, depth + 1);
+        }
+    };
+
+    generateValueCombinations(2, 0);
+
+    if (targetResult) {
+        return targetResult.classification;
+    }
+    if (bestResult) {
+        return bestResult.classification;
+    }
+
+    const fallbackAnalysis = analyzeHand(cards, handSize, {
+        detectStraight,
+        context
+    });
+    const fallbackClassification = applyClassificationRules(
+        fallbackAnalysis,
+        context,
+        rules,
+        labels
+    );
+    markWildcardContribution(fallbackClassification, cards);
+    return fallbackClassification;
+}
+
 export function createStandardEvaluator(options = {}) {
     const labels = resolveHandLabels(options);
     const detectStraight = typeof options.detectStraight === "function"
@@ -379,6 +677,9 @@ export function createStandardEvaluator(options = {}) {
         ? options.rules
         : DEFAULT_CLASSIFICATION_RULES;
     return (cards, handSize, context = {}) => {
+        if (Array.isArray(cards) && cards.some((card) => card?.isWild === true)) {
+            return evaluateHandWithWildcards(cards, handSize, context, detectStraight, rules, labels);
+        }
         const analysis = analyzeHand(cards, handSize, {
             detectStraight,
             context
