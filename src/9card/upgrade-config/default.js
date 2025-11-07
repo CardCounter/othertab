@@ -67,7 +67,7 @@ export default {
                     // Change these strings to update the hover description
                     return state?.autoDrawUnlocked
                         ? "auto draw unlocked"
-                        : "auto draw hand";
+                        : "auto deal hand";
                 },
                 resolveAmount(state, upgrade) {
                     return upgrade?.purchased ? 0 : 1;

@@ -172,7 +172,7 @@ registerUpgrade({
     id: "decrease_draw_time",
     type: UPGRADE_TYPES.BASIC,
     title: "draw speed",
-    description: "draw hands faster by shortening the shuffle animation.",
+    description: "deal hands faster by shortening the shuffle animation.",
     cost: 100,
     costGrowthRate: 1.5,
     costLinearCoefficient: 0.4,
@@ -1202,10 +1202,6 @@ function renderUpgrades(state) {
         placeholder.className = "upgrade-card upgrade-card-placeholder";
         placeholder.setAttribute("role", "listitem");
         placeholder.setAttribute("aria-hidden", "true");
-        const placeholderBody = document.createElement("div");
-        placeholderBody.className = "upgrade-card-placeholder-body";
-        placeholderBody.textContent = "empty";
-        placeholder.append(placeholderBody);
         uniqueFragment.append(placeholder);
     }
     uniqueContainer.replaceChildren(uniqueFragment);
@@ -1233,7 +1229,7 @@ function renderUpgrades(state) {
             rerollButton.disabled = disableReroll;
             rerollButton.textContent = "reroll: ";
             const diceSpan = document.createElement("span");
-            diceSpan.className = "dice-text";
+            diceSpan.className = "dice-shop-text";
             diceSpan.textContent = formattedRerollCost;
             rerollButton.append(diceSpan);
             rerollButton.dataset.cost = `${rerollCost}`;

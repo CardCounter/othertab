@@ -1,12 +1,11 @@
 import {
     CARD_SHOP_POOL_WEIGHTS,
     CARD_SHOP_SETTINGS,
-    TOTAL_MAIN_SLOTS,
     RANKS,
     DEFAULT_REROLL_DICE_COST,
     DEFAULT_REROLL_DICE_INCREMENT
 } from "./config.js";
-import { createStandardDeck, invalidateDeckCache } from "./deck-utils.js";
+import { createStandardDeck, invalidateDeckCache, updateDeckBaseline } from "./deck-utils.js";
 import { renderDeckGrid } from "./ui.js";
 import { formatChipAmount } from "./chips.js";
 import { canAffordDice, formatDiceAmount, spendDice, subscribeToDiceChanges } from "./dice.js";
@@ -17,57 +16,64 @@ const DISCARD_SHOP_ITEM = {
     rarity: "uncommon",
     price: CARD_SHOP_SETTINGS.cardPrice,
     label: "discard",
-    icon: "X"
+    icon: "X",
+    textSize: "3rem"
 };
 
 const UNCOMMON_TESTER_CARDS = [
-    {
-        rank: "U1",
-        value: 20,
-        rankName: "tester u1",
-        suit: "★",
-        suitName: "star",
-        color: "black",
-        label: "tester star",
-        rarity: "uncommon",
-        price: CARD_SHOP_SETTINGS.cardPrice
-    },
-    {
-        rank: "U2",
-        value: 21,
-        rankName: "tester u2",
-        suit: "★",
-        suitName: "star",
-        color: "black",
-        label: "tester comet",
-        rarity: "uncommon",
-        price: CARD_SHOP_SETTINGS.cardPrice
-    }
+    // {
+    //     rank: "U1",
+    //     value: 20,
+    //     rankName: "tester u1",
+    //     suit: "★",
+    //     suitName: "star",
+    //     color: "black",
+    //     label: "tester star",
+    //     rarity: "uncommon",
+    //     price: CARD_SHOP_SETTINGS.cardPrice
+    // },
+    // {
+    //     rank: "U2",
+    //     value: 21,
+    //     rankName: "tester u2",
+    //     suit: "★",
+    //     suitName: "star",
+    //     color: "black",
+    //     label: "tester comet",
+    //     rarity: "uncommon",
+    //     price: CARD_SHOP_SETTINGS.cardPrice
+    // }
 ];
 
+const WILD_CARD_SHOP_ITEM = {
+    id: "wild_card",
+    rank: "W",
+    value: 0,
+    rankName: "wild card",
+    suit: "*",
+    suitName: "wild",
+    color: "wild",
+    label: "",
+    rarity: "rare",
+    price: CARD_SHOP_SETTINGS.cardPrice,
+    textSize: "1rem",
+    isWild: true
+};
+
 const RARE_TESTER_CARDS = [
-    {
-        rank: "R1",
-        value: 30,
-        rankName: "tester r1",
-        suit: "✦",
-        suitName: "nova",
-        color: "red",
-        label: "tester nova",
-        rarity: "rare",
-        price: CARD_SHOP_SETTINGS.cardPrice
-    },
-    {
-        rank: "R2",
-        value: 31,
-        rankName: "tester r2",
-        suit: "✦",
-        suitName: "nova",
-        color: "red",
-        label: "tester supernova",
-        rarity: "rare",
-        price: CARD_SHOP_SETTINGS.cardPrice
-    }
+    WILD_CARD_SHOP_ITEM
+    // {
+    //     rank: "R2",
+    //     value: 31,
+    //     rankName: "tester r2",
+    //     suit: "✦",
+    //     suitName: "nova",
+    //     color: "red",
+    //     label: "tester supernova",
+    //     rarity: "rare",
+    //     price: CARD_SHOP_SETTINGS.cardPrice,
+    //     textSize: "2rem"
+    // }
 ];
 
 const CARD_SHOP_POOLS = {
@@ -143,7 +149,7 @@ function updateRerollDisplay(state) {
     if (priceElement) {
         priceElement.textContent = "";
         const span = document.createElement("span");
-        span.className = "dice-text";
+        span.className = "dice-shop-text";
         span.textContent = formattedCost;
         priceElement.append(span);
     }
@@ -177,7 +183,9 @@ function cloneCardForDeck(card, poolId) {
         label: card.label,
         rarity: card.rarity ?? poolId,
         sourcePool: poolId,
-        isDrawn: false
+        isDrawn: false,
+        textSize: card.textSize ?? null,
+        isWild: card.isWild === true
     };
 }
 
@@ -225,6 +233,7 @@ function generateCardShopOffer(state) {
     const type = template.type ?? "card";
     const rarity = template.rarity ?? pool.id;
     const price = template.price ?? CARD_SHOP_SETTINGS.cardPrice;
+    const textSize = template.textSize ?? null;
 
     if (type === "discard") {
         return {
@@ -233,7 +242,8 @@ function generateCardShopOffer(state) {
             rarity,
             price,
             label: template.label ?? "discard",
-            icon: template.icon ?? "X"
+            icon: template.icon ?? "X",
+            textSize
         };
     }
 
@@ -244,7 +254,8 @@ function generateCardShopOffer(state) {
         suit: template.suit,
         suitName: template.suitName,
         color: template.color,
-        label: template.label
+        label: template.label,
+        textSize
     };
 
     return {
@@ -252,7 +263,8 @@ function generateCardShopOffer(state) {
         card,
         rarity,
         price,
-        poolId: pool.id
+        poolId: pool.id,
+        textSize
     };
 }
 
@@ -339,11 +351,16 @@ function renderCardShop(state) {
 
                 const cardLabel = offer.card?.label ?? offer.label ?? "";
                 if (offer.card) {
-                    const rankDescription = getRankDescription(rank);
-                    if (rankDescription && suitName) {
-                        descriptionText = `${rankDescription} of ${suitName}`;
-                    } else if (rankDescription) {
-                        descriptionText = rankDescription;
+                    // wild cards get a simple description
+                    if (offer.card.isWild || offer.isWild) {
+                        descriptionText = "wild card";
+                    } else {
+                        const rankDescription = getRankDescription(rank);
+                        if (rankDescription && suitName) {
+                            descriptionText = `${rankDescription} of ${suitName}`;
+                        } else if (rankDescription) {
+                            descriptionText = rankDescription;
+                        }
                     }
                 }
                 if (!descriptionText && cardLabel) {
@@ -353,6 +370,12 @@ function renderCardShop(state) {
                 cardButton.textContent = offer.icon ?? "X";
                 cardButton.classList.add("card-shop-card-discard");
                 descriptionText = "+1 discard";
+            }
+
+            // apply text size if specified (after all classes are set)
+            const textSize = offer.textSize ?? offer.card?.textSize ?? null;
+            if (textSize) {
+                cardButton.style.setProperty("font-size", textSize, "important");
             }
 
             if (!descriptionText) {
@@ -368,8 +391,10 @@ function renderCardShop(state) {
             description.textContent = descriptionText;
             description.setAttribute("aria-hidden", "true");
 
-            const price = document.createElement("div");
-            price.className = "card-shop-card-price";
+            const price = document.createElement("button");
+            price.type = "button";
+            price.className = "card-shop-card-price button";
+            price.dataset.slot = `${index}`;
             price.textContent = formatChipPrice(offer.price);
 
             cardContainer.append(cardButton, description);
@@ -391,11 +416,33 @@ function renderCardShop(state) {
 }
 
 export function updateDiscardDisplay(state) {
-    if (!state?.dom?.cardShopDiscardValue) {
+    if (!state?.dom) {
         return;
     }
     const count = state.discards ?? 0;
-    state.dom.cardShopDiscardValue.textContent = `${count}`;
+    const discardValue = state.dom.cardShopDiscardValue ?? null;
+    if (discardValue) {
+        discardValue.textContent = `${count}`;
+    }
+    const discardButton = state.dom.cardShopDiscardButton ?? null;
+    const hasDiscards = count > 0;
+    const isActive = state.deckDiscardActive === true && hasDiscards;
+
+    if (discardButton) {
+        discardButton.disabled = !hasDiscards;
+        discardButton.setAttribute("aria-pressed", isActive ? "true" : "false");
+        discardButton.classList.toggle("is-active", isActive);
+        discardButton.setAttribute("aria-label", `discards: ${count}`);
+        if (!hasDiscards && state.deckDiscardActive) {
+            state.deckDiscardActive = false;
+        }
+    }
+
+    const deckGrid = state.dom.deckGrid ?? null;
+    if (deckGrid) {
+        const shouldHighlight = state.deckDiscardActive === true && hasDiscards;
+        deckGrid.classList.toggle("deck-discard-active", shouldHighlight);
+    }
 }
 
 function rerollCardShop(state, { silent = false } = {}) {
@@ -438,10 +485,8 @@ function handleCardShopPurchase(state, source, slotIndex = null) {
         return;
     }
 
-    const openSlot = state.deckSlots.findIndex((card, index) => {
-        if (index >= TOTAL_MAIN_SLOTS) {
-            return false;
-        }
+    const deckSlots = Array.isArray(state.deckSlots) ? state.deckSlots : [];
+    const openSlot = deckSlots.findIndex((card, index) => {
         if (card !== null) {
             return false;
         }
@@ -456,11 +501,9 @@ function handleCardShopPurchase(state, source, slotIndex = null) {
         return;
     }
     newCard.shopPrice = offer.price;
-    state.deckSlots[openSlot] = newCard;
+    deckSlots[openSlot] = newCard;
     invalidateDeckCache(state);
-    if (Array.isArray(state.deckBaselineSlots) && openSlot < state.deckBaselineSlots.length) {
-        state.deckBaselineSlots[openSlot] = newCard;
-    }
+    updateDeckBaseline(state);
     renderDeckGrid(state);
     if (slotIndex != null && slotIndex >= 0) {
         state.cardShop.slots[slotIndex] = null;
@@ -588,18 +631,19 @@ export function setupCardShop(state) {
             return;
         }
 
-        const card = event.target.closest(".card-shop-card");
-        if (!card) {
+        const priceButton = event.target.closest(".card-shop-card-price");
+        if (priceButton) {
+            event.stopPropagation();
+            const slotIndexValue = Number.parseInt(priceButton.dataset.slot ?? "", 10);
+            if (Number.isNaN(slotIndexValue)) {
+                return;
+            }
+            if (typeof priceButton.blur === "function") {
+                priceButton.blur();
+            }
+            handleCardShopPurchase(state, "shop", slotIndexValue);
             return;
         }
-        const slotIndexValue = Number.parseInt(card.dataset.slot ?? "", 10);
-        if (Number.isNaN(slotIndexValue)) {
-            return;
-        }
-        if (typeof card.blur === "function") {
-            card.blur();
-        }
-        handleCardShopPurchase(state, "shop", slotIndexValue);
     });
 
     state.dom.cardShopSlots.addEventListener("dragstart", handleDragStart);

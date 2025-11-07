@@ -1,10 +1,4 @@
-import {
-    CARDS_PER_ROW,
-    EXTRA_BOTTOM_SLOTS,
-    RANK_DISPLAY_ORDER,
-    SUIT_DISPLAY_ORDER,
-    TOTAL_MAIN_SLOTS
-} from "./config.js";
+import { TOTAL_MAIN_SLOTS, TOTAL_SLOTS } from "./config.js";
 import { formatDiceAmount } from "./dice.js";
 
 function isCardDrawn(state, card) {
@@ -52,7 +46,7 @@ export function createDeckElement(config) {
     const button = document.createElement("button");
     button.className = "poker-button";
     button.type = "button";
-    button.textContent = "draw hand";
+    button.textContent = "deal hand";
 
     const controlsGroup = document.createElement("div");
     controlsGroup.className = "poker-controls-group";
@@ -94,11 +88,6 @@ export function createDeckElement(config) {
     deckGrid.setAttribute("role", "list");
     deckGrid.setAttribute("aria-label", "deck cards");
 
-    const sortButton = document.createElement("button");
-    sortButton.type = "button";
-    sortButton.className = "deck-sort-button";
-    sortButton.textContent = "sort deck";
-
     const cardShop = document.createElement("section");
     cardShop.className = "card-shop";
 
@@ -108,6 +97,12 @@ export function createDeckElement(config) {
     const cardShopDiscard = document.createElement("div");
     cardShopDiscard.className = "card-shop-discard";
 
+    const cardShopDiscardButton = document.createElement("button");
+    cardShopDiscardButton.type = "button";
+    cardShopDiscardButton.className = "card-shop-discard-button";
+    cardShopDiscardButton.setAttribute("aria-pressed", "false");
+    cardShopDiscardButton.disabled = true;
+
     const cardShopDiscardLabel = document.createElement("span");
     cardShopDiscardLabel.className = "card-shop-discard-label";
     cardShopDiscardLabel.textContent = "discards:";
@@ -116,7 +111,14 @@ export function createDeckElement(config) {
     cardShopDiscardValue.className = "card-shop-discard-value";
     cardShopDiscardValue.textContent = "0";
 
-    cardShopDiscard.append(cardShopDiscardLabel, cardShopDiscardValue);
+    cardShopDiscardButton.append(cardShopDiscardLabel, cardShopDiscardValue);
+    const cardShopSortButton = document.createElement("button");
+    cardShopSortButton.type = "button";
+    cardShopSortButton.className = "card-shop-sort-button";
+    cardShopSortButton.textContent = "sort deck";
+    cardShopSortButton.setAttribute("aria-label", "sort deck");
+
+    cardShopDiscard.append(cardShopSortButton, cardShopDiscardButton);
 
     const cardShopRerollButton = document.createElement("button");
     cardShopRerollButton.type = "button";
@@ -129,7 +131,7 @@ export function createDeckElement(config) {
     const cardShopRerollPrice = document.createElement("span");
     cardShopRerollPrice.className = "card-shop-reroll-price";
     const initialReroll = document.createElement("span");
-    initialReroll.className = "dice-text";
+    initialReroll.className = "dice-shop-text";
     initialReroll.textContent = formatDiceAmount(0);
     cardShopRerollPrice.append(initialReroll);
 
@@ -188,12 +190,14 @@ export function createDeckElement(config) {
         handContainer,
         result,
         deckGrid,
-        sortButton,
         cardShop,
         cardShopUpper,
         cardShopSlots,
         cardShopRerollButton,
         cardShopRerollPrice,
+        cardShopDiscard,
+        cardShopDiscardButton,
+        cardShopSortButton,
         cardShopDiscardValue,
         upgradeArea,
         upgradeColumn,
@@ -211,50 +215,31 @@ function ensureDeckGridStructure(state) {
         return null;
     }
     if (
-        Array.isArray(state.dom.deckGridMainCells) &&
-        state.dom.deckGridMainCells.length === TOTAL_MAIN_SLOTS
+        Array.isArray(state.dom.deckGridCells) &&
+        state.dom.deckGridCells.length === TOTAL_SLOTS
     ) {
-        return state.dom.deckGridMainCells;
+        return state.dom.deckGridCells;
     }
 
     const fragment = document.createDocumentFragment();
-    const mainCells = [];
+    const cells = [];
 
-    for (let slotIndex = 0; slotIndex < TOTAL_MAIN_SLOTS; slotIndex += 1) {
+    for (let slotIndex = 0; slotIndex < TOTAL_SLOTS; slotIndex += 1) {
         const cell = document.createElement("div");
         cell.className = "deck-cell deck-slot";
         cell.dataset.slot = `${slotIndex}`;
+        if (slotIndex >= TOTAL_MAIN_SLOTS) {
+            cell.classList.add("deck-slot-extra");
+        }
         fragment.append(cell);
-        mainCells.push(cell);
-    }
-
-    for (let extraIndex = 0; extraIndex < EXTRA_BOTTOM_SLOTS; extraIndex += 1) {
-        const slotIndex = TOTAL_MAIN_SLOTS + extraIndex;
-        const cell = document.createElement("div");
-        cell.className = "deck-cell deck-slot deck-slot-locked";
-        cell.dataset.slot = `${slotIndex}`;
-        cell.setAttribute("aria-label", "locked slot (upgrade required)");
-        fragment.append(cell);
-    }
-
-    if (state.dom.sortButton) {
-        const sortButton = state.dom.sortButton;
-        const startCol = RANK_DISPLAY_ORDER.indexOf("6") + 1;
-        const endCol = RANK_DISPLAY_ORDER.indexOf("2") + 2;
-        const actionCell = document.createElement("div");
-        actionCell.className = "deck-cell deck-action-cell";
-        actionCell.style.gridRow = `${SUIT_DISPLAY_ORDER.length + 1}`;
-        actionCell.style.gridColumn = `${startCol} / ${endCol}`;
-        actionCell.append(sortButton);
-        fragment.append(actionCell);
-        state.dom.sortButtonCell = actionCell;
+        cells.push(cell);
     }
 
     state.dom.deckGrid.replaceChildren(fragment);
-    state.dom.deckGridMainCells = mainCells;
-    state.dom.deckCardButtons = new Array(TOTAL_MAIN_SLOTS).fill(null);
+    state.dom.deckGridCells = cells;
+    state.dom.deckCardButtons = new Array(TOTAL_SLOTS).fill(null);
 
-    return mainCells;
+    return cells;
 }
 
 export function renderDeckGrid(state) {
@@ -268,7 +253,7 @@ export function renderDeckGrid(state) {
     }
 
     if (!Array.isArray(state.dom.deckCardButtons)) {
-        state.dom.deckCardButtons = new Array(TOTAL_MAIN_SLOTS).fill(null);
+        state.dom.deckCardButtons = new Array(TOTAL_SLOTS).fill(null);
     }
 
     for (let slotIndex = 0; slotIndex < cells.length; slotIndex += 1) {
@@ -296,10 +281,17 @@ export function renderDeckGrid(state) {
                 button.type = "button";
                 state.dom.deckCardButtons[slotIndex] = button;
             }
-            button.dataset.slot = `${slotIndex}`;
-            button.draggable = true;
-
             const drawn = cardToRender.isDrawn === true;
+            const isAnimating = state.isAnimating === true || state.pendingDraw === true;
+            const allowDrag =
+                state.deckDiscardActive !== true && !drawn && !isAnimating;
+            button.dataset.slot = `${slotIndex}`;
+            button.draggable = allowDrag;
+            if (allowDrag) {
+                button.setAttribute("aria-grabbed", "false");
+            } else {
+                button.removeAttribute("aria-grabbed");
+            }
             const classes = buildDeckCardClasses(cardToRender, drawn);
             if (button.className !== classes) {
                 button.className = classes;
@@ -308,6 +300,14 @@ export function renderDeckGrid(state) {
             const textContent = `${cardToRender.rank}${cardToRender.suit}`;
             if (button.textContent !== textContent) {
                 button.textContent = textContent;
+            }
+
+            // apply text size if specified
+            const textSize = cardToRender.textSize ?? null;
+            if (textSize) {
+                button.style.fontSize = textSize;
+            } else {
+                button.style.fontSize = "";
             }
 
             if (button.parentNode !== cell) {

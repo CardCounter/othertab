@@ -1,45 +1,70 @@
-import { MIN_DECK_CARD_COUNT, TOTAL_MAIN_SLOTS, TOTAL_SLOTS, CARDS_PER_ROW } from "./config.js";
+import { MIN_DECK_CARD_COUNT } from "./config.js";
 import {
     getDeckCardCountFromSlots,
-    getDeckCardsFromSlots,
     getSlotIndexFromTarget,
     invalidateDeckCache,
-    createDeckSlotsFromCards,
-    moveCardInSlots,
     snapshotDeckSlots,
-    sortDeckCards,
-    updateDeckBaseline,
-    getSlotIndexForCard
+    sortDeckState,
+    updateDeckBaseline
 } from "./deck-utils.js";
 import { renderDeckGrid } from "./ui.js";
 import { updateDiscardDisplay } from "./shop.js";
 
-let activeDeckDelete = null;
+const discardMode = {
+    state: null
+};
 
-export function clearPendingDelete() {
-    if (!activeDeckDelete) {
-        return;
-    }
-    const { element } = activeDeckDelete;
-    if (element?.isConnected) {
-        element.classList.remove("delete-pending");
-    }
-    activeDeckDelete = null;
+function getDiscardButton(state) {
+    return state?.dom?.cardShopDiscardButton ?? null;
 }
 
-function setPendingDelete(state, element, slot) {
-    if (!state || !element) {
+function setDeckDiscardActive(state, active) {
+    if (!state?.dom?.deckGrid) {
         return;
     }
-    clearPendingDelete();
-    element.classList.add("delete-pending");
-    activeDeckDelete = { state, element, slot };
+    if (active) {
+        state.dom.deckGrid.classList.add("deck-discard-active");
+    } else {
+        state.dom.deckGrid.classList.remove("deck-discard-active");
+    }
+    state.deckDiscardActive = active === true;
+}
+
+function activateDiscardMode(state) {
+    if (!state?.dom?.deckGrid) {
+        return;
+    }
+    if ((state.discards ?? 0) <= 0) {
+        return;
+    }
+    if (discardMode.state && discardMode.state !== state) {
+        deactivateDiscardMode(discardMode.state);
+    }
+    discardMode.state = state;
+    setDeckDiscardActive(state, true);
+    updateDiscardDisplay(state);
+}
+
+function deactivateDiscardMode(state = discardMode.state) {
+    if (!state) {
+        return;
+    }
+    setDeckDiscardActive(state, false);
+    if (discardMode.state === state) {
+        discardMode.state = null;
+    }
+    updateDiscardDisplay(state);
+}
+
+export function clearPendingDelete(state = discardMode.state) {
+    deactivateDiscardMode(state);
 }
 
 export function resetDeckToBaseline(state) {
     if (!state?.deckBaselineSlots) {
         return;
     }
+    clearPendingDelete(state);
     state.deckSlots = snapshotDeckSlots(state.deckBaselineSlots);
     state.deckSlots.forEach((card) => {
         if (card) {
@@ -58,13 +83,20 @@ export function resetDeckToBaseline(state) {
 }
 
 document.addEventListener("click", (event) => {
-    if (!activeDeckDelete) {
+    const activeState = discardMode.state;
+    if (!activeState || activeState.deckDiscardActive !== true) {
         return;
     }
-    const { state } = activeDeckDelete;
-    if (!state?.dom?.deckGrid?.contains(event.target)) {
-        clearPendingDelete();
+    const deckGrid = activeState.dom?.deckGrid ?? null;
+    const discardButton = getDiscardButton(activeState);
+    const target = event.target;
+    if (deckGrid?.contains(target)) {
+        return;
     }
+    if (discardButton?.contains(target)) {
+        return;
+    }
+    deactivateDiscardMode(activeState);
 });
 
 export function setupDeckManagement(state) {
@@ -73,223 +105,163 @@ export function setupDeckManagement(state) {
     }
 
     const grid = state.dom.deckGrid;
-    state.dragSourceSlot = null;
-    state.dragSourceIsDrawn = false;
+    const discardButton = getDiscardButton(state);
+    const sortButton = state.dom?.cardShopSortButton ?? null;
+    const sortAndRenderDeck = () => {
+        sortDeckState(state);
+        renderDeckGrid(state);
+    };
+
+    state.sortDeckAndRender = sortAndRenderDeck;
+    setDeckDiscardActive(state, false);
+    if (discardMode.state === state) {
+        discardMode.state = null;
+    }
 
     renderDeckGrid(state);
 
-    if (state.dom.sortButton) {
-        state.dom.sortButton.addEventListener("click", () => {
-            clearPendingDelete();
-            const slotCount = Array.isArray(state.deckSlots)
-                ? state.deckSlots.length
-                : TOTAL_SLOTS;
-            const newDeckSlots = Array(slotCount).fill(null);
-            
-            // identify slots occupied by drawn cards (cards in baseline but not in deck at that position)
-            const drawnCardSlots = new Set();
-            if (Array.isArray(state.deckBaselineSlots) && Array.isArray(state.deckSlots)) {
-                state.deckBaselineSlots.forEach((baselineCard, index) => {
-                    if (!baselineCard || index >= TOTAL_MAIN_SLOTS) {
-                        return;
-                    }
-                    const deckCard = state.deckSlots[index];
-                    // if card is in baseline but not in deck at this position, it's drawn
-                    if (baselineCard !== deckCard) {
-                        // check if the card exists elsewhere in deckSlots
-                        const existsElsewhere = state.deckSlots.some(
-                            (card) => card === baselineCard
-                        );
-                        if (!existsElsewhere) {
-                            drawnCardSlots.add(index);
-                            // keep the slot empty (drawn cards stay in baseline only)
-                        }
-                    }
-                });
-            }
-            
-            // get all cards currently in deckSlots (non-drawn cards)
-            const deckCards = getDeckCardsFromSlots(state.deckSlots);
-            const sortedCards = sortDeckCards(deckCards);
-            
-            const isBlocked = (index) => drawnCardSlots.has(index);
-            
-            // step 1: place cards at preferred positions
-            const usedSlots = new Set();
-            const cardsToPlace = [];
-            
-            sortedCards.forEach((card) => {
-                const preferredIndex = getSlotIndexForCard(card);
-                if (
-                    preferredIndex != null &&
-                    preferredIndex < TOTAL_MAIN_SLOTS &&
-                    preferredIndex < slotCount &&
-                    !isBlocked(preferredIndex) &&
-                    !usedSlots.has(preferredIndex)
-                ) {
-                    newDeckSlots[preferredIndex] = card;
-                    usedSlots.add(preferredIndex);
-                } else {
-                    cardsToPlace.push(card);
-                }
-            });
-            
-            // step 2: place remaining cards (duplicates) in first available slots
-            let nextSlot = 0;
-            cardsToPlace.forEach((card) => {
-                while (nextSlot < slotCount) {
-                    if (
-                        !isBlocked(nextSlot) &&
-                        !usedSlots.has(nextSlot) &&
-                        newDeckSlots[nextSlot] === null
-                    ) {
-                        newDeckSlots[nextSlot] = card;
-                        usedSlots.add(nextSlot);
-                        nextSlot += 1;
-                        break;
-                    }
-                    nextSlot += 1;
-                }
-            });
-            
-            // step 3: compact empty slots to the end while preserving preferred positions
-            // collect all cards in order
-            const allCards = [];
-            for (let i = 0; i < slotCount; i += 1) {
-                if (i < TOTAL_MAIN_SLOTS && isBlocked(i)) {
-                    continue;
-                }
-                if (newDeckSlots[i] !== null) {
-                    allCards.push({
-                        card: newDeckSlots[i],
-                        preferredIndex: getSlotIndexForCard(newDeckSlots[i])
-                    });
-                }
-            }
-            
-            // clear all non-blocked slots
-            for (let i = 0; i < slotCount; i += 1) {
-                if (i < TOTAL_MAIN_SLOTS && isBlocked(i)) {
-                    continue;
-                }
-                newDeckSlots[i] = null;
-            }
-            
-            // place cards back: preferred positions first, then compact remaining
-            const finalUsed = new Set();
-            const remaining = [];
-            
-            allCards.forEach(({ card, preferredIndex }) => {
-                if (
-                    preferredIndex != null &&
-                    preferredIndex < TOTAL_MAIN_SLOTS &&
-                    preferredIndex < slotCount &&
-                    !isBlocked(preferredIndex) &&
-                    !finalUsed.has(preferredIndex)
-                ) {
-                    newDeckSlots[preferredIndex] = card;
-                    finalUsed.add(preferredIndex);
-                } else {
-                    remaining.push(card);
-                }
-            });
-            
-            // fill remaining slots compactly from start
-            let fillIndex = 0;
-            remaining.forEach((card) => {
-                while (fillIndex < slotCount) {
-                    if (
-                        !isBlocked(fillIndex) &&
-                        !finalUsed.has(fillIndex) &&
-                        newDeckSlots[fillIndex] === null
-                    ) {
-                        newDeckSlots[fillIndex] = card;
-                        finalUsed.add(fillIndex);
-                        fillIndex += 1;
-                        break;
-                    }
-                    fillIndex += 1;
-                }
-            });
-            
-            state.deckSlots = newDeckSlots;
-            invalidateDeckCache(state);
-            updateDeckBaseline(state);
-            renderDeckGrid(state);
-        });
-    }
+    let dragOverSlot = null;
+    let dragSourceButton = null;
 
-    grid.addEventListener("dragstart", (event) => {
-        const card = event.target.closest(".deck-card");
-        if (!card) {
+    const clearDropTarget = () => {
+        if (dragOverSlot == null) {
             return;
         }
-        const slot = Number.parseInt(card.dataset.slot ?? "", 10);
-        if (Number.isNaN(slot)) {
+        const cells = state.dom?.deckGridCells ?? null;
+        const cell = Array.isArray(cells) ? cells[dragOverSlot] : null;
+        if (cell) {
+            cell.classList.remove("deck-drop-target");
+        }
+        dragOverSlot = null;
+    };
+
+    const setDropTarget = (slotIndex) => {
+        if (dragOverSlot === slotIndex) {
             return;
         }
-        if (slot >= TOTAL_MAIN_SLOTS) {
+        clearDropTarget();
+        if (slotIndex == null || slotIndex === state.dragSourceSlot) {
+            return;
+        }
+        const cells = state.dom?.deckGridCells ?? null;
+        const cell = Array.isArray(cells) ? cells[slotIndex] : null;
+        if (cell) {
+            cell.classList.add("deck-drop-target");
+            dragOverSlot = slotIndex;
+        }
+    };
+
+    const resetDragState = () => {
+        clearDropTarget();
+        state.dragSourceSlot = null;
+        state.dragSourceIsDrawn = false;
+        if (dragSourceButton) {
+            dragSourceButton.classList.remove("deck-card-dragging");
+            dragSourceButton.setAttribute("aria-grabbed", "false");
+            dragSourceButton = null;
+        }
+        grid.classList.remove("deck-dragging");
+    };
+
+    const handleDragStart = (event) => {
+        if (state.deckDiscardActive === true) {
             event.preventDefault();
             return;
         }
-        clearPendingDelete();
-        state.dragSourceSlot = slot;
-        const cardObj = state.deckSlots?.[slot] ?? state.deckBaselineSlots?.[slot] ?? null;
-        state.dragSourceIsDrawn = cardObj?.isDrawn === true;
-        card.classList.add("dragging");
-        event.dataTransfer.effectAllowed = "move";
-        event.dataTransfer.setData("text/plain", `${slot}`);
-    });
-
-    grid.addEventListener("dragend", (event) => {
-        const card = event.target.closest(".deck-card");
-        if (card) {
-            card.classList.remove("dragging");
+        if (state.isAnimating === true || state.pendingDraw === true) {
+            event.preventDefault();
+            return;
         }
-        if (state.dragSourceSlot != null) {
-            renderDeckGrid(state);
+        const button = event.target.closest(".deck-card");
+        if (!button) {
+            return;
         }
-        state.dragSourceSlot = null;
-        state.dragSourceIsDrawn = false;
-    });
+        const slotIndex = Number.parseInt(button.dataset.slot ?? "", 10);
+        if (Number.isNaN(slotIndex)) {
+            return;
+        }
+        const deckCard = Array.isArray(state.deckSlots)
+            ? state.deckSlots[slotIndex]
+            : null;
+        if (!deckCard || deckCard.isDrawn === true) {
+            event.preventDefault();
+            return;
+        }
+        state.dragSourceSlot = slotIndex;
+        state.dragSourceIsDrawn = deckCard.isDrawn === true;
+        dragSourceButton = button;
+        button.classList.add("deck-card-dragging");
+        button.setAttribute("aria-grabbed", "true");
+        grid.classList.add("deck-dragging");
+        try {
+            event.dataTransfer.effectAllowed = "move";
+            event.dataTransfer.setData("text/plain", `${slotIndex}`);
+        } catch (error) {
+            // ignore dataTransfer errors (e.g. unsupported browsers)
+        }
+    };
 
-    grid.addEventListener("dragover", (event) => {
+    const handleDragEnd = () => {
+        resetDragState();
+    };
+
+    const handleDragOver = (event) => {
         if (state.dragSourceSlot == null) {
             return;
         }
-        const toSlot = getSlotIndexFromTarget(event.target);
-        if (toSlot != null && toSlot >= TOTAL_MAIN_SLOTS) {
-            event.dataTransfer.dropEffect = "none";
+        event.preventDefault();
+        if (event.dataTransfer) {
+            event.dataTransfer.dropEffect = "move";
+        }
+        const targetSlot = getSlotIndexFromTarget(event.target);
+        setDropTarget(targetSlot);
+    };
+
+    const handleDragLeave = (event) => {
+        if (state.dragSourceSlot == null) {
             return;
         }
-        event.preventDefault();
-        event.dataTransfer.dropEffect = "move";
-    });
+        if (!grid.contains(event.relatedTarget)) {
+            setDropTarget(null);
+        }
+    };
 
-    grid.addEventListener("drop", (event) => {
+    const handleDrop = (event) => {
         if (state.dragSourceSlot == null) {
             return;
         }
         event.preventDefault();
-        const fromSlot = state.dragSourceSlot;
-        const toSlot = getSlotIndexFromTarget(event.target);
-        clearPendingDelete();
-        if (toSlot != null && toSlot !== fromSlot && toSlot < TOTAL_MAIN_SLOTS) {
-            const isDrawn = state.dragSourceIsDrawn;
-            if (isDrawn) {
-                moveCardInSlots(state.deckBaselineSlots, fromSlot, toSlot);
-            } else {
-                moveCardInSlots(state.deckSlots, fromSlot, toSlot);
-                invalidateDeckCache(state);
-                updateDeckBaseline(state);
-            }
-            renderDeckGrid(state);
+        const sourceSlot = state.dragSourceSlot;
+        const targetSlot = getSlotIndexFromTarget(event.target);
+        if (targetSlot == null || sourceSlot === targetSlot) {
+            resetDragState();
+            return;
         }
-        state.dragSourceSlot = null;
-        state.dragSourceIsDrawn = false;
-    });
+        const deck = Array.isArray(state.deckSlots) ? state.deckSlots : [];
+        const sourceCard = deck[sourceSlot] ?? null;
+        const targetCard = deck[targetSlot] ?? null;
+        if (!sourceCard || sourceCard.isDrawn === true) {
+            resetDragState();
+            return;
+        }
+        deck[sourceSlot] = targetCard ?? null;
+        deck[targetSlot] = sourceCard;
+        invalidateDeckCache(state);
+        updateDeckBaseline(state);
+        resetDragState();
+        renderDeckGrid(state);
+    };
 
-    grid.addEventListener("click", (event) => {
+    if (grid.dataset.deckDragHandlersAttached !== "true") {
+        grid.addEventListener("dragstart", handleDragStart);
+        grid.addEventListener("dragend", handleDragEnd);
+        grid.addEventListener("dragover", handleDragOver);
+        grid.addEventListener("drop", handleDrop);
+        grid.addEventListener("dragleave", handleDragLeave);
+        grid.dataset.deckDragHandlersAttached = "true";
+    }
+
+    const handleDeckCardClick = (event) => {
         const card = event.target.closest(".deck-card");
         if (!card) {
             return;
@@ -298,40 +270,18 @@ export function setupDeckManagement(state) {
         if (Number.isNaN(slot)) {
             return;
         }
-        const cardObj = state.deckSlots?.[slot] ?? state.deckBaselineSlots?.[slot] ?? null;
-        if (cardObj?.isDrawn === true) {
+        const cardObj =
+            state.deckSlots?.[slot] ?? state.deckBaselineSlots?.[slot] ?? null;
+        if (!cardObj || cardObj.isDrawn === true) {
+            return;
+        }
+
+        if (state.deckDiscardActive !== true) {
             return;
         }
 
         const deckCount = getDeckCardCountFromSlots(state.deckSlots);
         const availableDiscards = state.discards ?? 0;
-
-        if (card.classList.contains("delete-pending")) {
-            if (deckCount <= MIN_DECK_CARD_COUNT) {
-                clearPendingDelete();
-                state.dom.result.textContent = "deck must keep at least 45 cards";
-                state.dom.result.classList.remove("success");
-                state.dom.result.classList.add("fail");
-                return;
-            }
-            if (availableDiscards <= 0) {
-                clearPendingDelete();
-                state.dom.result.textContent = "no discards available";
-                state.dom.result.classList.remove("success");
-                state.dom.result.classList.add("fail");
-                return;
-            }
-            clearPendingDelete();
-            state.deckSlots[slot] = null;
-            if (Array.isArray(state.deckBaselineSlots) && slot < state.deckBaselineSlots.length) {
-                state.deckBaselineSlots[slot] = null;
-            }
-            state.discards = availableDiscards - 1;
-            invalidateDeckCache(state);
-            renderDeckGrid(state);
-            updateDiscardDisplay(state);
-            return;
-        }
 
         if (deckCount <= MIN_DECK_CARD_COUNT) {
             state.dom.result.textContent = "deck must keep at least 45 cards";
@@ -344,9 +294,68 @@ export function setupDeckManagement(state) {
             state.dom.result.textContent = "no discards available";
             state.dom.result.classList.remove("success");
             state.dom.result.classList.add("fail");
+            deactivateDiscardMode(state);
             return;
         }
 
-        setPendingDelete(state, card, slot);
-    });
+        state.deckSlots[slot] = null;
+        if (
+            Array.isArray(state.deckBaselineSlots) &&
+            slot < state.deckBaselineSlots.length
+        ) {
+            state.deckBaselineSlots[slot] = null;
+        }
+        state.discards = availableDiscards - 1;
+
+        if (state.dom?.result) {
+            state.dom.result.textContent = "";
+            state.dom.result.classList.remove("fail");
+            state.dom.result.classList.remove("success");
+        }
+
+        invalidateDeckCache(state);
+        updateDeckBaseline(state);
+        renderDeckGrid(state);
+
+        if ((state.discards ?? 0) > 0) {
+            updateDiscardDisplay(state);
+        } else {
+            deactivateDiscardMode(state);
+        }
+    };
+
+    if (grid.dataset.deckDiscardHandlerAttached !== "true") {
+        grid.addEventListener("click", handleDeckCardClick);
+        grid.dataset.deckDiscardHandlerAttached = "true";
+    }
+
+    if (discardButton && discardButton.dataset.deckDiscardButtonAttached !== "true") {
+        discardButton.addEventListener("click", (event) => {
+            event.preventDefault();
+            if ((state.discards ?? 0) <= 0) {
+                if (state.dom?.result) {
+                    state.dom.result.textContent = "no discards available";
+                    state.dom.result.classList.remove("success");
+                    state.dom.result.classList.add("fail");
+                }
+                updateDiscardDisplay(state);
+                return;
+            }
+            if (state.deckDiscardActive === true) {
+                deactivateDiscardMode(state);
+            } else {
+                activateDiscardMode(state);
+            }
+        });
+        discardButton.dataset.deckDiscardButtonAttached = "true";
+    }
+
+    if (sortButton && sortButton.dataset.deckSortButtonAttached !== "true") {
+        sortButton.addEventListener("click", (event) => {
+            event.preventDefault();
+            sortAndRenderDeck();
+            deactivateDiscardMode(state);
+        });
+        sortButton.dataset.deckSortButtonAttached = "true";
+    }
 }

@@ -211,6 +211,59 @@ export function createDeckSlotsFromCards(
     return slots;
 }
 
+export function sortDeckState(state) {
+    if (!state) {
+        return false;
+    }
+
+    const originalSlots = Array.isArray(state.deckSlots) ? [...state.deckSlots] : [];
+    const baselineSlots = Array.isArray(state.deckBaselineSlots)
+        ? [...state.deckBaselineSlots]
+        : [];
+    const deckCards = sortDeckCards(originalSlots.filter((card) => card));
+    const slotCount = Math.max(
+        TOTAL_SLOTS,
+        originalSlots.length,
+        baselineSlots.length,
+        deckCards.length
+    );
+    const newDeckSlots = Array(slotCount).fill(null);
+    const reservedSlots = new Set();
+
+    baselineSlots.forEach((baselineCard, index) => {
+        if (baselineCard?.isDrawn === true && index < slotCount) {
+            reservedSlots.add(index);
+        }
+    });
+
+    let writeIndex = 0;
+    deckCards.forEach((card) => {
+        while (writeIndex < slotCount && reservedSlots.has(writeIndex)) {
+            writeIndex += 1;
+        }
+        if (writeIndex < slotCount) {
+            newDeckSlots[writeIndex] = card;
+            writeIndex += 1;
+        }
+    });
+
+    let changed = originalSlots.length !== newDeckSlots.length;
+    if (!changed) {
+        for (let i = 0; i < originalSlots.length; i += 1) {
+            if (originalSlots[i] !== newDeckSlots[i]) {
+                changed = true;
+                break;
+            }
+        }
+    }
+
+    state.deckSlots = newDeckSlots;
+    invalidateDeckCache(state);
+    updateDeckBaseline(state);
+
+    return changed;
+}
+
 export function getDeckCardsFromSlots(slots) {
     return slots.filter((card) => card);
 }
@@ -249,6 +302,7 @@ export function removeCardsFromDeck(state, cards) {
     });
     if (removedAny) {
         invalidateDeckCache(state);
+        updateDeckBaseline(state);
     }
 }
 
@@ -337,7 +391,7 @@ export function getInitialDeckForChallenge(deckId) {
     return sortDeckCards(createStandardDeck());
 }
 
-export function drawHandFromDeck(deck, handSize) {
+export function dealHandFromDeck(deck, handSize) {
     const count = Number.isFinite(handSize) ? Math.floor(handSize) : 0;
     if (!Array.isArray(deck) || count <= 0 || deck.length < count) {
         return [];

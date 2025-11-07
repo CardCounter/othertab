@@ -1,6 +1,6 @@
 import { STREAK_TARGET } from "./config.js";
 import {
-    drawHandFromDeck,
+    dealHandFromDeck,
     getCachedDeckCards,
     removeCardsFromDeck
 } from "./deck-utils.js";
@@ -90,7 +90,7 @@ function animateShuffle(state, durationMs, handSize) {
 
             const timeSinceLastUpdate = currentTime - lastUpdateTime;
             if (timeSinceLastUpdate >= frameDelay) {
-                const randomCards = drawHandFromDeck(deck, handSize);
+                const randomCards = dealHandFromDeck(deck, handSize);
                 if (randomCards.length === handSize) {
                     randomCards.forEach((card, index) => {
                         const element = cardElements[index];
@@ -171,7 +171,7 @@ export async function handleDraw(state) {
     try {
         await animateShuffle(state, state.animationDuration, handSize);
 
-        const cards = drawHandFromDeck(deck, handSize);
+        const cards = dealHandFromDeck(deck, handSize);
         if (cards.length < handSize) {
             state.dom.result.textContent = `need at least ${handSize} cards in the deck`;
             state.dom.result.classList.remove("success");

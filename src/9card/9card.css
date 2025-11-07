@@ -108,10 +108,10 @@ footer {
 }
 
 .poker-tab-button:active {
-    border-top: 2px solid var(--ninecard-button-border-dark);
-    border-left: 2px solid var(--ninecard-button-border-dark);
-    border-right: 2px solid var(--ninecard-button-border-light);
-    border-bottom: 2px solid var(--ninecard-button-border-light);
+    border-top: 4px solid var(--ninecard-button-border-dark);
+    border-left: 4px solid var(--ninecard-button-border-dark);
+    border-right: 4px solid var(--ninecard-button-border-light);
+    border-bottom: 4px solid var(--ninecard-button-border-light);
 }
 
 .poker-tab-button.active {
@@ -220,6 +220,7 @@ footer {
     .poker-button,
     .card-shop-reroll,
     .card-shop-discard-button,
+    .card-shop-sort-button,
     .card-shop-freeze-button,
     .unique-upgrade-reroll,
     .upgrade-card-button
@@ -238,6 +239,7 @@ footer {
     .poker-button,
     .card-shop-reroll,
     .card-shop-discard-button,
+    .card-shop-sort-button,
     .card-shop-freeze-button,
     .unique-upgrade-reroll,
     .upgrade-card-button
@@ -246,6 +248,7 @@ footer {
     .poker-button,
     .card-shop-reroll,
     .card-shop-discard-button,
+    .card-shop-sort-button,
     .card-shop-freeze-button,
     .unique-upgrade-reroll,
     .upgrade-card-button
@@ -258,6 +261,7 @@ footer {
     .poker-button,
     .card-shop-reroll,
     .card-shop-discard-button,
+    .card-shop-sort-button,
     .card-shop-freeze-button,
     .unique-upgrade-reroll,
     .upgrade-card-button
@@ -273,6 +277,7 @@ footer {
     .poker-button,
     .card-shop-reroll,
     .card-shop-discard-button,
+    .card-shop-sort-button,
     .card-shop-freeze-button,
     .unique-upgrade-reroll,
     .upgrade-card-button
@@ -281,6 +286,7 @@ footer {
     .poker-button,
     .card-shop-reroll,
     .card-shop-discard-button,
+    .card-shop-sort-button,
     .card-shop-freeze-button,
     .unique-upgrade-reroll,
     .upgrade-card-button
@@ -371,6 +377,14 @@ footer {
     color: #498cff;
 }
 
+.poker-hand-card.suit-wild {
+    color: purple;
+}
+
+.dark-mode .poker-hand-card.suit-wild {
+    color: purple;
+}
+
 /* CSS Variables for deck card colors */
 :root {
     /* Spades - default (light mode) */
@@ -412,6 +426,14 @@ footer {
     --diamonds-drawn-bg: var(--page-background-color);
     --diamonds-drawn-text: #ff7a18;
     --diamonds-drawn-border: #ff7a18;
+
+    /* Wild - default (light mode) */
+    --wild-bg: #6d4ae0;
+    --wild-text: #ffffff;
+
+    /* Wild - drawn (light mode) */
+    --wild-drawn-bg: var(--page-background-color);
+    --wild-drawn-text: #6d4ae0;
 }
 
 .dark-mode {
@@ -454,6 +476,14 @@ footer {
     --diamonds-drawn-bg: var(--page-background-color);
     --diamonds-drawn-text: #ff7a18;
     --diamonds-drawn-border: #ff7a18;
+
+    /* Wild - default (dark mode) */
+    --wild-bg: #6d4ae0;
+    --wild-text: #ffffff;
+
+    /* Wild - drawn (dark mode) */
+    --wild-drawn-bg: var(--page-background-color);
+    --wild-drawn-text: #b79dff;
 }
 
 /* Default deck card style: colored background with white text */
@@ -464,25 +494,31 @@ footer {
 .deck-card.suit-spades {
     background-color: var(--spades-bg);
     color: var(--spades-text);
-    border-color: var(--spades-border);
+    border: none;
 }
 
 .deck-card.suit-clubs {
     background-color: var(--clubs-bg);
     color: var(--clubs-text);
-    border-color: var(--clubs-border);
+    border: none;
 }
 
 .deck-card.suit-hearts {
     background-color: var(--hearts-bg);
     color: var(--hearts-text);
-    border-color: var(--hearts-border);
+    border: none;
 }
 
 .deck-card.suit-diamonds {
     background-color: var(--diamonds-bg);
     color: var(--diamonds-text);
-    border-color: var(--diamonds-border);
+    border: none;
+}
+
+.deck-card.suit-wild {
+    background-color: var(--wild-bg);
+    color: var(--wild-text);
+    border: none;
 }
 
 /* Drawn cards: normal background with colored text and border */
@@ -494,31 +530,37 @@ footer {
 
 .deck-card.drawn.red {
     color: red;
-    border-color: red;
+    border: none;
 }
 
 .deck-card.drawn.suit-spades {
     background-color: var(--spades-drawn-bg);
     color: var(--spades-drawn-text);
-    border-color: var(--spades-drawn-border);
+    border: none;
 }
 
 .deck-card.drawn.suit-clubs {
     background-color: var(--clubs-drawn-bg);
     color: var(--clubs-drawn-text);
-    border-color: var(--clubs-drawn-border);
+    border: none;
 }
 
 .deck-card.drawn.suit-hearts {
     background-color: var(--hearts-drawn-bg);
     color: var(--hearts-drawn-text);
-    border-color: var(--hearts-drawn-border);
+    border: none;
 }
 
 .deck-card.drawn.suit-diamonds {
     background-color: var(--diamonds-drawn-bg);
     color: var(--diamonds-drawn-text);
-    border-color: var(--diamonds-drawn-border);
+    border: none;
+}
+
+.deck-card.drawn.suit-wild {
+    background-color: var(--wild-drawn-bg);
+    color: var(--wild-drawn-text);
+    border: none;
 }
 
 .poker-result {
@@ -557,7 +599,7 @@ footer {
     flex: 0 0 auto;
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 1rem;
     min-height: 0;
     width: max-content;
     max-width: 100%;
@@ -575,14 +617,14 @@ footer {
     display: grid;
     grid-template-columns: repeat(13, var(--deck-card-width));
     grid-auto-rows: var(--deck-card-height);
-    gap: 0;
+    
     /* padding: 0.5rem; */
     overflow: auto;
     align-content: start;
     justify-content: start;
     width: max-content;
     max-width: 100%;
-    background: var(--page-background-color);
+    background: var(--ninecard-button-bg);
 }
 
 .deck-grid > * {
@@ -595,31 +637,47 @@ footer {
     align-items: stretch;
     justify-content: stretch;
     box-sizing: border-box;
-    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12);
-}
-
-.dark-mode .deck-cell {
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+    box-shadow: none;
+    border-top: 2px solid var(--ninecard-button-border-light);
+    border-left: 2px solid var(--ninecard-button-border-light);
+    border-right: 2px solid var(--ninecard-button-border-dark);
+    border-bottom: 2px solid var(--ninecard-button-border-dark);
 }
 
 .deck-cell.deck-slot {
-    background-color: rgba(0, 0, 0, 0.02);
+    background-color: var(--ninecard-button-bg);
 }
 
 .dark-mode .deck-cell.deck-slot {
-    background-color: rgba(255, 255, 255, 0.06);
+    background-color: var(--ninecard-button-bg);
 }
 
 .deck-cell.deck-slot-extra {
-    background-color: rgba(0, 0, 0, 0.04);
+    background-color: var(--ninecard-button-bg);
 }
 
 .dark-mode .deck-cell.deck-slot-extra {
-    background-color: rgba(255, 255, 255, 0.1);
+    background-color: var(--ninecard-button-bg);
+}
+
+.deck-cell.has-card {
+    background-color: var(--ninecard-button-bg);
+}
+
+.dark-mode .deck-cell.has-card {
+    background-color: var(--ninecard-button-bg);
+}
+
+.deck-cell.has-card.deck-slot-extra {
+    background-color: var(--ninecard-button-bg);
+}
+
+.dark-mode .deck-cell.has-card.deck-slot-extra {
+    background-color: var(--ninecard-button-bg);
 }
 
 .deck-card {
-    /* border: 1px solid currentColor; */
+    border: none;
     background: var(--page-background-color);
     color: inherit;
     padding: 0;
@@ -638,6 +696,11 @@ footer {
     border-radius: 0;
     -webkit-appearance: none;
     appearance: none;
+}
+
+.deck-card.deck-card-dragging {
+    opacity: 0.6;
+    cursor: grabbing;
 }
 
 .deck-slot {
@@ -660,7 +723,7 @@ footer {
     font-weight: 700;
     font-size: 1.1rem;
     pointer-events: none;
-    background-color: rgba(220, 53, 69, 0.18);
+    background-color: rgba(255, 0, 0, 0);
     opacity: 0;
     transform: scale(0.96);
 }
@@ -669,11 +732,20 @@ footer {
 .deck-grid.deck-discard-active .deck-card:not(.drawn):focus-visible::after {
     opacity: 1;
     transform: scale(1);
-    background-color: rgba(220, 53, 69, 0.38);
+    background-color: rgba(255, 0, 0, 1);
 }
 
 .deck-grid.deck-discard-active .deck-card.drawn::after {
     content: none;
+}
+
+.deck-grid.deck-dragging .deck-cell.deck-drop-target {
+    outline: 2px dashed currentColor;
+    outline-offset: -2px;
+}
+
+.deck-grid.deck-dragging .deck-cell.deck-drop-target .deck-card {
+    opacity: 0.5;
 }
 
 .card-shop {
@@ -682,7 +754,7 @@ footer {
     flex: 1 1 auto;
     display: grid;
     grid-template-rows: minmax(auto, 1fr) auto;
-    gap: 0.75rem;
+    gap: 1rem;
     box-sizing: border-box;
     min-height: 260px;
 }
@@ -700,20 +772,23 @@ footer {
 
 .card-shop-discard {
     display: flex;
+    flex-direction: column;
     width: 100%;
-    height: 100%;
     align-items: stretch;
+    gap: 0.5rem;
+    height: 100%;
 }
 
 .card-shop-discard-button,
+.card-shop-sort-button,
 .card-shop-reroll {
-    height: 100%;
     padding-block: clamp(0.45rem, 0.35rem + 0.8vw, 0.85rem);
     padding-inline: clamp(1rem, 0.9rem + 1.2vw, 1.75rem);
-    font-size: clamp(1rem, 0.96rem + 0.2vw, 1.15rem);
+    font-size: 1rem;
 }
 
-.card-shop-discard-button {
+.card-shop-discard-button,
+.card-shop-sort-button {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -722,6 +797,7 @@ footer {
     cursor: pointer;
     line-height: 1.05;
     width: 100%;
+    flex: 1 1 0;
 }
 
 .card-shop-discard-button:disabled {
@@ -737,6 +813,10 @@ footer {
     color: white;
     box-shadow: none;
     transform: translateY(1px);
+}
+
+.card-shop-sort-button {
+    text-transform: lowercase;
 }
 
 .dark-mode .card-shop-discard-button.is-active,
@@ -763,6 +843,7 @@ footer {
     cursor: pointer;
     width: 100%;
     text-align: center;
+    height: 100%;
 }
 
 .card-shop-reroll:disabled {
@@ -794,7 +875,7 @@ footer {
     margin-top: 0;
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: 0.75rem;
+    gap: 0.5rem;
 }
 
 .card-shop-slot-wrapper {
@@ -867,7 +948,8 @@ footer {
 }
 
 .card-shop-card {
-    border: 2px solid currentColor;
+    --card-shop-border-light: rgba(255, 255, 255, 0.55);
+    --card-shop-border-dark: rgba(0, 0, 0, 0.45);
     background: var(--page-background-color);
     color: inherit;
     font-size: 1.25rem;
@@ -877,23 +959,59 @@ footer {
     display: flex;
     align-items: center;
     justify-content: center;
-    cursor: pointer;
+    cursor: default;
+    border: none;
+    transition: transform 0.15s ease;
+}
+
+.card-shop-card:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 2px;
+}
+
+.dark-mode .card-shop-card {
+    --card-shop-border-light: rgba(255, 255, 255, 0.28);
+    --card-shop-border-dark: rgba(0, 0, 0, 0.68);
 }
 
 .card-shop-card-discard {
     color: red;
     font-size: 1.5rem;
-    background: var(--page-background-color);
-    border-color: red;
+    background-color: var(--page-background-color);
+    --card-shop-border-light: rgba(255, 235, 235, 0.85);
+    --card-shop-border-dark: rgba(139, 0, 0, 0.7);
     font-family: "Times New Roman", Times, serif;
     font-weight: 700;
 }
 
 .card-shop-card-price {
-    border: 1px solid currentColor;
+    border: none;
     padding: 0.35rem;
     text-align: center;
     font-size: 1rem;
+    cursor: pointer;
+    background-color: var(--ninecard-button-bg);
+    color: inherit;
+    border-top: 4px solid var(--ninecard-button-border-light);
+    border-left: 4px solid var(--ninecard-button-border-light);
+    border-right: 4px solid var(--ninecard-button-border-dark);
+    border-bottom: 4px solid var(--ninecard-button-border-dark);
+    box-shadow: none;
+    border-radius: 0;
+}
+
+.card-shop-card-price:hover,
+.card-shop-card-price:focus-visible {
+    background-color: var(--ninecard-button-bg);
+    color: inherit;
+}
+
+.card-shop-card-price:active {
+    border-top: 4px solid var(--ninecard-button-border-dark);
+    border-left: 4px solid var(--ninecard-button-border-dark);
+    border-right: 4px solid var(--ninecard-button-border-light);
+    border-bottom: 4px solid var(--ninecard-button-border-light);
+    background-color: var(--ninecard-button-bg);
 }
 
 .card-shop-card.dragging {
@@ -904,37 +1022,37 @@ footer {
 .card-shop-card.suit-hearts {
     background-color: var(--hearts-bg);
     color: var(--hearts-text);
-    border-color: var(--hearts-border);
 }
 
 .card-shop-card.suit-diamonds {
     background-color: var(--diamonds-bg);
     color: var(--diamonds-text);
-    border-color: var(--diamonds-border);
 }
 
 .card-shop-card.suit-clubs {
     background-color: var(--clubs-bg);
     color: var(--clubs-text);
-    border-color: var(--clubs-border);
 }
 
 .card-shop-card.suit-spades {
     background-color: var(--spades-bg);
     color: var(--spades-text);
-    border-color: var(--spades-border);
 }
 
 .card-shop-card.rarity-uncommon {
     background-color: #7e57c2;
     color: #ffffff;
-    border-color: #7e57c2;
 }
 
 .card-shop-card.rarity-rare {
     background-color: #ff6fa5;
     color: #2d2d2d;
-    border-color: #ff6fa5;
+}
+
+.card-shop-card.suit-wild {
+    background-color: #6d4ae0 !important;
+    color: #ffffff !important;
+    border: none;
 }
 
 .card-shop.card-shop-dragging .card-shop-slot {
@@ -1007,14 +1125,16 @@ footer {
 }
 
 .upgrade-slot-visual {
+    --upgrade-border-light: rgba(255, 255, 255, 0.55);
+    --upgrade-border-dark: rgba(0, 0, 0, 0.45);
     width: calc(100% - 0.5rem);
     height: calc(100% - 0.5rem);
     display: flex;
     align-items: center;
     justify-content: center;
     background-color: var(--page-background-color);
-    box-shadow: 0 0 0 1px currentColor inset;
     padding: 0;
+    border: none;
 }
 
 .upgrade-slot-glyph {
@@ -1110,10 +1230,6 @@ footer {
     border-style: none;
 }
 
-.upgrade-card-purchased {
-    /* reserved for future purchased styling */
-}
-
 .upgrade-card-header {
     display: flex;
     align-items: center;
@@ -1136,6 +1252,8 @@ footer {
 }
 
 .upgrade-card-visual {
+    --upgrade-border-light: rgba(255, 255, 255, 0.55);
+    --upgrade-border-dark: rgba(0, 0, 0, 0.45);
     flex: 0 0 auto;
     display: flex;
     align-items: center;
@@ -1145,8 +1263,14 @@ footer {
     aspect-ratio: 1 / 1;
     border-radius: 0;
     background-color: var(--page-background-color);
-    box-shadow: 0 0 0 1px currentColor inset;
+    border: none;
     padding: 0.35rem;
+}
+
+.dark-mode .upgrade-slot-visual,
+.dark-mode .upgrade-card-visual {
+    --upgrade-border-light: rgba(255, 255, 255, 0.28);
+    --upgrade-border-dark: rgba(0, 0, 0, 0.68);
 }
 
 .upgrade-card-with-visual .upgrade-card-header {

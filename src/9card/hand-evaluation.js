@@ -1,4 +1,4 @@
-import { DICE_SYMBOL, HAND_LABELS, STREAK_TARGET, RANKS, SUITS } from "./config.js";
+import { CHIP_SYMBOL, DICE_SYMBOL, HAND_LABELS, STREAK_TARGET, RANKS, SUITS } from "./config.js";
 import { formatChipAmount } from "./chips.js";
 
 const FOUR_CARD_STRAIGHT_FLAG = "straight_four_card_scoring";
@@ -389,7 +389,7 @@ function applyClassificationRules(analysis, context, rules, labels) {
     return fallback;
 }
 
-function evaluateHandWithWildcards(cards, handSize, context, detectStraight, rules, labels) {
+export function evaluateHandWithWildcards(cards, handSize, context, detectStraight, rules, labels) {
     if (!Array.isArray(cards) || cards.length === 0) {
         const analysis = analyzeHand([], handSize, {
             detectStraight,
@@ -593,6 +593,7 @@ function evaluateHandWithWildcards(cards, handSize, context, detectStraight, rul
     const visited = new Set();
     let targetResult = null;
     let bestResult = null;
+    const allResults = [];
 
     const processResolvedCards = (resolvedCards, suitMode) => {
         const key = createAssignmentKey(resolvedCards, suitMode);
@@ -618,6 +619,8 @@ function evaluateHandWithWildcards(cards, handSize, context, detectStraight, rul
             wildcardUseCount,
             valuesDescending
         };
+
+        allResults.push(result);
 
         if (targetId && classification.id === targetId) {
             if (!targetResult || compareTargetResults(result, targetResult) < 0) {
@@ -646,6 +649,18 @@ function evaluateHandWithWildcards(cards, handSize, context, detectStraight, rul
     };
 
     generateValueCombinations(2, 0);
+
+    // if target is set but targetResult is null, check all results again
+    // this handles cases where targetResult might have been missed
+    if (targetId && !targetResult && allResults.length > 0) {
+        for (const result of allResults) {
+            if (result.classification.id === targetId) {
+                if (!targetResult || compareTargetResults(result, targetResult) < 0) {
+                    targetResult = result;
+                }
+            }
+        }
+    }
 
     if (targetResult) {
         return targetResult.classification;
@@ -767,11 +782,239 @@ export function buildResultMessage({ success, classification, streak, permanentl
     if (success) {
         const formattedPayout = formatChipAmount(payout, { includeSymbol: false });
         const formattedDice = formatDiceAmount(diceAwarded);
-        const dicePart = diceAwarded > 0 ? `, ${formattedDice}${DICE_SYMBOL}` : "";
         if (permanentlyCompleted || streak >= STREAK_TARGET) {
-            return `hit ${classification.label}, streak: ${streak}, payout: ${formattedPayout}⛁${dicePart}`;
+            return `hit ${classification.label}. payout ${formattedPayout}${CHIP_SYMBOL}, ${formattedDice}${DICE_SYMBOL}. streak ${streak}/${STREAK_TARGET}`;
         }
-        return `hit ${classification.label} ${streak}/${STREAK_TARGET}, payout: ${formattedPayout}⛁${dicePart}`;
+        return `hit ${classification.label}. payout ${formattedPayout}${CHIP_SYMBOL}, ${formattedDice}${DICE_SYMBOL}. streak ${streak}/${STREAK_TARGET}`;
     }
     return `missed (${classification.label})`;
+}
+
+// --- Wildcard-aware "attainable categories" + "exactness" helpers -----------------
+
+// Internal: derive simple counts (values/suits) and wild count from this project's card model
+function _statFromCards(cards) {
+    const stat = {
+        valueCounts: new Map(),   // key: numeric value (2..14)
+        suitCounts: new Map(),    // key: suit symbol from config
+        bySuitValues: new Map(),  // key: suit -> Set of values present in that suit
+        wilds: 0
+    };
+
+    const isCardWild = (c) =>
+        c?.isWild === true ||
+        c?.rank === "W" || c?.suit === "W" || c?.suit === "*" ||
+        c?.wildAssigned === true; // already assigned wilds should still be treated as flexible for attainability checks
+
+    // initialize suit maps from config to be safe
+    SUIT_SYMBOLS.forEach(s => {
+        stat.suitCounts.set(s, 0);
+        stat.bySuitValues.set(s, new Set());
+    });
+
+    for (const c of Array.isArray(cards) ? cards : []) {
+        if (!c) continue;
+        if (isCardWild(c)) {
+            stat.wilds += 1;
+            continue;
+        }
+        // value
+        if (Number.isFinite(c.value)) {
+            stat.valueCounts.set(c.value, (stat.valueCounts.get(c.value) ?? 0) + 1);
+        }
+        // suit + per-suit value set
+        if (c.suit && stat.suitCounts.has(c.suit)) {
+            stat.suitCounts.set(c.suit, (stat.suitCounts.get(c.suit) ?? 0) + 1);
+            if (Number.isFinite(c.value)) {
+                stat.bySuitValues.get(c.suit).add(c.value);
+            }
+        }
+    }
+    return stat;
+}
+
+// Straight windows (values). Includes wheel A(14)-to-5 straight.
+const _STRAIGHT_WINDOWS = [
+    [10,11,12,13,14], // Ten to Ace
+    [9,10,11,12,13],
+    [8,9,10,11,12],
+    [7,8,9,10,11],
+    [6,7,8,9,10],
+    [5,6,7,8,9],
+    [4,5,6,7,8],
+    [3,4,5,6,7],
+    [2,3,4,5,6],
+    [14,2,3,4,5] // wheel, high = 5
+];
+
+// Helpers to read counts
+function _countOfValue(stat, v) { return stat.valueCounts.get(v) ?? 0; }
+function _maxOfMap(m) {
+    let max = 0;
+    for (const [,v] of m) if (v > max) max = v;
+    return max;
+}
+
+// --- Attainability checkers (ignore "exactness") ---------------------------------
+
+function _canMakeFourKind(stat) {
+    for (let v = 2; v <= 14; v += 1) {
+        if (_countOfValue(stat, v) + stat.wilds >= 4) return true;
+    }
+    return false;
+}
+
+function _canMakeFullHouse(stat) {
+    for (let tripV = 2; tripV <= 14; tripV += 1) {
+        const haveTrip = _countOfValue(stat, tripV);
+        const needTrip = Math.max(0, 3 - haveTrip);
+        if (needTrip > stat.wilds) continue;
+        const left = stat.wilds - needTrip;
+
+        // can we form a pair of some OTHER rank?
+        for (let pairV = 2; pairV <= 14; pairV += 1) {
+            if (pairV === tripV) continue;
+            const havePair = _countOfValue(stat, pairV);
+            const needPair = Math.max(0, 2 - havePair);
+            if (needPair <= left) return true;
+        }
+        // Or use entirely new ranks not present (two wilds left)
+        if (left >= 2) return true;
+    }
+    return false;
+}
+
+function _canMakeThreeKind(stat) {
+    for (let v = 2; v <= 14; v += 1) {
+        if (_countOfValue(stat, v) + stat.wilds >= 3) return true;
+    }
+    return false;
+}
+
+function _canMakeTwoPair(stat) {
+    // Choose two distinct ranks; allocate wilds to complete both pairs.
+    const counts = [];
+    for (let v = 2; v <= 14; v += 1) counts.push(_countOfValue(stat, v));
+    for (let i = 0; i < counts.length; i++) {
+        for (let j = i + 1; j < counts.length; j++) {
+            const need = Math.max(0, 2 - counts[i]) + Math.max(0, 2 - counts[j]);
+            if (need <= stat.wilds) return true;
+        }
+    }
+    // Also possible to create both pairs entirely from wilds
+    return stat.wilds >= 4;
+}
+
+function _canMakePair(stat) {
+    for (let v = 2; v <= 14; v += 1) {
+        if (_countOfValue(stat, v) + stat.wilds >= 2) return true;
+    }
+    return false;
+}
+
+function _canMakeFlush(stat) {
+    for (const s of SUIT_SYMBOLS) {
+        if ((stat.suitCounts.get(s) ?? 0) + stat.wilds >= 5) return true;
+    }
+    return false;
+}
+
+function _canMakeStraight(stat) {
+    for (const window of _STRAIGHT_WINDOWS) {
+        let missing = 0;
+        for (const v of window) {
+            if (_countOfValue(stat, v) <= 0) missing += 1;
+        }
+        if (missing <= stat.wilds) return true;
+    }
+    return false;
+}
+
+function _canMakeStraightFlush(stat) {
+    // Per-suit check using values present in that suit; wilds can adopt the suit.
+    for (const s of SUIT_SYMBOLS) {
+        const present = stat.bySuitValues.get(s) || new Set();
+        if ((present.size + stat.wilds) < 5) continue;
+        for (const window of _STRAIGHT_WINDOWS) {
+            let missing = 0;
+            for (const v of window) {
+                if (!present.has(v)) missing += 1;
+            }
+            if (missing <= stat.wilds) return true;
+        }
+    }
+    return false;
+}
+
+function _canMakeRoyalFlush(stat) {
+    // Need straight-flush specifically for 10,J,Q,K,A
+    const royal = [10,11,12,13,14];
+    for (const s of SUIT_SYMBOLS) {
+        const present = stat.bySuitValues.get(s) || new Set();
+        if ((present.size + stat.wilds) < 5) continue;
+        let missing = 0;
+        for (const v of royal) if (!present.has(v)) missing += 1;
+        if (missing <= stat.wilds) return true;
+    }
+    return false;
+}
+
+// --- Best category with wilds (project's category IDs) ---------------------------
+
+const _CATEGORY_ORDER = [
+    "royal_flush",
+    "straight_flush",
+    "four_kind",
+    "full_house",
+    "flush",
+    "straight",
+    "three_kind",
+    "two_pair",
+    "pair",
+    "high_card"
+];
+
+function _bestCategoryWithWildsId(cards) {
+    const stat = _statFromCards(cards);
+
+    if (_canMakeRoyalFlush(stat)) return "royal_flush";
+    if (_canMakeStraightFlush(stat)) return "straight_flush";
+    if (_canMakeFourKind(stat)) return "four_kind";
+    if (_canMakeFullHouse(stat)) return "full_house";
+    if (_canMakeFlush(stat)) return "flush";
+    if (_canMakeStraight(stat)) return "straight";
+    if (_canMakeThreeKind(stat)) return "three_kind";
+    if (_canMakeTwoPair(stat)) return "two_pair";
+    if (_canMakePair(stat)) return "pair";
+    return "high_card";
+}
+
+// Exported: list all attainable categories (IDs), even if a stronger one is also possible.
+export function allAttainableCategories(cards) {
+    const stat = _statFromCards(cards);
+    const out = [];
+    if (_canMakeRoyalFlush(stat)) out.push("royal_flush");
+    if (_canMakeStraightFlush(stat)) out.push("straight_flush");
+    if (_canMakeFourKind(stat)) out.push("four_kind");
+    if (_canMakeFullHouse(stat)) out.push("full_house");
+    if (_canMakeFlush(stat)) out.push("flush");
+    if (_canMakeStraight(stat)) out.push("straight");
+    if (_canMakeThreeKind(stat)) out.push("three_kind");
+    if (_canMakeTwoPair(stat)) out.push("two_pair");
+    if (_canMakePair(stat)) out.push("pair");
+    out.push("high_card");
+    return out;
+}
+
+// Exported: exactness check — passes only if the BEST achievable equals the target ID.
+export function hitsExactly(cards, targetId) {
+    if (typeof targetId !== "string") return false;
+    const best = _bestCategoryWithWildsId(cards);
+    return best === targetId;
+}
+
+// Convenience: can form a specific category (even if stronger exists)
+export function canFormCategory(cards, targetId) {
+    if (typeof targetId !== "string") return false;
+    return allAttainableCategories(cards).includes(targetId);
 }
