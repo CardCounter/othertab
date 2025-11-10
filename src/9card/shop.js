@@ -5,6 +5,7 @@ import {
     DEFAULT_REROLL_DICE_COST,
     DEFAULT_REROLL_DICE_INCREMENT
 } from "./config.js";
+import { DECK_CARD_SHOP_CONFIG } from "./card-shop-config.js";
 import { createStandardDeck, invalidateDeckCache, updateDeckBaseline } from "./deck-utils.js";
 import { renderDeckGrid } from "./ui.js";
 import { formatChipAmount } from "./chips.js";
@@ -45,38 +46,23 @@ const UNCOMMON_TESTER_CARDS = [
     // }
 ];
 
-const WILD_CARD_SHOP_ITEM = {
-    id: "wild_card",
-    rank: "W",
-    value: 0,
-    rankName: "wild card",
-    suit: "*",
-    suitName: "wild",
-    color: "wild",
-    label: "",
-    rarity: "rare",
-    price: CARD_SHOP_SETTINGS.cardPrice,
-    textSize: "1rem",
-    isWild: true
-};
-
 const RARE_TESTER_CARDS = [
-    WILD_CARD_SHOP_ITEM
-    // {
-    //     rank: "R2",
-    //     value: 31,
-    //     rankName: "tester r2",
-    //     suit: "✦",
-    //     suitName: "nova",
-    //     color: "red",
-    //     label: "tester supernova",
-    //     rarity: "rare",
-    //     price: CARD_SHOP_SETTINGS.cardPrice,
-    //     textSize: "2rem"
-    // }
+    {
+        id: "rare_qh",
+        rank: "E",
+        value: 12,
+        rankName: "e",
+        suit: "♥",
+        suitName: "hearts",
+        color: "red",
+        label: "gilded queen",
+        rarity: "rare",
+        price: CARD_SHOP_SETTINGS.cardPrice,
+        textSize: "2rem"
+    }
 ];
 
-const CARD_SHOP_POOLS = {
+const GENERAL_CARD_SHOP_POOLS = {
     common: {
         id: "common",
         label: "common pool",
@@ -98,10 +84,141 @@ const CARD_SHOP_POOLS = {
     }
 };
 
+function clonePoolDefinition(pool) {
+    if (!pool) {
+        return null;
+    }
+    return {
+        id: pool.id,
+        label: pool.label,
+        cards: Array.isArray(pool.cards) ? pool.cards.map((card) => ({ ...card })) : []
+    };
+}
+
+function appendCardsToPool(poolMap, poolId, cards, fallbackLabel) {
+    if (!poolId || !Array.isArray(cards) || cards.length === 0) {
+        return;
+    }
+    if (!poolMap[poolId]) {
+        poolMap[poolId] = {
+            id: poolId,
+            label: fallbackLabel ?? `${poolId} pool`,
+            cards: []
+        };
+    }
+    cards.forEach((card) => {
+        if (card) {
+            poolMap[poolId].cards.push({ ...card });
+        }
+    });
+}
+
+function buildDeckCardPoolMap(defaultConfig, deckConfig) {
+    const poolMap = {};
+    Object.values(GENERAL_CARD_SHOP_POOLS).forEach((pool) => {
+        const clone = clonePoolDefinition(pool);
+        if (clone) {
+            poolMap[clone.id] = clone;
+        }
+    });
+
+    const applyConfig = (config) => {
+        if (!config?.pools || typeof config.pools !== "object") {
+            return;
+        }
+        Object.entries(config.pools).forEach(([poolId, entries]) => {
+            appendCardsToPool(poolMap, poolId, Array.isArray(entries) ? entries : [], config.poolLabels?.[poolId]);
+        });
+    };
+
+    applyConfig(defaultConfig);
+    applyConfig(deckConfig);
+
+    return poolMap;
+}
+
+function normalizePoolWeights(weights) {
+    if (!Array.isArray(weights)) {
+        return null;
+    }
+    const normalized = weights
+        .map((entry) => {
+            const id = typeof entry?.id === "string" ? entry.id : null;
+            const weight = Number.isFinite(entry?.weight) ? entry.weight : null;
+            if (!id || weight == null) {
+                return null;
+            }
+            return { id, weight };
+        })
+        .filter(Boolean);
+    return normalized.length > 0 ? normalized : null;
+}
+
+function resolvePositiveInteger(candidate) {
+    if (!Number.isFinite(candidate)) {
+        return null;
+    }
+    const rounded = Math.ceil(candidate);
+    return rounded > 0 ? rounded : null;
+}
+
+function resolveNonNegativeInteger(candidate) {
+    if (!Number.isFinite(candidate)) {
+        return null;
+    }
+    const rounded = Math.ceil(candidate);
+    return rounded >= 0 ? rounded : null;
+}
+
+function resolveNonNegativeNumber(candidate) {
+    if (!Number.isFinite(candidate)) {
+        return null;
+    }
+    return candidate >= 0 ? candidate : null;
+}
+
+function resolveDeckCardShopProfile(deckId) {
+    const defaultConfig = DECK_CARD_SHOP_CONFIG?.default ?? {};
+    const deckConfig = deckId && DECK_CARD_SHOP_CONFIG ? DECK_CARD_SHOP_CONFIG[deckId] : null;
+
+    const pools = buildDeckCardPoolMap(defaultConfig, deckConfig);
+    const poolWeights =
+        normalizePoolWeights(deckConfig?.poolWeights) ??
+        normalizePoolWeights(defaultConfig?.poolWeights) ??
+        CARD_SHOP_POOL_WEIGHTS;
+    const slotCount =
+        resolvePositiveInteger(deckConfig?.slotCount) ??
+        resolvePositiveInteger(defaultConfig?.slotCount) ??
+        CARD_SHOP_SETTINGS.slotCount;
+    const cardPrice =
+        resolveNonNegativeNumber(deckConfig?.cardPrice) ??
+        resolveNonNegativeNumber(defaultConfig?.cardPrice) ??
+        CARD_SHOP_SETTINGS.cardPrice;
+    const rerollCost =
+        resolveNonNegativeInteger(deckConfig?.rerollCost) ??
+        resolveNonNegativeInteger(defaultConfig?.rerollCost) ??
+        null;
+    const rerollIncrement =
+        resolveNonNegativeInteger(deckConfig?.rerollIncrement) ??
+        resolveNonNegativeInteger(defaultConfig?.rerollIncrement) ??
+        null;
+
+    return {
+        pools,
+        poolWeights,
+        slotCount,
+        cardPrice,
+        rerollCost,
+        rerollIncrement
+    };
+}
+
 function resolveCardShopPoolOdds(state) {
     const boostActive = state?.cardShopRarityBoost === true;
-    return CARD_SHOP_POOL_WEIGHTS.map(({ id, weight }) => {
-        const pool = CARD_SHOP_POOLS[id];
+    const poolWeights = state?.cardShop?.poolWeights ?? CARD_SHOP_POOL_WEIGHTS;
+    const pools = state?.cardShop?.pools ?? GENERAL_CARD_SHOP_POOLS;
+    return poolWeights.map(({ id, weight }) => {
+        const pool = pools[id];
         if (!pool) {
             return null;
         }
@@ -184,8 +301,7 @@ function cloneCardForDeck(card, poolId) {
         rarity: card.rarity ?? poolId,
         sourcePool: poolId,
         isDrawn: false,
-        textSize: card.textSize ?? null,
-        isWild: card.isWild === true
+        textSize: card.textSize ?? null
     };
 }
 
@@ -232,7 +348,8 @@ function generateCardShopOffer(state) {
     }
     const type = template.type ?? "card";
     const rarity = template.rarity ?? pool.id;
-    const price = template.price ?? CARD_SHOP_SETTINGS.cardPrice;
+    const baseCardPrice = state?.cardShop?.cardPrice ?? CARD_SHOP_SETTINGS.cardPrice;
+    const price = template.price ?? baseCardPrice;
     const textSize = template.textSize ?? null;
 
     if (type === "discard") {
@@ -351,16 +468,11 @@ function renderCardShop(state) {
 
                 const cardLabel = offer.card?.label ?? offer.label ?? "";
                 if (offer.card) {
-                    // wild cards get a simple description
-                    if (offer.card.isWild || offer.isWild) {
-                        descriptionText = "wild card";
-                    } else {
-                        const rankDescription = getRankDescription(rank);
-                        if (rankDescription && suitName) {
-                            descriptionText = `${rankDescription} of ${suitName}`;
-                        } else if (rankDescription) {
-                            descriptionText = rankDescription;
-                        }
+                    const rankDescription = getRankDescription(rank);
+                    if (rankDescription && suitName) {
+                        descriptionText = `${rankDescription} of ${suitName}`;
+                    } else if (rankDescription) {
+                        descriptionText = rankDescription;
                     }
                 }
                 if (!descriptionText && cardLabel) {
@@ -520,19 +632,28 @@ export function setupCardShop(state) {
         state.cardShop.diceUnsubscribe();
     }
 
-    const baseRerollCostCandidate = state?.config?.rerollCost;
-    const incrementCandidate = state?.config?.rerollIncrement;
-    const baseRerollCost = Number.isFinite(baseRerollCostCandidate) && baseRerollCostCandidate >= 0
-        ? Math.ceil(baseRerollCostCandidate)
-        : DEFAULT_REROLL_DICE_COST;
-    const rerollIncrement = Number.isFinite(incrementCandidate) && incrementCandidate >= 0
-        ? Math.ceil(incrementCandidate)
-        : DEFAULT_REROLL_DICE_INCREMENT;
+    const deckShopProfile = resolveDeckCardShopProfile(state?.config?.id);
+    const slotCount = Math.max(1, deckShopProfile.slotCount ?? CARD_SHOP_SETTINGS.slotCount);
+
+    const baseRerollCostCandidate = Number.isFinite(state?.config?.rerollCost) && state.config.rerollCost >= 0
+        ? Math.ceil(state.config.rerollCost)
+        : null;
+    const incrementCandidate =
+        Number.isFinite(state?.config?.rerollIncrement) && state.config.rerollIncrement >= 0
+            ? Math.ceil(state.config.rerollIncrement)
+            : null;
+    const fallbackRerollCost = baseRerollCostCandidate ?? DEFAULT_REROLL_DICE_COST;
+    const fallbackRerollIncrement = incrementCandidate ?? DEFAULT_REROLL_DICE_INCREMENT;
+
+    const baseRerollCost = deckShopProfile.rerollCost ?? fallbackRerollCost;
+    const rerollIncrement = deckShopProfile.rerollIncrement ?? fallbackRerollIncrement;
 
     state.cardShop = {
-        slots: Array.from({ length: CARD_SHOP_SETTINGS.slotCount }, () => null),
+        slots: Array.from({ length: slotCount }, () => null),
         frozenOffer: null,
-        cardPrice: CARD_SHOP_SETTINGS.cardPrice,
+        cardPrice: deckShopProfile.cardPrice ?? CARD_SHOP_SETTINGS.cardPrice,
+        pools: deckShopProfile.pools,
+        poolWeights: deckShopProfile.poolWeights,
         draggingOffer: null,
         baseRerollDiceCost: baseRerollCost,
         rerollDiceCost: baseRerollCost,

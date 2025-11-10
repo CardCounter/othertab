@@ -377,14 +377,6 @@ footer {
     color: #498cff;
 }
 
-.poker-hand-card.suit-wild {
-    color: purple;
-}
-
-.dark-mode .poker-hand-card.suit-wild {
-    color: purple;
-}
-
 /* CSS Variables for deck card colors */
 :root {
     /* Spades - default (light mode) */
@@ -427,13 +419,6 @@ footer {
     --diamonds-drawn-text: #ff7a18;
     --diamonds-drawn-border: #ff7a18;
 
-    /* Wild - default (light mode) */
-    --wild-bg: #6d4ae0;
-    --wild-text: #ffffff;
-
-    /* Wild - drawn (light mode) */
-    --wild-drawn-bg: var(--page-background-color);
-    --wild-drawn-text: #6d4ae0;
 }
 
 .dark-mode {
@@ -477,13 +462,6 @@ footer {
     --diamonds-drawn-text: #ff7a18;
     --diamonds-drawn-border: #ff7a18;
 
-    /* Wild - default (dark mode) */
-    --wild-bg: #6d4ae0;
-    --wild-text: #ffffff;
-
-    /* Wild - drawn (dark mode) */
-    --wild-drawn-bg: var(--page-background-color);
-    --wild-drawn-text: #b79dff;
 }
 
 /* Default deck card style: colored background with white text */
@@ -512,12 +490,6 @@ footer {
 .deck-card.suit-diamonds {
     background-color: var(--diamonds-bg);
     color: var(--diamonds-text);
-    border: none;
-}
-
-.deck-card.suit-wild {
-    background-color: var(--wild-bg);
-    color: var(--wild-text);
     border: none;
 }
 
@@ -554,12 +526,6 @@ footer {
 .deck-card.drawn.suit-diamonds {
     background-color: var(--diamonds-drawn-bg);
     color: var(--diamonds-drawn-text);
-    border: none;
-}
-
-.deck-card.drawn.suit-wild {
-    background-color: var(--wild-drawn-bg);
-    color: var(--wild-drawn-text);
     border: none;
 }
 
@@ -1047,12 +1013,6 @@ footer {
 .card-shop-card.rarity-rare {
     background-color: #ff6fa5;
     color: #2d2d2d;
-}
-
-.card-shop-card.suit-wild {
-    background-color: #6d4ae0 !important;
-    color: #ffffff !important;
-    border: none;
 }
 
 .card-shop.card-shop-dragging .card-shop-slot {

@@ -139,7 +139,7 @@ export const CARD_SHOP_SETTINGS = {
 };
 
 export const CARD_SHOP_POOL_WEIGHTS = [
-    { id: "common", weight: 0 },
-    { id: "uncommon", weight: 50 },
-    { id: "rare", weight: 50 }
+    { id: "common", weight: 65 },
+    { id: "uncommon", weight: 25 },
+    { id: "rare", weight: 10 }
 ];
