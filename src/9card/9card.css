@@ -377,6 +377,18 @@ footer {
     color: #498cff;
 }
 
+.poker-hand-card.suit-hcplus {
+    background-color: var(--hcplus-bg);
+    color: var(--hcplus-text);
+    border-color: var(--hcplus-border);
+}
+
+.dark-mode .poker-hand-card.suit-hcplus {
+    background-color: var(--hcplus-bg);
+    color: var(--hcplus-text);
+    border-color: var(--hcplus-border);
+}
+
 /* CSS Variables for deck card colors */
 :root {
     /* Spades - default (light mode) */
@@ -418,6 +430,16 @@ footer {
     --diamonds-drawn-bg: var(--page-background-color);
     --diamonds-drawn-text: #ff7a18;
     --diamonds-drawn-border: #ff7a18;
+    
+    /* HC+ - default (light mode) */
+    --hcplus-bg: #b91c1c;
+    --hcplus-text: #ffffff;
+    --hcplus-border: #b91c1c;
+    
+    /* HC+ - drawn (light mode) */
+    --hcplus-drawn-bg: #ffffff;
+    --hcplus-drawn-text: #b91c1c;
+    --hcplus-drawn-border: #b91c1c;
 
 }
 
@@ -461,6 +483,16 @@ footer {
     --diamonds-drawn-bg: var(--page-background-color);
     --diamonds-drawn-text: #ff7a18;
     --diamonds-drawn-border: #ff7a18;
+    
+    /* HC+ - default (dark mode) */
+    --hcplus-bg: #7f1d1d;
+    --hcplus-text: #ffffff;
+    --hcplus-border: #7f1d1d;
+    
+    /* HC+ - drawn (dark mode) */
+    --hcplus-drawn-bg: #000000;
+    --hcplus-drawn-text: #b91c1c;
+    --hcplus-drawn-border: #b91c1c;
 
 }
 
@@ -491,6 +523,12 @@ footer {
     background-color: var(--diamonds-bg);
     color: var(--diamonds-text);
     border: none;
+}
+
+.deck-card.suit-hcplus {
+    background-color: var(--hcplus-bg);
+    color: var(--hcplus-text);
+    border: 1px solid var(--hcplus-border);
 }
 
 /* Drawn cards: normal background with colored text and border */
@@ -527,6 +565,12 @@ footer {
     background-color: var(--diamonds-drawn-bg);
     color: var(--diamonds-drawn-text);
     border: none;
+}
+
+.deck-card.drawn.suit-hcplus {
+    background-color: var(--hcplus-drawn-bg);
+    color: var(--hcplus-drawn-text);
+    border: 1px solid var(--hcplus-drawn-border);
 }
 
 .poker-result {
@@ -1003,6 +1047,11 @@ footer {
 .card-shop-card.suit-spades {
     background-color: var(--spades-bg);
     color: var(--spades-text);
+}
+
+.card-shop-card.suit-hcplus {
+    background-color: var(--hcplus-bg);
+    color: var(--hcplus-text);
 }
 
 .card-shop-card.rarity-uncommon {

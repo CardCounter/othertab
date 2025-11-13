@@ -303,7 +303,7 @@ export function renderDeckGrid(state) {
             }
 
             // apply text size if specified
-            const textSize = cardToRender.textSize ?? null;
+            const textSize = cardToRender.deckTextSize ?? cardToRender.textSize ?? null;
             if (textSize) {
                 button.style.fontSize = textSize;
             } else {

@@ -13,6 +13,20 @@ const RARE_HIGH_CARD_POOL = [
         rarity: "rare",
         price: CARD_SHOP_SETTINGS.cardPrice,
         textSize: "2rem"
+    },
+    {
+        id: "high_card_hc_plus",
+        rank: "HC",
+        value: 15,
+        rankName: "hc plus",
+        suit: "+",
+        suitName: "hcplus",
+        color: "white",
+        label: "HC+",
+        rarity: "rare",
+        price: CARD_SHOP_SETTINGS.cardPrice,
+        textSize: "1.65rem",
+        deckTextSize: "1rem"
     }
 ];
 

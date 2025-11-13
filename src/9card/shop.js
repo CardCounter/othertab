@@ -301,7 +301,8 @@ function cloneCardForDeck(card, poolId) {
         rarity: card.rarity ?? poolId,
         sourcePool: poolId,
         isDrawn: false,
-        textSize: card.textSize ?? null
+        textSize: card.textSize ?? null,
+        deckTextSize: card.deckTextSize ?? null
     };
 }
 
@@ -372,7 +373,8 @@ function generateCardShopOffer(state) {
         suitName: template.suitName,
         color: template.color,
         label: template.label,
-        textSize
+        textSize,
+        deckTextSize: template.deckTextSize ?? null
     };
 
     return {
