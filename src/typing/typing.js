@@ -1,41 +1,41 @@
 import { words_none } from './words/1k.js';
 
-// like a queue but no popping. keep moving and writing at head. once reach end, go back to begining (oldest) and just
-// write over it. first in first out.
+
+
 class CircularQueue {
     constructor(size, key) {
         this.size = size;
-        this.key = key; // to find in localstorage, use TYPING-rolling-avg-100
+        this.key = key;
 
         const data = this.load();
-        this.buffer = data?.buffer || new Array(size).fill(null); // buffer is queue full of data, check if buffer exists if not
-                                                                  // make new
+        this.buffer = data?.buffer || new Array(size).fill(null);
+
         this.head = data?.head || 0;
         this.length = data?.length || 0;
     }
 
     enqueue(value) {
-        this.buffer[this.head] = value; // possible write over old data, or fresh spot
-        this.head = (this.head + 1) % this.size; // using this.size
+        this.buffer[this.head] = value;
+        this.head = (this.head + 1) % this.size;
         if (this.length < this.size) {
-            this.length++; // used for getall, just so if queue not filled not reading null
+            this.length++;
         }
         this.save();
     }
 
     getAll() {
-        const out = []; // returns array of data elements, for each entry call data.wpm, data.acc
-        const start = (this.head - this.length + this.size) % this.size; // this.head is the next available space, not the 
-                                                                         // oldest data point, this fixes that
+        const out = [];
+        const start = (this.head - this.length + this.size) % this.size;
+
         for (let i = 0; i < this.length; i++) {
-            const index = (start + i) % this.size; // start at next available empty or oldest, loop around.
+            const index = (start + i) % this.size;
             const item = this.buffer[index];
             if (item) out.push(item);
         }
         return out;
     }
 
-    save() { // used in enqueue
+    save() {
         const data = {
             buffer: this.buffer,
             head: this.head,
@@ -44,7 +44,7 @@ class CircularQueue {
         localStorage.setItem(this.key, JSON.stringify(data));
     }
 
-    load() { // used in constructor
+    load() {
         const raw = localStorage.getItem(this.key);
         return raw ? JSON.parse(raw) : null;
     }
@@ -54,11 +54,11 @@ class Typing {
     constructor(){
         this.typingResults = new CircularQueue(100, 'TYPING-rolling-avg-100');
 
-        // constants
+
         this.words = words_none; 
         this.wordsLength = this.words.length - 1;
 
-        // vars
+
         this.masterString = '';
         this.masterArray = [];
         this.masterArrayLength = 0;
@@ -101,20 +101,20 @@ class Typing {
         document.getElementById(this.currentWordMode).classList.add('active');
         this.numWords = document.getElementById(this.currentWordMode).dataset.time;
 
-        // console.log(`${this.numWords}`)
+
 
         this.initializeBoard(this.numWords);
 
         const wordButtons = document.querySelectorAll('.mode-button');
         wordButtons.forEach(button => {
             button.addEventListener('click', () => {
-                // reset all to active state
+
                 wordButtons.forEach(btn => btn.classList.remove('active'));
                 
-                // add active state for chosen button
+
                 button.classList.add('active');
                 
-                // set difficulty and reset game
+
                 this.currentWordMode = button.id;
                 localStorage.setItem('TYPING-currentWordMode', button.id);
                 this.numWords = document.getElementById(this.currentWordMode).dataset.time;
@@ -129,13 +129,13 @@ class Typing {
             }
             if (this.canType){
                 if (this.userTyped.length < this.masterArrayLength) {
-                    // console.log('in short case');
+
                     if (/^[a-zA-Z0-9 !"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~]$/.test(e.key)) {
                         if (this.firstKey === false){
-                            this.firstKey = true; /// start timer here
+                            this.firstKey = true;
                             this.setTypingTitle(true);
                             this.startTimer();
-                            // console.log(`start timer: ${this.timer}`)
+
                         }
     
                         this.userTyped.push(e.key);
@@ -144,11 +144,11 @@ class Typing {
                         this.moveCaretTo(this.currentIndex);
                     } 
                     else if (e.key === 'Backspace' && (e.altKey || e.metaKey || e.ctrlKey)) {
-                        // console.log(`calling backspace word`);
+
                         this.backspaceWord();
                     }
                     else if (e.key === 'Backspace') {
-                        // console.log(`callling backspace`);
+
                         this.backspace();
                     }
                     if (this.boardAllCorrect === false){
@@ -157,18 +157,18 @@ class Typing {
                         if (this.boardAllCorrect){
                             this.typingDone = true;
                             this.canType = false;
-                            // console.log(`game finish`)
+
 
                             this.setTypingTitle(false);
 
-                            // add tombstone to end
+
                             const typedText = document.getElementById('typed-text');
                             typedText.innerHTML = typedText.innerHTML + `<span class="tombstone">∎</span>`;
 
                             this.stopTimer();
-                            // console.log(`stopped timer: ${this.timer}`)
 
-                            // get wpm, acc
+
+
                             this.wpm = this.getWPM();
                             this.acc = this.getAcc();
                             this.showWPMPopup();
@@ -177,13 +177,13 @@ class Typing {
                     }
                 }
                 else{
-                    // console.log('in long case');
+
                     if (e.key === 'Backspace' && (e.altKey || e.metaKey || e.ctrlKey)) {
-                        // console.log(`calling backspace word`)
+
                         this.backspaceWord();
                     }
                     else if (e.key === 'Backspace') {
-                        // console.log(`callling backspace`)
+
                         this.backspace();
                     }
                 }
@@ -201,9 +201,9 @@ class Typing {
 
         this.masterString = this.chooseRandomWords(numWords);
         this.numCharMasterString = this.masterString.length;
-        // const wordCountArray = this.masterString.split(' ');
+
         this.numWordsMasterString = this.masterString.split(' ').length
-        // this.masterString = this.chooseRandomWords(numWords);
+
 
         this.masterArray = this.masterString.split('');
         this.masterArrayLength = this.masterArray.length;
@@ -254,7 +254,7 @@ class Typing {
         document.getElementById('copy-button').textContent = 'share';
 
         const popup = document.getElementById('wpm-paste');
-        if (popup) popup.classList.add('hidden'); ///// keep this in mind if things go wrong
+        if (popup) popup.classList.add('hidden');
     }
 
     backspace(){
@@ -265,7 +265,7 @@ class Typing {
             this.currentIndex--;
             this.moveCaretTo(this.currentIndex);
         }
-        else this.currentIndex = -1; // safety
+        else this.currentIndex = -1;
         this.moveCaretTo(this.currentIndex);
     }
 
@@ -292,16 +292,16 @@ class Typing {
     }
 
     checkCharacterStyle(masterArray, userTyped, currentIndex, characterArray){
-        if (currentIndex === -1) return; // no letters
-        else if (userTyped.length - 1 < currentIndex) { // too small => messed up somewhere?, keep for safety
+        if (currentIndex === -1) return;
+        else if (userTyped.length - 1 < currentIndex) {
             characterArray[currentIndex].classList.remove('correct');
             characterArray[currentIndex].classList.remove('wrong');
         }
-        else if (userTyped[currentIndex] === masterArray[currentIndex]) { // right
+        else if (userTyped[currentIndex] === masterArray[currentIndex]) {
             characterArray[currentIndex].classList.remove('wrong');
             characterArray[currentIndex].classList.add('correct');
         }
-        else { // wrong
+        else {
             characterArray[currentIndex].classList.remove('correct');
             characterArray[currentIndex].classList.add('wrong');
             this.numMistakes++;
@@ -317,7 +317,7 @@ class Typing {
         for (let char of this.characterArray){
             if (!char.classList.contains('correct')) return false;
         }
-        // console.log(`checkAllCorrect true`);
+
         return true;
     }
 
@@ -335,7 +335,7 @@ class Typing {
             caret.style.left = (targetLocation.left - textContainerLocation.left) + 'px';
             caret.style.top = (targetLocation.top - textContainerLocation.top) + 'px';
         }
-        else{ // moves it off the screen. i guess its ok, if last letter is wrong can backspace and caret will still be there.
+        else{
             const caret = document.getElementById('caret');
             caret.classList.add('hidden'); 
         }
@@ -351,9 +351,9 @@ class Typing {
             }
             else {
                 clearInterval(this.timerInterval);
-                this.timer = -1; /////// if -1 add NA to wpm
+                this.timer = -1;
             }   
-            // console.log(`${this.timer}`);
+
         }, 1000);
     }
     
@@ -369,15 +369,15 @@ class Typing {
     }
 
     getWPM() {
-        // console.log(`${this.timer}`)
-        if (this.timer === -1) return 0; // if too slow, return 0. dont want to return -1 since will look like it broke
+
+        if (this.timer === -1) return 0;
         let avgNumWords = this.numCharMasterString / 5;
         let normTime = this.timer / 60;
         return Math.round(avgNumWords / normTime);
     }
 
     getAcc() {
-        if (this.numMistakes >= this.numCharMasterString) return 0; // if too many mistakes
+        if (this.numMistakes >= this.numCharMasterString) return 0;
         return Math.round((1 - (this.numMistakes / this.numCharMasterString)) * 100);
     }
 
@@ -385,7 +385,7 @@ class Typing {
         const popup = document.getElementById('wpm-paste');
         const text = document.getElementById('wpm-text');
 
-        // Check if this is the user's first time by checking localStorage
+
         const hasCompletedFirstTest = localStorage.getItem('TYPING-first-test-completed');
         const isFirstTime = !hasCompletedFirstTest;
 
@@ -406,12 +406,12 @@ ${this.acc}% acc`;
             shareButton.textContent = 'copied';
         });
             
-        // display popup by adding hidden class, removing active
+
         popup.classList.remove('hidden');
     }
 
     saveStats(wpm, acc, currentWordMode){
-        // add to queue
+
         this.typingResults.enqueue({
             wpm: wpm,
             acc: acc,
@@ -419,12 +419,12 @@ ${this.acc}% acc`;
 
         this.updateAvg();
 
-        // Mark that the user has completed their first test
+
         if (!localStorage.getItem('TYPING-first-test-completed')) {
             localStorage.setItem('TYPING-first-test-completed', 'true');
         }
 
-        // checks best for mode
+
         const bestCurrentModeKey = `TYPING-best-${currentWordMode}`;
         const bestCurrentModeRaw = localStorage.getItem(bestCurrentModeKey);
         const bestCurrentMode = bestCurrentModeRaw ? JSON.parse(bestCurrentModeRaw) : null;
