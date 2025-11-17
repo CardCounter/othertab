@@ -122,7 +122,7 @@ export function getChipSettings() {
     };
 }
 
-export function awardChips({
+export function calculateChipReward({
     baseAmount,
     streak,
     streakMultiplier
@@ -136,7 +136,11 @@ export function awardChips({
     const multiplierBase = resolveStreakMultiplier(streakMultiplier);
     const multiplier = streakCount > 1 ? Math.pow(multiplierBase, streakCount - 1) : 1;
     const rawReward = base * multiplier;
-    const reward = Math.ceil(Math.max(0, rawReward));
+    return Math.ceil(Math.max(0, rawReward));
+}
+
+export function awardChips(options = {}) {
+    const reward = calculateChipReward(options);
     if (reward <= 0) {
         return 0;
     }

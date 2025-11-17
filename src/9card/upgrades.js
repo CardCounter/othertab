@@ -9,6 +9,12 @@ import {
     spendDice,
     subscribeToDiceChanges
 } from "./dice.js";
+import {
+    canAffordStatus,
+    formatStatusAmount,
+    spendStatus,
+    subscribeToStatusChanges
+} from "./status.js";
 import { DECK_UPGRADE_CONFIG } from "./upgrade-config.js";
 
 export const UPGRADE_TYPES = {
@@ -22,6 +28,7 @@ const DEFAULT_UNLOCKED_UPGRADE_SLOTS = 5;
 const MAX_UPGRADE_SLOT_COUNT = 5;
 const UNIQUE_UPGRADE_SLOT_COUNT = 3;
 const DEFAULT_UNIQUE_REROLL_COST = 1;
+const DEFAULT_UNIQUE_UPGRADE_COST = 10;
 
 const upgradeRegistry = new Map();
 
@@ -324,6 +331,11 @@ function createUpgradeInstance(entry) {
     );
     const textSize =
         providedTextSize ?? (resolvedType === UPGRADE_TYPES.UNIQUE ? "4rem" : null);
+    const baseUniqueCost = Number.isFinite(overrides.uniqueCost)
+        ? overrides.uniqueCost
+        : Number.isFinite(definition?.uniqueCost)
+          ? definition.uniqueCost
+          : DEFAULT_UNIQUE_UPGRADE_COST;
 
     const instance = {
         id,
@@ -344,6 +356,14 @@ function createUpgradeInstance(entry) {
 
     if (textSize) {
         instance.textSize = textSize;
+    }
+
+    if (resolvedType === UPGRADE_TYPES.UNIQUE) {
+        const resolvedUniqueCost =
+            Number.isFinite(baseUniqueCost) && baseUniqueCost > 0
+                ? Math.ceil(baseUniqueCost)
+                : DEFAULT_UNIQUE_UPGRADE_COST;
+        instance.uniqueCost = resolvedUniqueCost;
     }
 
     if (Number.isFinite(increaseAmountValue)) {
@@ -469,6 +489,16 @@ function resolveDeckUpgradeProfile(deckId) {
         : Number.isFinite(defaults.baseHandSize)
           ? defaults.baseHandSize
           : null;
+    const autoDrawBurnCardCost = Number.isFinite(deckProfile.autoDrawBurnCardCost)
+        ? deckProfile.autoDrawBurnCardCost
+        : Number.isFinite(defaults.autoDrawBurnCardCost)
+          ? defaults.autoDrawBurnCardCost
+          : null;
+    const cardShopValueMultiplier = Number.isFinite(deckProfile.cardShopValueMultiplier)
+        ? deckProfile.cardShopValueMultiplier
+        : Number.isFinite(defaults.cardShopValueMultiplier)
+          ? defaults.cardShopValueMultiplier
+          : null;
 
     return {
         basic: combinedBasics,
@@ -476,7 +506,9 @@ function resolveDeckUpgradeProfile(deckId) {
         baseChipsAmount,
         baseMultiplierAmount,
         baseDrawTime,
-        baseHandSize
+        baseHandSize,
+        autoDrawBurnCardCost,
+        cardShopValueMultiplier
     };
 }
 
@@ -512,6 +544,7 @@ function normalizeUpgradeEntry(id, config = {}) {
     const costLinearCoefficient = Number.isFinite(config.costLinearCoefficient)
         ? config.costLinearCoefficient
         : undefined;
+    const uniqueCost = Number.isFinite(config.uniqueCost) ? config.uniqueCost : undefined;
 
     const entry = {
         id,
@@ -521,6 +554,10 @@ function normalizeUpgradeEntry(id, config = {}) {
         costLinearCoefficient,
         options
     };
+
+    if (uniqueCost != null) {
+        entry.uniqueCost = uniqueCost;
+    }
 
     if (config.baseAmount != null) {
         entry.baseAmount = config.baseAmount;
@@ -802,6 +839,8 @@ function buildDeckUpgradeList(config, existingPoolState = null) {
         baseMultiplierAmount: profile.baseMultiplierAmount,
         baseDrawTime: profile.baseDrawTime,
         baseHandSize: profile.baseHandSize,
+        autoDrawBurnCardCost: profile.autoDrawBurnCardCost,
+        cardShopValueMultiplier: profile.cardShopValueMultiplier,
         poolState: poolDefinitions.length > 0 ? poolStateResult : {}
     };
 }
@@ -810,8 +849,17 @@ function calculateUpgradeCost(upgrade) {
     if (!upgrade) {
         return 0;
     }
-    if (upgrade.type === UPGRADE_TYPES.UNIQUE && upgrade.purchased) {
-        return Number.MAX_SAFE_INTEGER;
+    if (upgrade.type === UPGRADE_TYPES.UNIQUE) {
+        if (upgrade.purchased) {
+            return Number.MAX_SAFE_INTEGER;
+        }
+        const uniqueCost = Number.isFinite(upgrade.uniqueCost)
+            ? Math.ceil(Math.max(0, upgrade.uniqueCost))
+            : DEFAULT_UNIQUE_UPGRADE_COST;
+        if (!Number.isFinite(uniqueCost) || uniqueCost <= 0) {
+            return Number.MAX_SAFE_INTEGER;
+        }
+        return uniqueCost;
     }
     const baseCost = Number.isFinite(upgrade.baseCost) ? upgrade.baseCost : upgrade.cost ?? 0;
     const level = Number.isFinite(upgrade.level) && upgrade.level > 0 ? upgrade.level : 0;
@@ -972,9 +1020,13 @@ function renderUpgradeSlots(state) {
         }
 
         const primaryText =
-            typeof upgrade.getCurrentValue === "function"
-                ? upgrade.getCurrentValue(state)
-                : upgrade.title ?? upgrade.id;
+            typeof upgrade.title === "string"
+                ? upgrade.title
+                : typeof upgrade.id === "string"
+                  ? upgrade.id
+                  : typeof upgrade.getCurrentValue === "function"
+                    ? upgrade.getCurrentValue(state)
+                    : "";
         const trimmed = typeof primaryText === "string" ? primaryText.trim() : "";
         if (trimmed) {
             slot.setAttribute("aria-label", trimmed);
@@ -1015,12 +1067,33 @@ function createUpgradeCardElement(state, upgrade) {
     const header = document.createElement("div");
     header.className = "upgrade-card-header";
 
+    const rawTitle =
+        typeof upgrade.title === "string"
+            ? upgrade.title
+            : typeof upgrade.id === "string"
+              ? upgrade.id
+              : "";
+    const titleText = rawTitle.trim();
+    const currentValue =
+        typeof upgrade.getCurrentValue === "function" ? upgrade.getCurrentValue(state) : null;
     const statText =
-        typeof upgrade.getCurrentValue === "function"
-            ? upgrade.getCurrentValue(state)
-            : typeof upgrade.title === "string"
-              ? upgrade.title
-              : upgrade.id;
+        upgrade.type === UPGRADE_TYPES.UNIQUE
+            ? titleText || currentValue || rawTitle
+            : currentValue || titleText || rawTitle;
+    const trimmedStatText = typeof statText === "string" ? statText.trim() : "";
+    const rawDescription =
+        typeof upgrade.description === "string" ? upgrade.description.trim() : "";
+    const descriptionText =
+        upgrade.type === UPGRADE_TYPES.BASIC ? "" : rawDescription;
+    const displayTitle = trimmedStatText || titleText || rawTitle;
+    const accessibleParts = [];
+    if (displayTitle) {
+        accessibleParts.push(displayTitle);
+    }
+    if (descriptionText && descriptionText !== displayTitle) {
+        accessibleParts.push(descriptionText);
+    }
+    const accessibleLabel = accessibleParts.join(". ") || displayTitle || descriptionText || "";
 
     if (showVisual) {
         const visual = document.createElement("div");
@@ -1040,8 +1113,7 @@ function createUpgradeCardElement(state, upgrade) {
             }
             visual.append(glyphElement);
         } else {
-            const fallbackLabel =
-                typeof upgrade.title === "string" ? upgrade.title : typeof upgrade.id === "string" ? upgrade.id : "";
+            const fallbackLabel = displayTitle || titleText || rawTitle || upgrade.id;
             if (fallbackLabel) {
                 const fallbackElement = document.createElement("span");
                 fallbackElement.className = "upgrade-card-visual-label";
@@ -1054,11 +1126,21 @@ function createUpgradeCardElement(state, upgrade) {
 
         const stat = document.createElement("div");
         stat.className = "upgrade-card-stat";
-        stat.textContent = statText;
         stat.setAttribute("aria-hidden", "true");
-        header.append(stat);
-        if (statText) {
-            card.setAttribute("aria-label", statText.trim());
+        let hasStatContent = false;
+        if (trimmedStatText) {
+            stat.textContent = trimmedStatText;
+            hasStatContent = true;
+        }
+        if (descriptionText) {
+            const descriptionElement = document.createElement("div");
+            descriptionElement.className = "upgrade-card-description";
+            descriptionElement.textContent = descriptionText;
+            stat.append(descriptionElement);
+            hasStatContent = true;
+        }
+        if (hasStatContent) {
+            header.append(stat);
         }
     } else {
         const info = document.createElement("div");
@@ -1066,13 +1148,27 @@ function createUpgradeCardElement(state, upgrade) {
 
         const stat = document.createElement("div");
         stat.className = "upgrade-card-stat";
-        stat.textContent = statText;
-        info.append(stat);
+        stat.setAttribute("aria-hidden", "true");
+        let hasStatContent = false;
+        if (trimmedStatText) {
+            stat.textContent = trimmedStatText;
+            hasStatContent = true;
+        }
+        if (descriptionText) {
+            const descriptionElement = document.createElement("div");
+            descriptionElement.className = "upgrade-card-description";
+            descriptionElement.textContent = descriptionText;
+            stat.append(descriptionElement);
+            hasStatContent = true;
+        }
+        if (hasStatContent) {
+            info.append(stat);
+        }
 
         header.append(info);
-        if (statText) {
-            card.setAttribute("aria-label", statText.trim());
-        }
+    }
+    if (accessibleLabel) {
+        card.setAttribute("aria-label", accessibleLabel);
     }
 
     const body = document.createElement("div");
@@ -1086,21 +1182,34 @@ function createUpgradeCardElement(state, upgrade) {
 
     const cost = calculateUpgradeCost(upgrade);
     const amount = calculateUpgradeAmount(state, upgrade);
+    const isUniqueUpgrade = upgrade.type === UPGRADE_TYPES.UNIQUE;
     const isMaxed = amount <= 0 || cost <= 0 || !Number.isFinite(cost);
-    const insufficientFunds = !isMaxed && !canAffordChips(cost);
+    const hasFunds = isUniqueUpgrade ? canAffordStatus(cost) : canAffordChips(cost);
+    const insufficientFunds = !isMaxed && !hasFunds;
     const shouldDisable = isMaxed || insufficientFunds;
 
     buyButton.disabled = shouldDisable;
-    buyButton.textContent = isMaxed ? "maxed" : formatChipAmount(cost);
+    if (isMaxed) {
+        buyButton.textContent = "maxed";
+    } else if (isUniqueUpgrade) {
+        buyButton.textContent = formatStatusAmount(cost);
+    } else {
+        buyButton.textContent = formatChipAmount(cost);
+    }
 
     upgrade.cost = isMaxed ? 0 : cost;
 
-    const formattedCost = Number.isFinite(cost) ? formatChipAmount(cost) : "";
-    const upgradeLabel = upgrade.title ?? upgrade.id;
+    const formattedCost = Number.isFinite(cost)
+        ? isUniqueUpgrade
+            ? formatStatusAmount(cost)
+            : formatChipAmount(cost)
+        : "";
+    const upgradeLabel = displayTitle || titleText || rawTitle || upgrade.id;
     if (isMaxed) {
         buyButton.setAttribute("aria-label", `upgrade ${upgradeLabel} maxed`);
     } else if (insufficientFunds) {
-        buyButton.setAttribute("aria-label", `upgrade ${upgradeLabel} for ${formattedCost} (not enough chips)`);
+        const insufficiencyLabel = isUniqueUpgrade ? "not enough status" : "not enough chips";
+        buyButton.setAttribute("aria-label", `upgrade ${upgradeLabel} for ${formattedCost} (${insufficiencyLabel})`);
     } else {
         buyButton.setAttribute("aria-label", `upgrade ${upgradeLabel} for ${formattedCost}`);
     }
@@ -1505,7 +1614,8 @@ function purchaseSingleUpgrade(state, upgrade) {
     if (!Number.isFinite(cost) || cost <= 0) {
         return false;
     }
-    if (!spendChips(cost)) {
+    const spendCurrency = upgrade.type === UPGRADE_TYPES.UNIQUE ? spendStatus : spendChips;
+    if (!spendCurrency(cost)) {
         return false;
     }
     applyUpgrade(state, upgrade);
@@ -1529,10 +1639,13 @@ function purchaseUpgradeToMax(state, upgrade) {
             if (!Number.isFinite(cost) || cost <= 0) {
                 break;
             }
-            if (!canAffordChips(cost)) {
+            const hasCurrency =
+                upgrade.type === UPGRADE_TYPES.UNIQUE ? canAffordStatus(cost) : canAffordChips(cost);
+            if (!hasCurrency) {
                 break;
             }
-            if (!spendChips(cost)) {
+            const spendCurrency = upgrade.type === UPGRADE_TYPES.UNIQUE ? spendStatus : spendChips;
+            if (!spendCurrency(cost)) {
                 break;
             }
             applyUpgrade(state, upgrade);
@@ -1583,6 +1696,8 @@ export function setupDeckUpgrades(state) {
         baseMultiplierAmount,
         baseDrawTime,
         baseHandSize,
+        autoDrawBurnCardCost,
+        cardShopValueMultiplier,
         poolState
     } = buildDeckUpgradeList(state.config, existingPoolState);
 
@@ -1597,6 +1712,15 @@ export function setupDeckUpgrades(state) {
     }
     if (Number.isFinite(baseHandSize) && baseHandSize > 0) {
         state.handSize = baseHandSize;
+    }
+    if (Number.isFinite(autoDrawBurnCardCost) && autoDrawBurnCardCost >= 0) {
+        state.autoDrawBurnCardCost = Math.ceil(autoDrawBurnCardCost);
+        if (typeof state.updateAutoButton === "function") {
+            state.updateAutoButton();
+        }
+    }
+    if (Number.isFinite(cardShopValueMultiplier) && cardShopValueMultiplier > 0) {
+        state.cardShopValueMultiplier = cardShopValueMultiplier;
     }
 
     state.upgradePools = poolState ?? {};
@@ -1636,6 +1760,9 @@ export function setupDeckUpgrades(state) {
     if (typeof state.unsubscribeDiceListener === "function") {
         state.unsubscribeDiceListener();
     }
+    if (typeof state.unsubscribeStatusListener === "function") {
+        state.unsubscribeStatusListener();
+    }
 
     state.renderUpgrades = () => renderUpgrades(state);
     state.renderUpgradeSlots = () => renderUpgradeSlots(state);
@@ -1648,6 +1775,12 @@ export function setupDeckUpgrades(state) {
     });
     state.unsubscribeDiceListener = subscribeToDiceChanges(() => {
         if (state.isPurchasingUpgrades || state.isRerollingUniqueUpgrades) {
+            return;
+        }
+        renderUpgrades(state);
+    });
+    state.unsubscribeStatusListener = subscribeToStatusChanges(() => {
+        if (state.isPurchasingUpgrades) {
             return;
         }
         renderUpgrades(state);

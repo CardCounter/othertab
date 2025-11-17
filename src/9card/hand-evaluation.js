@@ -1,5 +1,16 @@
-import { CHIP_SYMBOL, DICE_SYMBOL, HAND_LABELS, STREAK_TARGET, RANKS, SUITS } from "./config.js";
+import {
+    CHIP_SYMBOL,
+    DICE_SYMBOL,
+    HAND_LABELS,
+    STREAK_TARGET,
+    RANKS,
+    SUITS,
+    STATUS_SYMBOL,
+    UNIQUE_TOKEN_SYMBOL
+} from "./config.js";
 import { formatChipAmount } from "./chips.js";
+import { formatStatusAmount } from "./status.js";
+import { formatBurnCardAmount } from "./burn-cards.js";
 
 const FOUR_CARD_STRAIGHT_FLAG = "straight_four_card_scoring";
 const CLASSIFICATION_PRIORITY = [
@@ -481,14 +492,76 @@ function formatDiceAmount(value) {
     return integerValue.toLocaleString();
 }
 
-export function buildResultMessage({ success, classification, streak, permanentlyCompleted, payout = 0, diceAwarded = 0 }) {
+function formatRewardSegment({ summary, finalValue, formatFinal, formatBase }) {
+    const highlightedFinal = wrapAccent(formatFinal(finalValue));
+    if (!summary) {
+        return highlightedFinal;
+    }
+    const suitCount = Number.isFinite(summary.suitCount) ? summary.suitCount : 0;
+    const suitSymbol = summary.suitSymbol;
+    if (suitCount <= 0 || !suitSymbol) {
+        return highlightedFinal;
+    }
+    const baseText = formatBase(summary.baseAmount);
+    if (!baseText) {
+        return highlightedFinal;
+    }
+    return `${baseText} x ${suitCount}${suitSymbol} = ${highlightedFinal}`;
+}
+
+function wrapAccent(text) {
+    return `<span class="poker-result-accent">${text}</span>`;
+}
+
+export function buildResultMessage({
+    success,
+    classification,
+    permanentlyCompleted,
+    payout = 0,
+    diceAwarded = 0,
+    statusAwarded = 0,
+    burnCardAwarded = 0,
+    rewardBreakdown = null
+}) {
     if (success) {
-        const formattedPayout = formatChipAmount(payout, { includeSymbol: false });
-        const formattedDice = formatDiceAmount(diceAwarded);
-        if (permanentlyCompleted || streak >= STREAK_TARGET) {
-            return `hit ${classification.label}. payout ${formattedPayout}${CHIP_SYMBOL}, ${formattedDice}${DICE_SYMBOL}. streak ${streak}/${STREAK_TARGET}`;
-        }
-        return `hit ${classification.label}. payout ${formattedPayout}${CHIP_SYMBOL}, ${formattedDice}${DICE_SYMBOL}. streak ${streak}/${STREAK_TARGET}`;
+        const payoutSegment = formatRewardSegment({
+            summary: rewardBreakdown?.chips,
+            finalValue: payout,
+            formatFinal: (value) => {
+                const formatted = formatChipAmount(value, { includeSymbol: false });
+                return `${formatted}${CHIP_SYMBOL}`;
+            },
+            formatBase: (value) => formatChipAmount(value, { includeSymbol: false })
+        });
+        const diceSegment = formatRewardSegment({
+            summary: rewardBreakdown?.dice,
+            finalValue: diceAwarded,
+            formatFinal: (value) => {
+                const formatted = formatDiceAmount(value);
+                return `${formatted}${DICE_SYMBOL}`;
+            },
+            formatBase: (value) => formatDiceAmount(value)
+        });
+        const statusSegment = formatRewardSegment({
+            summary: rewardBreakdown?.status,
+            finalValue: statusAwarded,
+            formatFinal: (value) => {
+                const formatted = formatStatusAmount(value, { includeSymbol: false });
+                return `${formatted}${STATUS_SYMBOL}`;
+            },
+            formatBase: (value) => formatStatusAmount(value, { includeSymbol: false })
+        });
+        const burnCardSegment = formatRewardSegment({
+            summary: rewardBreakdown?.burnCard,
+            finalValue: burnCardAwarded,
+            formatFinal: (value) => {
+                const formatted = formatBurnCardAmount(value, { includeSymbol: false });
+                return `${formatted}${UNIQUE_TOKEN_SYMBOL}`;
+            },
+            formatBase: (value) => formatBurnCardAmount(value, { includeSymbol: false })
+        });
+        const hitSegment = wrapAccent(`hit ${classification.label}`);
+        return `${hitSegment}. payout: ${payoutSegment}, ${diceSegment}, ${statusSegment}, ${burnCardSegment}.`;
     }
     return `missed (${classification.label})`;
 }

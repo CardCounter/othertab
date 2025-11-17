@@ -5,7 +5,7 @@ import {
     DEFAULT_REROLL_DICE_COST,
     DEFAULT_REROLL_DICE_INCREMENT
 } from "./config.js";
-import { DECK_CARD_SHOP_CONFIG } from "./card-shop-config.js";
+import { CARD_SHOP_CONFIG } from "./card-shop-config.js";
 import { createStandardDeck, invalidateDeckCache, updateDeckBaseline } from "./deck-utils.js";
 import { renderDeckGrid } from "./ui.js";
 import { formatChipAmount } from "./chips.js";
@@ -21,47 +21,6 @@ const DISCARD_SHOP_ITEM = {
     textSize: "3rem"
 };
 
-const UNCOMMON_TESTER_CARDS = [
-    // {
-    //     rank: "U1",
-    //     value: 20,
-    //     rankName: "tester u1",
-    //     suit: "★",
-    //     suitName: "star",
-    //     color: "black",
-    //     label: "tester star",
-    //     rarity: "uncommon",
-    //     price: CARD_SHOP_SETTINGS.cardPrice
-    // },
-    // {
-    //     rank: "U2",
-    //     value: 21,
-    //     rankName: "tester u2",
-    //     suit: "★",
-    //     suitName: "star",
-    //     color: "black",
-    //     label: "tester comet",
-    //     rarity: "uncommon",
-    //     price: CARD_SHOP_SETTINGS.cardPrice
-    // }
-];
-
-const RARE_TESTER_CARDS = [
-    {
-        id: "rare_qh",
-        rank: "E",
-        value: 12,
-        rankName: "e",
-        suit: "♥",
-        suitName: "hearts",
-        color: "red",
-        label: "gilded queen",
-        rarity: "rare",
-        price: CARD_SHOP_SETTINGS.cardPrice,
-        textSize: "2rem"
-    }
-];
-
 const GENERAL_CARD_SHOP_POOLS = {
     common: {
         id: "common",
@@ -75,12 +34,12 @@ const GENERAL_CARD_SHOP_POOLS = {
     uncommon: {
         id: "uncommon",
         label: "uncommon pool",
-        cards: [...UNCOMMON_TESTER_CARDS, DISCARD_SHOP_ITEM]
+        cards: [DISCARD_SHOP_ITEM]
     },
     rare: {
         id: "rare",
         label: "rare pool",
-        cards: RARE_TESTER_CARDS
+        cards: []
     }
 };
 
@@ -177,31 +136,16 @@ function resolveNonNegativeNumber(candidate) {
     return candidate >= 0 ? candidate : null;
 }
 
-function resolveDeckCardShopProfile(deckId) {
-    const defaultConfig = DECK_CARD_SHOP_CONFIG?.default ?? {};
-    const deckConfig = deckId && DECK_CARD_SHOP_CONFIG ? DECK_CARD_SHOP_CONFIG[deckId] : null;
+function resolveDeckCardShopProfile() {
+    const baseConfig = CARD_SHOP_CONFIG ?? {};
 
-    const pools = buildDeckCardPoolMap(defaultConfig, deckConfig);
-    const poolWeights =
-        normalizePoolWeights(deckConfig?.poolWeights) ??
-        normalizePoolWeights(defaultConfig?.poolWeights) ??
-        CARD_SHOP_POOL_WEIGHTS;
-    const slotCount =
-        resolvePositiveInteger(deckConfig?.slotCount) ??
-        resolvePositiveInteger(defaultConfig?.slotCount) ??
-        CARD_SHOP_SETTINGS.slotCount;
+    const pools = buildDeckCardPoolMap(baseConfig, null);
+    const poolWeights = normalizePoolWeights(baseConfig?.poolWeights) ?? CARD_SHOP_POOL_WEIGHTS;
+    const slotCount = resolvePositiveInteger(baseConfig?.slotCount) ?? CARD_SHOP_SETTINGS.slotCount;
     const cardPrice =
-        resolveNonNegativeNumber(deckConfig?.cardPrice) ??
-        resolveNonNegativeNumber(defaultConfig?.cardPrice) ??
-        CARD_SHOP_SETTINGS.cardPrice;
-    const rerollCost =
-        resolveNonNegativeInteger(deckConfig?.rerollCost) ??
-        resolveNonNegativeInteger(defaultConfig?.rerollCost) ??
-        null;
-    const rerollIncrement =
-        resolveNonNegativeInteger(deckConfig?.rerollIncrement) ??
-        resolveNonNegativeInteger(defaultConfig?.rerollIncrement) ??
-        null;
+        resolveNonNegativeNumber(baseConfig?.cardPrice) ?? CARD_SHOP_SETTINGS.cardPrice;
+    const rerollCost = resolveNonNegativeInteger(baseConfig?.rerollCost) ?? null;
+    const rerollIncrement = resolveNonNegativeInteger(baseConfig?.rerollIncrement) ?? null;
 
     return {
         pools,
@@ -219,7 +163,7 @@ function resolveCardShopPoolOdds(state) {
     const pools = state?.cardShop?.pools ?? GENERAL_CARD_SHOP_POOLS;
     return poolWeights.map(({ id, weight }) => {
         const pool = pools[id];
-        if (!pool) {
+        if (!pool || !Array.isArray(pool.cards) || pool.cards.length === 0) {
             return null;
         }
         let adjustedWeight = weight;
@@ -238,6 +182,27 @@ const RANK_SYMBOL_NAME_MAP = new Map(RANKS.map(({ symbol, name }) => [symbol, na
 
 function formatChipPrice(value) {
     return formatChipAmount(value, { includeSymbol: true });
+}
+
+function resolveCardShopValueMultiplier(state) {
+    if (!Number.isFinite(state?.cardShopValueMultiplier)) {
+        return 1;
+    }
+    return state.cardShopValueMultiplier > 0 ? state.cardShopValueMultiplier : 1;
+}
+
+function resolveCardOfferPrice(state, template) {
+    const baseCardPrice = state?.cardShop?.cardPrice ?? CARD_SHOP_SETTINGS.cardPrice;
+    const templatePrice = Number.isFinite(template?.price) ? template.price : null;
+    const type = template?.type ?? "card";
+    if (type === "card") {
+        const value = Number.isFinite(template?.value) ? template.value : null;
+        if (value != null) {
+            const multiplier = resolveCardShopValueMultiplier(state);
+            return Math.max(0, Math.ceil(value * multiplier));
+        }
+    }
+    return templatePrice ?? baseCardPrice;
 }
 
 function resolveRerollCost(state) {
@@ -349,8 +314,7 @@ function generateCardShopOffer(state) {
     }
     const type = template.type ?? "card";
     const rarity = template.rarity ?? pool.id;
-    const baseCardPrice = state?.cardShop?.cardPrice ?? CARD_SHOP_SETTINGS.cardPrice;
-    const price = template.price ?? baseCardPrice;
+    const price = resolveCardOfferPrice(state, template);
     const textSize = template.textSize ?? null;
 
     if (type === "discard") {
@@ -409,8 +373,6 @@ function renderCardShop(state) {
     const { cardShop } = state;
     const slotsFragment = document.createDocumentFragment();
 
-    const frozenSlotIndex = cardShop.frozenOffer?.fromSlotIndex ?? null;
-
     for (let index = 0; index < cardShop.slots.length; index += 1) {
         const offer = cardShop.slots[index];
         const slotWrapper = document.createElement("div");
@@ -422,22 +384,6 @@ function renderCardShop(state) {
 
         if (offer) {
             slot.classList.add("has-offer");
-
-            const freezeButton = document.createElement("button");
-            freezeButton.type = "button";
-            freezeButton.className = "card-shop-freeze-button button";
-            freezeButton.dataset.slot = `${index}`;
-
-            if (frozenSlotIndex === index) {
-                freezeButton.textContent = "unfreeze";
-                freezeButton.classList.add("frozen");
-            } else {
-                freezeButton.textContent = "freeze";
-                if (frozenSlotIndex != null) {
-                    freezeButton.classList.add("card-shop-freeze-button--placeholder");
-                }
-            }
-
             const cardButton = document.createElement("button");
             cardButton.type = "button";
             cardButton.className = "card-shop-card";
@@ -514,8 +460,7 @@ function renderCardShop(state) {
             cardContainer.append(cardButton, description);
 
             slot.append(cardContainer, price);
-
-            slotWrapper.append(slot, freezeButton);
+            slotWrapper.append(slot);
         } else {
             slot.classList.add("empty");
             slotWrapper.append(slot);
@@ -564,11 +509,8 @@ function rerollCardShop(state, { silent = false } = {}) {
         return;
     }
     state.cardShop.draggingOffer = null;
-    const frozenSlotIndex = state.cardShop.frozenOffer?.fromSlotIndex ?? null;
     for (let index = 0; index < state.cardShop.slots.length; index += 1) {
-        if (frozenSlotIndex !== index) {
-            state.cardShop.slots[index] = generateCardShopOffer(state);
-        }
+        state.cardShop.slots[index] = generateCardShopOffer(state);
     }
     renderCardShop(state);
 }
@@ -582,10 +524,6 @@ function handleCardShopPurchase(state, source, slotIndex = null) {
         offer = state.cardShop.slots[slotIndex] ?? null;
     }
     if (!offer) {
-        return;
-    }
-    const frozenSlotIndex = state.cardShop.frozenOffer?.fromSlotIndex ?? null;
-    if (frozenSlotIndex === slotIndex) {
         return;
     }
     const offerType = offer.type ?? "card";
@@ -634,7 +572,7 @@ export function setupCardShop(state) {
         state.cardShop.diceUnsubscribe();
     }
 
-    const deckShopProfile = resolveDeckCardShopProfile(state?.config?.id);
+    const deckShopProfile = resolveDeckCardShopProfile();
     const slotCount = Math.max(1, deckShopProfile.slotCount ?? CARD_SHOP_SETTINGS.slotCount);
 
     const baseRerollCostCandidate = Number.isFinite(state?.config?.rerollCost) && state.config.rerollCost >= 0
@@ -652,7 +590,6 @@ export function setupCardShop(state) {
 
     state.cardShop = {
         slots: Array.from({ length: slotCount }, () => null),
-        frozenOffer: null,
         cardPrice: deckShopProfile.cardPrice ?? CARD_SHOP_SETTINGS.cardPrice,
         pools: deckShopProfile.pools,
         poolWeights: deckShopProfile.poolWeights,
@@ -690,28 +627,19 @@ export function setupCardShop(state) {
             return;
         }
         const source = card.dataset.source;
-        let payload = null;
-        if (source === "shop") {
-            const slotIndexValue = Number.parseInt(card.dataset.slot ?? "", 10);
-            if (Number.isNaN(slotIndexValue)) {
-                return;
-            }
-            const offer = state.cardShop.slots[slotIndexValue];
-            if (!offer) {
-                return;
-            }
-            payload = { source: "shop", slotIndex: slotIndexValue, offer };
-        } else if (source === "freeze") {
-            const offer = state.cardShop.frozenOffer?.offer ?? null;
-            if (!offer) {
-                return;
-            }
-            payload = { source: "freeze", offer };
-        }
-
-        if (!payload) {
+        if (source !== "shop") {
             return;
         }
+
+        const slotIndexValue = Number.parseInt(card.dataset.slot ?? "", 10);
+        if (Number.isNaN(slotIndexValue)) {
+            return;
+        }
+        const offer = state.cardShop.slots[slotIndexValue];
+        if (!offer) {
+            return;
+        }
+        const payload = { source: "shop", slotIndex: slotIndexValue, offer };
 
         state.cardShop.draggingOffer = payload;
         state.dom.cardShop.classList.add("card-shop-dragging");
@@ -733,27 +661,6 @@ export function setupCardShop(state) {
     };
 
     state.dom.cardShopSlots.addEventListener("click", (event) => {
-        const freezeButton = event.target.closest(".card-shop-freeze-button");
-        if (freezeButton) {
-            event.stopPropagation();
-            const slotIndexValue = Number.parseInt(freezeButton.dataset.slot ?? "", 10);
-            if (Number.isNaN(slotIndexValue)) {
-                return;
-            }
-            const currentFrozenIndex = state.cardShop.frozenOffer?.fromSlotIndex ?? null;
-            if (currentFrozenIndex === slotIndexValue) {
-                state.cardShop.frozenOffer = null;
-                renderCardShop(state);
-            } else if (currentFrozenIndex == null) {
-                const offer = state.cardShop.slots[slotIndexValue];
-                if (offer) {
-                    state.cardShop.frozenOffer = { offer, fromSlotIndex: slotIndexValue };
-                    renderCardShop(state);
-                }
-            }
-            return;
-        }
-
         const priceButton = event.target.closest(".card-shop-card-price");
         if (priceButton) {
             event.stopPropagation();
@@ -801,15 +708,6 @@ export function setupCardShop(state) {
                 state.cardShop.slots[drag.slotIndex] = current;
                 renderCardShop(state);
             }
-        } else if (drag.source === "freeze") {
-            const current = state.cardShop.slots[targetSlot] ?? null;
-            state.cardShop.slots[targetSlot] = drag.offer;
-            if (current) {
-                state.cardShop.frozenOffer = { offer: current, fromSlotIndex: targetSlot };
-            } else {
-                state.cardShop.frozenOffer = null;
-            }
-            renderCardShop(state);
         }
         clearDragState();
     });

@@ -1,4 +1,4 @@
-import { TOTAL_MAIN_SLOTS, TOTAL_SLOTS } from "./config.js";
+import { STREAK_TARGET, TOTAL_MAIN_SLOTS, TOTAL_SLOTS } from "./config.js";
 import { formatDiceAmount } from "./dice.js";
 
 function isCardDrawn(state, card) {
@@ -51,6 +51,10 @@ export function createDeckElement(config) {
     const controlsGroup = document.createElement("div");
     controlsGroup.className = "poker-controls-group";
 
+    const streakDisplay = document.createElement("span");
+    streakDisplay.className = "poker-streak-counter";
+    streakDisplay.textContent = `streak: 0/${STREAK_TARGET}`;
+
     const handContainer = document.createElement("div");
     handContainer.className = "poker-hand";
     handContainer.setAttribute("aria-live", "polite");
@@ -70,7 +74,7 @@ export function createDeckElement(config) {
 
     const controlsColumn = document.createElement("div");
     controlsColumn.className = "poker-controls-column";
-    controlsColumn.append(controlsGroup, result);
+    controlsColumn.append(streakDisplay, controlsGroup, result);
 
     const upgradeSlotBar = document.createElement("div");
     upgradeSlotBar.className = "upgrade-slot-bar";
@@ -206,7 +210,8 @@ export function createDeckElement(config) {
         upgradeUniqueRow,
         upgradeUniqueList,
         upgradeUniqueRerollButton,
-        autoButton
+        autoButton,
+        streakDisplay
     };
 }
 
@@ -337,4 +342,19 @@ export function updateHandDisplay(container, cards, highlightIndices = [], handS
         }
     }
     container.replaceChildren(...elements);
+}
+
+export function updateStreakDisplay(state) {
+    if (!state?.dom?.streakDisplay) {
+        return;
+    }
+    const streakTarget = Number.isFinite(state?.streakTarget)
+        ? Math.max(1, Math.floor(state.streakTarget))
+        : STREAK_TARGET;
+    const streakValue = Number.isFinite(state?.streak) ? Math.max(0, state.streak) : 0;
+    const completed = state?.permanentlyCompleted === true || streakValue >= streakTarget;
+    state.dom.streakDisplay.textContent = completed
+        ? `streak: ${streakValue}`
+        : `streak: ${streakValue}/${streakTarget}`;
+    state.dom.streakDisplay.classList.toggle("active", streakValue > 0);
 }

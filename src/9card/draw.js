@@ -1,4 +1,4 @@
-import { STREAK_TARGET } from "./config.js";
+import { DEFAULT_AUTO_DRAW_BURN_CARD_COST, STREAK_TARGET } from "./config.js";
 import {
     dealHandFromDeck,
     getCachedDeckCards,
@@ -9,10 +9,99 @@ import {
     getHighlightIndices
 } from "./hand-evaluation.js";
 import { clearPendingDelete, resetDeckToBaseline } from "./deck-management.js";
-import { renderDeckGrid, updateHandDisplay } from "./ui.js";
-import { awardChips } from "./chips.js";
+import { renderDeckGrid, updateHandDisplay, updateStreakDisplay } from "./ui.js";
+import { awardChips, calculateChipReward } from "./chips.js";
 import { awardDice } from "./dice.js";
+import { awardStatus } from "./status.js";
+import {
+    awardBurnCards,
+    canAffordBurnCards,
+    spendBurnCards,
+    formatBurnCardAmount
+} from "./burn-cards.js";
 import { getDefaultDeckEvaluator } from "./evaluators/index.js";
+
+const SUIT_TO_RESOURCE = {
+    "♦": "chips",
+    "♠": "dice",
+    "♣": "burnCard",
+    "♥": "status"
+};
+
+const RESOURCE_SUIT_SYMBOL = {
+    chips: "♦",
+    dice: "♠",
+    status: "♥",
+    burnCard: "♣"
+};
+
+function createSuitBonusState() {
+    return {
+        chips: { multiplier: 1, count: 0, suitSymbol: RESOURCE_SUIT_SYMBOL.chips },
+        dice: { multiplier: 1, count: 0, suitSymbol: RESOURCE_SUIT_SYMBOL.dice },
+        status: { multiplier: 1, count: 0, suitSymbol: RESOURCE_SUIT_SYMBOL.status },
+        burnCard: { multiplier: 1, count: 0, suitSymbol: RESOURCE_SUIT_SYMBOL.burnCard }
+    };
+}
+
+function applySuitBonusBoostsFromState(bonuses, state) {
+    if (!bonuses || !state) {
+        return bonuses;
+    }
+    const boosts = state.suitBonusBoosts && typeof state.suitBonusBoosts === "object" ? state.suitBonusBoosts : null;
+    if (!boosts) {
+        return bonuses;
+    }
+    Object.entries(bonuses).forEach(([key, entry]) => {
+        if (!entry) {
+            return;
+        }
+        const boost = Number.isFinite(boosts[key]) && boosts[key] > 0 ? boosts[key] : 1;
+        entry.multiplier *= boost;
+    });
+    return bonuses;
+}
+
+function calculateSuitBonusMultipliers(cards, highlightIndices, state) {
+    const bonuses = createSuitBonusState();
+    if (!Array.isArray(cards) || !Array.isArray(highlightIndices)) {
+        return applySuitBonusBoostsFromState(bonuses, state);
+    }
+    highlightIndices.forEach((index) => {
+        if (!Number.isInteger(index) || index < 0 || index >= cards.length) {
+            return;
+        }
+        const card = cards[index];
+        const suit = card?.suit;
+        const resourceKey = suit ? SUIT_TO_RESOURCE[suit] : null;
+        if (!resourceKey || !bonuses[resourceKey]) {
+            return;
+        }
+        const entry = bonuses[resourceKey];
+        entry.multiplier *= 2;
+        entry.count += 1;
+    });
+    return applySuitBonusBoostsFromState(bonuses, state);
+}
+
+function getAutoDrawCost(state) {
+    if (!state) {
+        return DEFAULT_AUTO_DRAW_BURN_CARD_COST;
+    }
+    const candidate = Number.isFinite(state.autoDrawBurnCardCost)
+        ? Math.max(0, Math.ceil(state.autoDrawBurnCardCost))
+        : DEFAULT_AUTO_DRAW_BURN_CARD_COST;
+    return candidate;
+}
+
+function disableAutoDueToBurnCardShortage(state, cost) {
+    if (!state) {
+        return;
+    }
+    if (state.autoDrawEnabled && typeof state.setAutoDrawEnabled === "function") {
+        state.setAutoDrawEnabled(false);
+    }
+}
 
 function scheduleNextAutoDraw(state) {
     if (!state?.autoDrawEnabled || state.autoDrawScheduled) {
@@ -29,7 +118,7 @@ function scheduleNextAutoDraw(state) {
             scheduleNextAutoDraw(state);
             return;
         }
-        handleDraw(state);
+        handleDraw(state, { auto: true });
     }, 0);
 }
 
@@ -141,10 +230,11 @@ function collectActiveUpgradeFlags(state) {
     return flags;
 }
 
-export async function handleDraw(state) {
+export async function handleDraw(state, options = {}) {
     if (!state) {
         return;
     }
+    const isAutoDraw = options?.auto === true;
 
     if (state.isAnimating || state.pendingDraw) {
         return;
@@ -160,6 +250,16 @@ export async function handleDraw(state) {
             state.setAutoDrawEnabled(false);
         }
         return;
+    }
+
+    if (isAutoDraw) {
+        const autoCost = getAutoDrawCost(state);
+        if (autoCost > 0) {
+            if (!canAffordBurnCards(autoCost) || !spendBurnCards(autoCost)) {
+                disableAutoDueToBurnCardShortage(state, autoCost);
+                return;
+            }
+        }
     }
 
     clearPendingDelete();
@@ -181,6 +281,9 @@ export async function handleDraw(state) {
             }
             return;
         }
+        if (typeof state.setAutoDrawVisible === "function") {
+            state.setAutoDrawVisible(true);
+        }
 
         const evaluator = typeof state.evaluateHand === "function"
             ? state.evaluateHand
@@ -199,6 +302,10 @@ export async function handleDraw(state) {
         let reachedTarget = false;
         let payout = 0;
         let diceAwarded = 0;
+        let statusAwarded = 0;
+        let burnCardAwarded = 0;
+        const highlightIndices = success ? getHighlightIndices(classification, cards, handSize) : [];
+        let rewardBreakdown = null;
         if (success) {
             state.streak += 1;
             const chipRewardMultiplier =
@@ -206,16 +313,53 @@ export async function handleDraw(state) {
                     ? state.chipRewardMultiplier
                     : 1;
             const baseChipAmount = Number.isFinite(state.baseChipReward) ? state.baseChipReward : 0;
-            payout = awardChips({
-                baseAmount: baseChipAmount * chipRewardMultiplier,
+            const chipBaseAmount = baseChipAmount * chipRewardMultiplier;
+            const chipRewardOptions = {
+                baseAmount: chipBaseAmount,
                 streak: state.streak,
                 streakMultiplier: state.chipStreakMultiplier
+            };
+            const suitBonuses = calculateSuitBonusMultipliers(cards, highlightIndices, state);
+            const chipBaseReward = calculateChipReward(chipRewardOptions);
+            payout = awardChips({
+                ...chipRewardOptions,
+                baseAmount: chipBaseAmount * suitBonuses.chips.multiplier
             });
             const diceRewardMultiplier =
                 Number.isFinite(state?.diceRewardMultiplier) && state.diceRewardMultiplier > 0
                     ? Math.max(1, Math.ceil(state.diceRewardMultiplier))
                     : 1;
-            diceAwarded = awardDice(diceRewardMultiplier);
+            diceAwarded = awardDice(diceRewardMultiplier * suitBonuses.dice.multiplier);
+            const statusBaseAmount = 1;
+            statusAwarded = awardStatus(statusBaseAmount * suitBonuses.status.multiplier);
+            const burnCardBaseAmount = state.streak;
+            burnCardAwarded = awardBurnCards(burnCardBaseAmount * suitBonuses.burnCard.multiplier);
+            rewardBreakdown = {
+                chips: {
+                    baseAmount: chipBaseReward,
+                    finalAmount: payout,
+                    suitCount: suitBonuses.chips.count,
+                    suitSymbol: suitBonuses.chips.suitSymbol
+                },
+                dice: {
+                    baseAmount: diceRewardMultiplier,
+                    finalAmount: diceAwarded,
+                    suitCount: suitBonuses.dice.count,
+                    suitSymbol: suitBonuses.dice.suitSymbol
+                },
+                status: {
+                    baseAmount: statusBaseAmount,
+                    finalAmount: statusAwarded,
+                    suitCount: suitBonuses.status.count,
+                    suitSymbol: suitBonuses.status.suitSymbol
+                },
+                burnCard: {
+                    baseAmount: burnCardBaseAmount,
+                    finalAmount: burnCardAwarded,
+                    suitCount: suitBonuses.burnCard.count,
+                    suitSymbol: suitBonuses.burnCard.suitSymbol
+                }
+            };
             if (state.streak >= STREAK_TARGET) {
                 reachedTarget = true;
                 state.permanentlyCompleted = true;
@@ -234,21 +378,23 @@ export async function handleDraw(state) {
             renderDeckGrid(state);
         }
 
-        const highlightIndices = success ? getHighlightIndices(classification, cards, handSize) : [];
         updateHandDisplay(state.dom.handContainer, cards, highlightIndices, handSize);
 
         const message = buildResultMessage({
             success,
             classification,
-            streak: state.streak,
             permanentlyCompleted: state.permanentlyCompleted,
             payout,
-            diceAwarded
+            diceAwarded,
+            statusAwarded,
+            burnCardAwarded,
+            rewardBreakdown
         });
 
-        state.dom.result.textContent = message;
+        state.dom.result.innerHTML = message;
         state.dom.result.classList.toggle("success", success);
         state.dom.result.classList.toggle("fail", !success);
+        updateStreakDisplay(state);
     } finally {
         state.isAnimating = false;
         state.pendingDraw = false;

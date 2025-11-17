@@ -2,6 +2,8 @@ export default {
     baseChipsAmount: 1,
     baseMultiplierAmount: 1.0,
     baseDrawTime: 2000,
+    autoDrawBurnCardCost: 1,
+    cardShopValueMultiplier: 5,
     basic: {
         increase_payout: {
             cost: 80,

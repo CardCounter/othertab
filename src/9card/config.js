@@ -5,8 +5,11 @@ export const DEFAULT_BASE_CHIP_PAYOUT = 1;
 export const DEFAULT_STREAK_CHIP_MULTIPLIER = 1;
 export const CHIP_SYMBOL = "⛁";
 export const DICE_SYMBOL = "⚂";
+export const UNIQUE_TOKEN_SYMBOL = "🂠";
+export const STATUS_SYMBOL = "♛";
 export const DEFAULT_REROLL_DICE_COST = 1;
 export const DEFAULT_REROLL_DICE_INCREMENT = 1;
+export const DEFAULT_AUTO_DRAW_BURN_CARD_COST = 1;
 
 export const RANKS = [
     { symbol: "2", value: 2, name: "two" },
@@ -134,8 +137,7 @@ export const DECKS = [
 
 export const CARD_SHOP_SETTINGS = {
     cardPrice: 0,
-    slotCount: 5,
-    freezeCapacity: 1
+    slotCount: 5
 };
 
 export const CARD_SHOP_POOL_WEIGHTS = [

@@ -3,20 +3,24 @@ import {
     HAND_LABELS,
     HAND_SIZE,
     DEFAULT_BASE_CHIP_PAYOUT,
-    DEFAULT_STREAK_CHIP_MULTIPLIER
+    DEFAULT_STREAK_CHIP_MULTIPLIER,
+    DEFAULT_AUTO_DRAW_BURN_CARD_COST,
+    STREAK_TARGET
 } from "./config.js";
 import {
     createDeckSlotsFromCards,
     getInitialDeckForChallenge,
     snapshotDeckSlots
 } from "./deck-utils.js";
-import { createDeckElement } from "./ui.js";
+import { createDeckElement, updateStreakDisplay } from "./ui.js";
 import { clearPendingDelete, setupDeckManagement } from "./deck-management.js";
 import { setupCardShop } from "./shop.js";
 import { handleDraw } from "./draw.js";
 import { setupKeyboardControls } from "./keyboard.js";
 import { initChipDisplay } from "./chips.js";
 import { initDiceDisplay } from "./dice.js";
+import { initStatusDisplay } from "./status.js";
+import { formatBurnCardAmount, initBurnCardDisplay } from "./burn-cards.js";
 import { setupDeckUpgrades } from "./upgrades.js";
 import { getDeckEvaluator } from "./evaluators/index.js";
 
@@ -31,6 +35,8 @@ export function initPokerPage() {
 
     initChipDisplay();
     initDiceDisplay();
+    initStatusDisplay();
+    initBurnCardDisplay();
 
     const activateDeck = (state) => {
         if (!state) {
@@ -61,6 +67,7 @@ export function initPokerPage() {
 
         const initialCards = getInitialDeckForChallenge(config.id);
         const deckSlots = createDeckSlotsFromCards(initialCards);
+        const hasPokerHandTarget = typeof config.target === "string" && config.target.length > 0;
         const state = {
             config,
             dom,
@@ -79,22 +86,53 @@ export function initPokerPage() {
             defaultAnimationDuration: 1000,
             defaultAnimationFrameDelay: 70,
             autoDrawEnabled: false,
-            autoDrawUnlocked: false,
+            autoDrawUnlocked: hasPokerHandTarget,
+            autoDrawVisible: false,
             autoDrawScheduled: false,
             autoDrawTimerId: null,
             autoDrawInterval: 0,
+            autoDrawBurnCardCost: DEFAULT_AUTO_DRAW_BURN_CARD_COST,
+            hasPokerHandTarget,
             chipRewardMultiplier: 1,
             diceRewardMultiplier: 1,
+            suitBonusBoosts: {
+                chips: 1,
+                dice: 1,
+                status: 1,
+                burnCard: 1
+            },
             cardShopRarityBoost: false,
+            cardShopValueMultiplier: 1,
             baseChipReward: config.baseChipReward ?? DEFAULT_BASE_CHIP_PAYOUT,
             chipStreakMultiplier:
                 config.chipStreakMultiplier ?? DEFAULT_STREAK_CHIP_MULTIPLIER,
-            evaluateHand: getDeckEvaluator(config.id)
+            evaluateHand: getDeckEvaluator(config.id),
+            streakTarget: STREAK_TARGET
+        };
+
+        const formatAutoDealLabel = () => {
+            const rawCost = Number.isFinite(state.autoDrawBurnCardCost)
+                ? Math.max(0, Math.ceil(state.autoDrawBurnCardCost))
+                : DEFAULT_AUTO_DRAW_BURN_CARD_COST;
+            return `auto deal: ${formatBurnCardAmount(rawCost)}`;
         };
 
         function updateAutoButton() {
             const button = state.dom.autoButton;
             if (!button) {
+                return;
+            }
+            const hasPokerHand = state.hasPokerHandTarget === true;
+            const label = formatAutoDealLabel();
+            const isVisible = state.autoDrawVisible === true;
+            if (!hasPokerHand || !isVisible) {
+                button.hidden = true;
+                button.setAttribute("aria-hidden", "true");
+                button.tabIndex = -1;
+                button.disabled = true;
+                button.classList.remove("auto-draw-enabled");
+                button.setAttribute("aria-pressed", "false");
+                button.textContent = label;
                 return;
             }
             const unlocked = state.autoDrawUnlocked === true;
@@ -110,11 +148,11 @@ export function initPokerPage() {
             if (!unlocked) {
                 button.classList.remove("auto-draw-enabled");
                 button.setAttribute("aria-pressed", "false");
-                button.textContent = "auto: off";
+                button.textContent = label;
                 return;
             }
             button.classList.toggle("auto-draw-enabled", state.autoDrawEnabled);
-            button.textContent = state.autoDrawEnabled ? "auto: on" : "auto: off";
+            button.textContent = label;
             button.setAttribute("aria-pressed", state.autoDrawEnabled ? "true" : "false");
         }
 
@@ -128,6 +166,14 @@ export function initPokerPage() {
 
         function setAutoDrawEnabled(enabled) {
             const nextEnabled = enabled === true;
+            if (!state.hasPokerHandTarget || !state.autoDrawVisible) {
+                if (state.autoDrawEnabled) {
+                    cancelScheduledAutoDraw();
+                    state.autoDrawEnabled = false;
+                }
+                updateAutoButton();
+                return;
+            }
             if (nextEnabled && !state.autoDrawUnlocked) {
                 updateAutoButton();
                 return;
@@ -140,11 +186,25 @@ export function initPokerPage() {
             if (nextEnabled) {
                 updateAutoButton();
                 if (!state.pendingDraw && !state.isAnimating) {
-                    handleDraw(state);
+                    handleDraw(state, { auto: true });
                 }
                 return;
             }
             cancelScheduledAutoDraw();
+            updateAutoButton();
+        }
+
+        function setAutoDrawVisible(visible) {
+            const nextVisible = visible === true && state.hasPokerHandTarget;
+            if (!nextVisible && state.autoDrawEnabled) {
+                cancelScheduledAutoDraw();
+                state.autoDrawEnabled = false;
+            }
+            if (state.autoDrawVisible === nextVisible) {
+                updateAutoButton();
+                return;
+            }
+            state.autoDrawVisible = nextVisible;
             updateAutoButton();
         }
 
@@ -164,19 +224,16 @@ export function initPokerPage() {
 
         state.updateAutoButton = updateAutoButton;
         state.setAutoDrawEnabled = setAutoDrawEnabled;
+        state.setAutoDrawVisible = setAutoDrawVisible;
         state.setAutoDrawUnlocked = setAutoDrawUnlocked;
 
-        setAutoDrawUnlocked(false);
+        setAutoDrawUnlocked(state.hasPokerHandTarget);
+        setAutoDrawVisible(false);
 
         setupDeckManagement(state);
-        setupCardShop(state);
         setupDeckUpgrades(state);
-
-        const autoDrawUpgrade = state.upgrades?.find((upgrade) => upgrade?.id === "auto_draw_unlock");
-        const autoDrawPurchased =
-            autoDrawUpgrade?.purchased === true ||
-            (Number.isFinite(autoDrawUpgrade?.level) && autoDrawUpgrade.level > 0);
-        setAutoDrawUnlocked(autoDrawPurchased);
+        setupCardShop(state);
+        updateStreakDisplay(state);
 
         navButton.addEventListener("click", () => activateDeck(state));
         state.dom.button.addEventListener("click", () => handleDraw(state));

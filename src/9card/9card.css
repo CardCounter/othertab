@@ -60,7 +60,7 @@ footer {
 .chip-counter {
     display: flex;
     align-items: baseline;
-    gap: 0.5rem;
+    gap: 1rem;
     font-family: "Times New Roman", Times, serif;
     letter-spacing: 0.05em;
 }
@@ -78,6 +78,22 @@ footer {
 .dice-counter-value {
     font-size: 1.15rem;
     font-variant-numeric: tabular-nums;
+}
+
+.status-counter-value {
+    font-size: 1.5rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.burn-card-counter-value {
+    font-size: 1.15rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.burn-card-text {
+    display: inline-block;
+    font-size: 1.5rem;
+    line-height: 1;
 }
 
 .poker-tab-button {
@@ -201,6 +217,20 @@ footer {
     flex: 0 0 auto;
 }
 
+.poker-streak-counter {
+    font-size: 1rem;
+    text-transform: lowercase;
+    font-variant-numeric: tabular-nums;
+}
+
+.poker-streak-counter.active {
+    color: blue;
+}
+
+.dark-mode .poker-streak-counter.active {
+    color: red;
+}
+
 .poker-controls-group {
     display: flex;
     align-items: center;
@@ -221,7 +251,6 @@ footer {
     .card-shop-reroll,
     .card-shop-discard-button,
     .card-shop-sort-button,
-    .card-shop-freeze-button,
     .unique-upgrade-reroll,
     .upgrade-card-button
 ) {
@@ -240,7 +269,6 @@ footer {
     .card-shop-reroll,
     .card-shop-discard-button,
     .card-shop-sort-button,
-    .card-shop-freeze-button,
     .unique-upgrade-reroll,
     .upgrade-card-button
 ):hover,
@@ -249,7 +277,6 @@ footer {
     .card-shop-reroll,
     .card-shop-discard-button,
     .card-shop-sort-button,
-    .card-shop-freeze-button,
     .unique-upgrade-reroll,
     .upgrade-card-button
 ):focus-visible {
@@ -262,7 +289,6 @@ footer {
     .card-shop-reroll,
     .card-shop-discard-button,
     .card-shop-sort-button,
-    .card-shop-freeze-button,
     .unique-upgrade-reroll,
     .upgrade-card-button
 ):active {
@@ -278,7 +304,6 @@ footer {
     .card-shop-reroll,
     .card-shop-discard-button,
     .card-shop-sort-button,
-    .card-shop-freeze-button,
     .unique-upgrade-reroll,
     .upgrade-card-button
 ):disabled:hover,
@@ -287,7 +312,6 @@ footer {
     .card-shop-reroll,
     .card-shop-discard-button,
     .card-shop-sort-button,
-    .card-shop-freeze-button,
     .unique-upgrade-reroll,
     .upgrade-card-button
 ):disabled:focus-visible {
@@ -582,10 +606,14 @@ footer {
 }
 
 .poker-result.success {
+    color: inherit;
+}
+
+.poker-result.success .poker-result-accent {
     color: blue;
 }
 
-.dark-mode .poker-result.success {
+.dark-mode .poker-result.success .poker-result-accent {
     color: red;
 }
 
@@ -942,21 +970,6 @@ footer {
     opacity: 0.25;
 }
 
-.card-shop-freeze-button {
-    width: 100%;
-    font-size: 1rem;
-    padding: 0.4rem;
-    text-transform: lowercase;
-    cursor: pointer;
-    text-align: center;
-    flex-shrink: 0;
-}
-
-.card-shop-freeze-button--placeholder {
-    visibility: hidden;
-    pointer-events: none;
-}
-
 .card-shop-card {
     --card-shop-border-light: rgba(255, 255, 255, 0.55);
     --card-shop-border-dark: rgba(0, 0, 0, 0.45);
@@ -1258,6 +1271,9 @@ footer {
     font-size: 0.95rem;
     letter-spacing: 0.03em;
     text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
 }
 
 .upgrade-card-visual {
@@ -1295,9 +1311,12 @@ footer {
     padding: 0.45rem 0.6rem;
     background: var(--page-background-color);
     border: 1px solid currentColor;
-    white-space: nowrap;
+    white-space: normal;
     letter-spacing: 0.03em;
-    text-align: center;
+    text-align: left;
+    align-items: flex-start;
+    width: max-content;
+    max-width: 260px;
     opacity: 0;
     pointer-events: none;
     z-index: 9809890;
@@ -1311,6 +1330,13 @@ footer {
 .upgrade-card-with-visual:focus-within .upgrade-card-stat {
     opacity: 1;
     transform: translate(-50%, -0.75rem);
+}
+
+.upgrade-card-description {
+    font-size: 0.85rem;
+    line-height: 1.4;
+    opacity: 0.9;
+    text-transform: none;
 }
 
 .upgrade-card-visual-label {

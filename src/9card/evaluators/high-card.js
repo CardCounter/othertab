@@ -30,9 +30,35 @@ function hasForceHighCard(cards) {
     });
 }
 
+function hasAce(cards) {
+    if (!Array.isArray(cards)) {
+        return false;
+    }
+    return cards.some((card) => {
+        if (!card) {
+            return false;
+        }
+        const rank = typeof card.rank === "string" ? card.rank.toUpperCase() : "";
+        if (rank === "A") {
+            return true;
+        }
+        return Number.isFinite(card.value) && card.value === 14;
+    });
+}
+
+function shouldForceHighCard(cards, context) {
+    if (hasForceHighCard(cards)) {
+        return true;
+    }
+    if (!context?.state?.highCardAceCountsAsHighCard) {
+        return false;
+    }
+    return hasAce(cards);
+}
+
 function evaluateHand(cards, handSize, context) {
     const result = baseEvaluateHand(cards, handSize, context);
-    if (!hasForceHighCard(cards)) {
+    if (!shouldForceHighCard(cards, context)) {
         return result;
     }
     if (result?.id === "high_card") {

@@ -1,10 +1,27 @@
-import { HAND_SIZE } from "../config.js";
+import { HAND_SIZE, DEFAULT_AUTO_DRAW_BURN_CARD_COST } from "../config.js";
+
+function ensureSuitBonusBoosts(state) {
+    if (!state) {
+        return null;
+    }
+    if (!state.suitBonusBoosts || typeof state.suitBonusBoosts !== "object") {
+        state.suitBonusBoosts = {
+            chips: 1,
+            dice: 1,
+            status: 1,
+            burnCard: 1
+        };
+    }
+    return state.suitBonusBoosts;
+}
 
 export default {
     baseChipsAmount: 1,
     baseMultiplierAmount: 1.0,
     baseDrawTime: 2000,
+    autoDrawBurnCardCost: DEFAULT_AUTO_DRAW_BURN_CARD_COST,
     baseHandSize: HAND_SIZE,
+    cardShopValueMultiplier: 1,
     basic: {
         increase_payout: {
             cost: 25,
@@ -39,150 +56,145 @@ export default {
     },
     unique: [
         {
-            id: "auto_draw_unlock",
-            cost: 250,
+            id: "better_diamonds",
+            cost: 400,
             costGrowthRate: 1,
             costLinearCoefficient: 0,
-            title: "auto draw",
+            title: "better diamonds",
+            description: "doubles the effect of diamonds on chips payout.",
             definition: {
-                id: "auto_draw_unlock",
+                id: "better_diamonds",
                 type: "unique",
                 defaults: {
                     amount: 1
                 },
                 apply(state) {
-                    if (!state) {
+                    const boosts = ensureSuitBonusBoosts(state);
+                    if (!boosts) {
                         return;
                     }
-                    if (typeof state.setAutoDrawUnlocked === "function") {
-                        state.setAutoDrawUnlocked(true);
-                        return;
-                    }
-                    state.autoDrawUnlocked = true;
-                    if (typeof state.updateAutoButton === "function") {
-                        state.updateAutoButton();
-                    }
+                    const current = Number.isFinite(boosts.chips) && boosts.chips > 0 ? boosts.chips : 1;
+                    boosts.chips = Math.max(current, 2);
                 },
                 getCurrentValue(state) {
-                    // Change these strings to update the hover description
-                    return state?.autoDrawUnlocked
-                        ? "auto draw unlocked"
-                        : "auto deal hand";
+                    const current = Number.isFinite(state?.suitBonusBoosts?.chips)
+                        ? state.suitBonusBoosts.chips
+                        : 1;
+                    return current >= 2 ? "diamond effect doubled" : "double diamond effects";
                 },
                 resolveAmount(state, upgrade) {
                     return upgrade?.purchased ? 0 : 1;
                 }
             },
-            backgroundColor: "grey",
-            glyph: "A",
-            glyphColor: "black"
+            backgroundColor: "#fee2e2",
+            glyph: "♦",
+            glyphColor: "#be123c"
         },
         {
-            id: "double_dice_rewards",
+            id: "better_spades",
             cost: 350,
             costGrowthRate: 1,
             costLinearCoefficient: 0,
-            title: "double dice",
+            title: "better spades",
+            description: "doubles the effect of spades on dice payout.",
             definition: {
-                id: "double_dice_rewards",
+                id: "better_spades",
                 type: "unique",
                 defaults: {
                     amount: 1
                 },
                 apply(state) {
-                    if (!state) {
+                    const boosts = ensureSuitBonusBoosts(state);
+                    if (!boosts) {
                         return;
                     }
-                    const current =
-                        Number.isFinite(state.diceRewardMultiplier) && state.diceRewardMultiplier > 0
-                            ? state.diceRewardMultiplier
-                            : 1;
-                    state.diceRewardMultiplier = Math.max(current, 2);
+                    const current = Number.isFinite(boosts.dice) && boosts.dice > 0 ? boosts.dice : 1;
+                    boosts.dice = Math.max(current, 2);
                 },
                 getCurrentValue(state) {
-                    // Change these strings to update the hover description
-                    return Number.isFinite(state?.diceRewardMultiplier) && state.diceRewardMultiplier >= 2
-                        ? "dice rewards doubled"
-                        : "double dice rewards";
+                    const current = Number.isFinite(state?.suitBonusBoosts?.dice)
+                        ? state.suitBonusBoosts.dice
+                        : 1;
+                    return current >= 2 ? "spade effect doubled" : "double spade effects";
                 },
                 resolveAmount(state, upgrade) {
                     return upgrade?.purchased ? 0 : 1;
                 }
             },
-            backgroundColor: "pink",
-            glyph: "⚂",
-            glyphColor: "purple"
+            backgroundColor: "#e2e8f0",
+            glyph: "♠",
+            glyphColor: "#0f172a"
         },
         {
-            id: "double_chip_rewards",
-            cost: 450,
+            id: "better_hearts",
+            cost: 325,
             costGrowthRate: 1,
             costLinearCoefficient: 0,
-            title: "double chips",
+            title: "better hearts",
+            description: "doubles the effect of hearts on status payout.",
             definition: {
-                id: "double_chip_rewards",
+                id: "better_hearts",
                 type: "unique",
                 defaults: {
                     amount: 1
                 },
                 apply(state) {
-                    if (!state) {
+                    const boosts = ensureSuitBonusBoosts(state);
+                    if (!boosts) {
                         return;
                     }
-                    const current =
-                        Number.isFinite(state.chipRewardMultiplier) && state.chipRewardMultiplier > 0
-                            ? state.chipRewardMultiplier
-                            : 1;
-                    state.chipRewardMultiplier = Math.max(current, 2);
+                    const current = Number.isFinite(boosts.status) && boosts.status > 0 ? boosts.status : 1;
+                    boosts.status = Math.max(current, 2);
                 },
                 getCurrentValue(state) {
-                    // Change these strings to update the hover description
-                    return Number.isFinite(state?.chipRewardMultiplier) && state.chipRewardMultiplier >= 2
-                        ? "chip rewards doubled" // bought hover description
-                        : "double chip rewards";
+                    const current = Number.isFinite(state?.suitBonusBoosts?.status)
+                        ? state.suitBonusBoosts.status
+                        : 1;
+                    return current >= 2 ? "heart effect doubled" : "double heart effects";
                 },
                 resolveAmount(state, upgrade) {
                     return upgrade?.purchased ? 0 : 1;
                 }
             },
-            backgroundColor: "gold",
-            glyph: "⛁",
-            glyphColor: "brown"
+            backgroundColor: "#ffe4e6",
+            glyph: "♥",
+            glyphColor: "#be123c"
         },
         {
-            id: "enhanced_card_rarity",
+            id: "better_clubs",
             cost: 300,
             costGrowthRate: 1,
             costLinearCoefficient: 0,
-            title: "rarity boost",
+            title: "better clubs",
+            description: "doubles the effect of clubs on burn card payout.",
             definition: {
-                id: "enhanced_card_rarity",
+                id: "better_clubs",
                 type: "unique",
                 defaults: {
                     amount: 1
                 },
                 apply(state) {
-                    if (!state) {
+                    const boosts = ensureSuitBonusBoosts(state);
+                    if (!boosts) {
                         return;
                     }
-                    state.cardShopRarityBoost = true;
-                    if (typeof state.refreshCardShopOdds === "function") {
-                        state.refreshCardShopOdds();
-                    }
+                    const current =
+                        Number.isFinite(boosts.burnCard) && boosts.burnCard > 0 ? boosts.burnCard : 1;
+                    boosts.burnCard = Math.max(current, 2);
                 },
                 getCurrentValue(state) {
-                    // Change these strings to update the hover description
-                    return state?.cardShopRarityBoost
-                        ? "rarity odds increased"
-                        : "more uncommon and rare cards";
+                    const current = Number.isFinite(state?.suitBonusBoosts?.burnCard)
+                        ? state.suitBonusBoosts.burnCard
+                        : 1;
+                    return current >= 2 ? "club effect doubled" : "double club effects";
                 },
                 resolveAmount(state, upgrade) {
                     return upgrade?.purchased ? 0 : 1;
                 }
             },
-            backgroundColor: "lavender",
-            glyph: "☆",
-            glyphColor: "navy"
+            backgroundColor: "#dcfce7",
+            glyph: "♣",
+            glyphColor: "#166534"
         }
     ]
 };
