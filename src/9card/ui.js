@@ -1,5 +1,4 @@
 import { STREAK_TARGET, TOTAL_MAIN_SLOTS, TOTAL_SLOTS } from "./config.js";
-import { formatDiceAmount } from "./dice.js";
 
 function isCardDrawn(state, card) {
     if (!card) {
@@ -92,12 +91,6 @@ export function createDeckElement(config) {
     deckGrid.setAttribute("role", "list");
     deckGrid.setAttribute("aria-label", "deck cards");
 
-    const cardShop = document.createElement("section");
-    cardShop.className = "card-shop";
-
-    const cardShopUpper = document.createElement("div");
-    cardShopUpper.className = "card-shop-upper";
-
     const cardShopDiscard = document.createElement("div");
     cardShopDiscard.className = "card-shop-discard";
 
@@ -124,32 +117,7 @@ export function createDeckElement(config) {
 
     cardShopDiscard.append(cardShopSortButton, cardShopDiscardButton);
 
-    const cardShopRerollButton = document.createElement("button");
-    cardShopRerollButton.type = "button";
-    cardShopRerollButton.className = "card-shop-reroll";
-
-    const cardShopRerollLabel = document.createElement("span");
-    cardShopRerollLabel.className = "card-shop-reroll-label";
-    cardShopRerollLabel.textContent = "reroll:";
-
-    const cardShopRerollPrice = document.createElement("span");
-    cardShopRerollPrice.className = "card-shop-reroll-price";
-    const initialReroll = document.createElement("span");
-    initialReroll.className = "dice-shop-text";
-    initialReroll.textContent = formatDiceAmount(0);
-    cardShopRerollPrice.append(initialReroll);
-
-    cardShopRerollButton.append(cardShopRerollLabel, cardShopRerollPrice);
-
-    const cardShopSlots = document.createElement("div");
-    cardShopSlots.className = "card-shop-slots";
-    cardShopSlots.setAttribute("role", "list");
-    cardShopSlots.setAttribute("aria-label", "shop cards");
-
-    cardShopUpper.append(cardShopDiscard, cardShopRerollButton);
-    cardShop.append(cardShopUpper, cardShopSlots);
-
-    deckColumn.append(deckGrid, cardShop);
+    deckColumn.append(deckGrid, cardShopDiscard);
 
     const upgradeArea = document.createElement("div");
     upgradeArea.className = "upgrade-area";
@@ -175,6 +143,15 @@ export function createDeckElement(config) {
     upgradeUniqueList.setAttribute("role", "list");
     upgradeUniqueList.setAttribute("aria-label", "unique upgrades");
 
+    const cardShop = document.createElement("section");
+    cardShop.className = "card-shop";
+    const cardShopSlots = document.createElement("div");
+    cardShopSlots.className = "card-shop-slots";
+    cardShopSlots.setAttribute("role", "list");
+    cardShopSlots.setAttribute("aria-label", "shop cards");
+    cardShop.append(cardShopSlots);
+    upgradeUniqueList.append(cardShop);
+
     const upgradeUniqueRerollButton = document.createElement("button");
     upgradeUniqueRerollButton.type = "button";
     upgradeUniqueRerollButton.className = "unique-upgrade-reroll";
@@ -195,10 +172,7 @@ export function createDeckElement(config) {
         result,
         deckGrid,
         cardShop,
-        cardShopUpper,
         cardShopSlots,
-        cardShopRerollButton,
-        cardShopRerollPrice,
         cardShopDiscard,
         cardShopDiscardButton,
         cardShopSortButton,

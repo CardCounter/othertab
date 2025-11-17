@@ -248,7 +248,6 @@ footer {
 
 :is(
     .poker-button,
-    .card-shop-reroll,
     .card-shop-discard-button,
     .card-shop-sort-button,
     .unique-upgrade-reroll,
@@ -266,7 +265,6 @@ footer {
 
 :is(
     .poker-button,
-    .card-shop-reroll,
     .card-shop-discard-button,
     .card-shop-sort-button,
     .unique-upgrade-reroll,
@@ -274,7 +272,6 @@ footer {
 ):hover,
 :is(
     .poker-button,
-    .card-shop-reroll,
     .card-shop-discard-button,
     .card-shop-sort-button,
     .unique-upgrade-reroll,
@@ -286,7 +283,6 @@ footer {
 
 :is(
     .poker-button,
-    .card-shop-reroll,
     .card-shop-discard-button,
     .card-shop-sort-button,
     .unique-upgrade-reroll,
@@ -301,7 +297,6 @@ footer {
 
 :is(
     .poker-button,
-    .card-shop-reroll,
     .card-shop-discard-button,
     .card-shop-sort-button,
     .unique-upgrade-reroll,
@@ -309,7 +304,6 @@ footer {
 ):disabled:hover,
 :is(
     .poker-button,
-    .card-shop-reroll,
     .card-shop-discard-button,
     .card-shop-sort-button,
     .unique-upgrade-reroll,
@@ -648,15 +642,14 @@ footer {
 }
 
 .deck-grid {
-    --deck-card-width: 2.5rem;
-    --deck-card-height: 1.7rem;
+    --deck-card-width: clamp(2.7rem, 3.8vw, 4.25rem);
+    --deck-card-height: clamp(1.95rem, 3vw, 3.1rem);
     flex: 0 0 auto;
     min-height: 0;
     display: grid;
     grid-template-columns: repeat(13, var(--deck-card-width));
     grid-auto-rows: var(--deck-card-height);
-    
-    /* padding: 0.5rem; */
+    gap: 0.25rem;
     overflow: auto;
     align-content: start;
     justify-content: start;
@@ -790,36 +783,23 @@ footer {
     text-transform: lowercase;
     width: 100%;
     flex: 1 1 auto;
-    display: grid;
-    grid-template-rows: minmax(auto, 1fr) auto;
-    gap: 1rem;
     box-sizing: border-box;
-    min-height: 260px;
-}
-
-.card-shop-upper {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    align-items: stretch;
-    gap: 1rem;
-}
-
-.card-shop-upper > * {
-    min-width: 0;
+    min-height: 0;
 }
 
 .card-shop-discard {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     width: 100%;
     align-items: stretch;
+    justify-content: stretch;
     gap: 0.5rem;
     height: 100%;
+    flex: 1 1 0;
 }
 
 .card-shop-discard-button,
-.card-shop-sort-button,
-.card-shop-reroll {
+.card-shop-sort-button {
     padding-block: clamp(0.45rem, 0.35rem + 0.8vw, 0.85rem);
     padding-inline: clamp(1rem, 0.9rem + 1.2vw, 1.75rem);
     font-size: 1rem;
@@ -834,8 +814,11 @@ footer {
     text-transform: lowercase;
     cursor: pointer;
     line-height: 1.05;
-    width: 100%;
     flex: 1 1 0;
+    min-width: 0;
+    align-self: stretch;
+    height: 100%;
+    min-height: 0;
 }
 
 .card-shop-discard-button:disabled {
@@ -871,32 +854,6 @@ footer {
     font-size: 1rem;
 }
 
-.card-shop-reroll {
-    margin-left: 0;
-    text-transform: lowercase;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    cursor: pointer;
-    width: 100%;
-    text-align: center;
-    height: 100%;
-}
-
-.card-shop-reroll:disabled {
-    cursor: default;
-    opacity: 0.45;
-}
-
-.card-shop-reroll-label {
-    font-size: 1rem;
-}
-
-.card-shop-reroll-price {
-    font-size: 1rem;
-}
-
 .dice-text {
     display: inline-block;
     font-size: 1.5rem;
@@ -921,6 +878,7 @@ footer {
     flex-direction: column;
     gap: 0.5rem;
     align-items: stretch;
+    width: 100%;
 }
 
 .card-shop-slot {
@@ -933,6 +891,7 @@ footer {
     gap: 0.5rem;
     background: var(--page-background-color);
     box-sizing: border-box;
+    width: 100%;
 }
 
 .card-shop-card-container {
@@ -970,21 +929,28 @@ footer {
     opacity: 0.25;
 }
 
-.card-shop-card {
-    --card-shop-border-light: rgba(255, 255, 255, 0.55);
-    --card-shop-border-dark: rgba(0, 0, 0, 0.45);
-    background: var(--page-background-color);
-    color: inherit;
-    font-size: 1.25rem;
-    font-weight: 600;
-    min-height: 72px;
+.card-shop-object {
+    box-sizing: border-box;
     width: 100%;
+    height: clamp(96px, 11vw, 148px);
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: default;
-    border: none;
+    border: 4px solid transparent;
     transition: transform 0.15s ease;
+    background-color: var(--page-background-color);
+    color: inherit;
+    font-size: clamp(2.8rem, 4vw, 4rem);
+    font-weight: 600;
+    line-height: 1;
+    text-align: center;
+    padding: clamp(0.25rem, 1vw, 0.5rem);
+}
+
+.card-shop-card {
+    --card-shop-border-light: rgba(255, 255, 255, 0.55);
+    --card-shop-border-dark: rgba(0, 0, 0, 0.45);
 }
 
 .card-shop-card:focus-visible {
@@ -1005,6 +971,9 @@ footer {
     --card-shop-border-dark: rgba(139, 0, 0, 0.7);
     font-family: "Times New Roman", Times, serif;
     font-weight: 700;
+    position: relative;
+    outline: 4px dashed rgba(255, 0, 0, 0.85);
+    outline-offset: -0.5rem;
 }
 
 .card-shop-card-price {
@@ -1021,6 +990,11 @@ footer {
     border-bottom: 4px solid var(--ninecard-button-border-dark);
     box-shadow: none;
     border-radius: 0;
+    width: 100%;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .card-shop-card-price:hover,
@@ -1040,6 +1014,13 @@ footer {
 .card-shop-card.dragging {
     opacity: 0.65;
     transform: scale(1.02);
+}
+
+.card-shop-card.card-shop-card-upgrade {
+    text-transform: lowercase;
+    position: relative;
+    outline: 4px solid var(--card-shop-upgrade-outline-color, currentColor);
+    outline-offset: -0.5rem;
 }
 
 .card-shop-card.suit-hearts {
@@ -1208,11 +1189,7 @@ footer {
 
 .unique-upgrade-list {
     flex: 0 0 auto;
-    display: grid;
-    grid-template-columns: repeat(3, minmax(160px, 1fr));
-    gap: 1.5rem;
-    align-content: start;
-    justify-items: stretch;
+    display: block;
 }
 
 .unique-upgrade-reroll {
@@ -1423,10 +1400,6 @@ footer {
         width: 100%;
     }
 
-    .card-shop-upper {
-        grid-template-columns: 1fr;
-    }
-
     .card-shop-slots {
         grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
     }
@@ -1444,7 +1417,7 @@ footer {
         gap: 0.35rem;
     }
 
-    .unique-upgrade-list {
+    .unique-upgrade-list .card-shop-slots {
         grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
         gap: 1rem;
     }

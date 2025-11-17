@@ -11,12 +11,6 @@ export default {
             costLinearCoefficient: 0.22,
             increaseAmount: 1
         },
-        increase_streak_multiplier: {
-            cost: 25,
-            costGrowthRate: 2.2,
-            costLinearCoefficient: 0.25,
-            increaseAmount: 0.1
-        },
         decrease_draw_time: {
             cost: 100,
             costGrowthRate: 1.2,
@@ -35,6 +29,7 @@ export default {
             costLinearCoefficient: 0,
             title: "highest card",
             description: "hands containing an ace count as high card.",
+            rarity: "rare",
             definition: {
                 id: "highest_card",
                 type: "unique",

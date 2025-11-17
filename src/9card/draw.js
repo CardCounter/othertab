@@ -8,7 +8,11 @@ import {
     buildResultMessage,
     getHighlightIndices
 } from "./hand-evaluation.js";
-import { clearPendingDelete, resetDeckToBaseline } from "./deck-management.js";
+import {
+    clearPendingDelete,
+    fulfillPendingDiscardActivation,
+    resetDeckToBaseline
+} from "./deck-management.js";
 import { renderDeckGrid, updateHandDisplay, updateStreakDisplay } from "./ui.js";
 import { awardChips, calculateChipReward } from "./chips.js";
 import { awardDice } from "./dice.js";
@@ -20,6 +24,8 @@ import {
     formatBurnCardAmount
 } from "./burn-cards.js";
 import { getDefaultDeckEvaluator } from "./evaluators/index.js";
+
+const MIN_AUTO_DRAW_DELAY_MS = 50;
 
 const SUIT_TO_RESOURCE = {
     "♦": "chips",
@@ -103,11 +109,22 @@ function disableAutoDueToBurnCardShortage(state, cost) {
     }
 }
 
+function resolveAutoDrawDelay(state) {
+    if (!state) {
+        return MIN_AUTO_DRAW_DELAY_MS;
+    }
+    if (Number.isFinite(state.autoDrawInterval) && state.autoDrawInterval > 0) {
+        return Math.max(MIN_AUTO_DRAW_DELAY_MS, Math.floor(state.autoDrawInterval));
+    }
+    return MIN_AUTO_DRAW_DELAY_MS;
+}
+
 function scheduleNextAutoDraw(state) {
     if (!state?.autoDrawEnabled || state.autoDrawScheduled) {
         return;
     }
     state.autoDrawScheduled = true;
+    const delay = resolveAutoDrawDelay(state);
     state.autoDrawTimerId = setTimeout(() => {
         state.autoDrawScheduled = false;
         state.autoDrawTimerId = null;
@@ -119,7 +136,7 @@ function scheduleNextAutoDraw(state) {
             return;
         }
         handleDraw(state, { auto: true });
-    }, 0);
+    }, delay);
 }
 
 function resolveHandSize(state) {
@@ -235,6 +252,17 @@ export async function handleDraw(state, options = {}) {
         return;
     }
     const isAutoDraw = options?.auto === true;
+    const discardEngaged =
+        state.deckDiscardActive === true || state.deckDiscardActivationRequested === true;
+
+    if (discardEngaged) {
+        if (!isAutoDraw && state.dom?.result) {
+            state.dom.result.textContent = "finish discarding cards before drawing";
+            state.dom.result.classList.remove("success");
+            state.dom.result.classList.remove("fail");
+        }
+        return;
+    }
 
     if (state.isAnimating || state.pendingDraw) {
         return;
@@ -399,6 +427,7 @@ export async function handleDraw(state, options = {}) {
         state.isAnimating = false;
         state.pendingDraw = false;
         state.dom.button.disabled = false;
+        fulfillPendingDiscardActivation(state);
         if (state.autoDrawEnabled) {
             scheduleNextAutoDraw(state);
         }

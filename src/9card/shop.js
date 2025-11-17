@@ -9,7 +9,8 @@ import { CARD_SHOP_CONFIG } from "./card-shop-config.js";
 import { createStandardDeck, invalidateDeckCache, updateDeckBaseline } from "./deck-utils.js";
 import { renderDeckGrid } from "./ui.js";
 import { formatChipAmount } from "./chips.js";
-import { canAffordDice, formatDiceAmount, spendDice, subscribeToDiceChanges } from "./dice.js";
+import { formatStatusAmount } from "./status.js";
+import { getUnpurchasedUniqueUpgrades, purchaseUpgradeById } from "./upgrades.js";
 
 const DISCARD_SHOP_ITEM = {
     id: "discard",
@@ -42,6 +43,81 @@ const GENERAL_CARD_SHOP_POOLS = {
         cards: []
     }
 };
+
+function buildUpgradeOfferTemplates(state) {
+    const upgrades = getUnpurchasedUniqueUpgrades(state);
+    if (!Array.isArray(upgrades) || upgrades.length === 0) {
+        return [];
+    }
+    return upgrades
+        .map((upgrade) => {
+            if (!upgrade?.id) {
+                return null;
+            }
+            const price = Number.isFinite(upgrade.cost)
+                ? upgrade.cost
+                : Number.isFinite(upgrade.uniqueCost)
+                  ? upgrade.uniqueCost
+                  : 0;
+            const label =
+                typeof upgrade.title === "string" && upgrade.title.trim()
+                    ? upgrade.title.trim()
+                    : upgrade.id;
+            const description =
+                typeof upgrade.description === "string" && upgrade.description.trim()
+                    ? upgrade.description.trim()
+                    : "";
+            const presentation =
+                upgrade.presentation && typeof upgrade.presentation === "object"
+                    ? upgrade.presentation
+                    : {};
+            const glyph =
+                typeof presentation.glyph === "string" && presentation.glyph
+                    ? presentation.glyph
+                    : typeof upgrade.glyph === "string" && upgrade.glyph
+                      ? upgrade.glyph
+                      : null;
+            const glyphColor =
+                typeof presentation.glyphColor === "string" && presentation.glyphColor
+                    ? presentation.glyphColor
+                    : typeof upgrade.glyphColor === "string" && upgrade.glyphColor
+                      ? upgrade.glyphColor
+                      : null;
+            const backgroundColor =
+                typeof presentation.backgroundColor === "string" && presentation.backgroundColor
+                    ? presentation.backgroundColor
+                    : typeof upgrade.backgroundColor === "string" && upgrade.backgroundColor
+                      ? upgrade.backgroundColor
+                      : null;
+            const textSize =
+                typeof presentation.textSize === "string" && presentation.textSize
+                    ? presentation.textSize
+                    : typeof upgrade.textSize === "string" && upgrade.textSize
+                      ? upgrade.textSize
+                      : null;
+            const borderColor =
+                typeof presentation.borderColor === "string" && presentation.borderColor
+                    ? presentation.borderColor
+                    : typeof upgrade.borderColor === "string" && upgrade.borderColor
+                      ? upgrade.borderColor
+                      : null;
+            return {
+                type: "upgrade",
+                upgradeId: upgrade.id,
+                rarity: "uncommon",
+                price,
+                priceCurrency: "status",
+                label,
+                description,
+                glyph,
+                glyphColor,
+                backgroundColor,
+                textSize,
+                borderColor
+            };
+        })
+        .filter(Boolean);
+}
 
 function clonePoolDefinition(pool) {
     if (!pool) {
@@ -184,6 +260,18 @@ function formatChipPrice(value) {
     return formatChipAmount(value, { includeSymbol: true });
 }
 
+function formatOfferPrice(offer) {
+    if (!offer) {
+        return formatChipPrice(0);
+    }
+    const price = Number.isFinite(offer.price) ? offer.price : 0;
+    const currency = offer.priceCurrency ?? "chips";
+    if (currency === "status") {
+        return formatStatusAmount(price);
+    }
+    return formatChipPrice(price);
+}
+
 function resolveCardShopValueMultiplier(state) {
     if (!Number.isFinite(state?.cardShopValueMultiplier)) {
         return 1;
@@ -203,44 +291,6 @@ function resolveCardOfferPrice(state, template) {
         }
     }
     return templatePrice ?? baseCardPrice;
-}
-
-function resolveRerollCost(state) {
-    const cost = state?.cardShop?.rerollDiceCost;
-    if (!Number.isFinite(cost) || cost < 0) {
-        return 0;
-    }
-    return Math.ceil(cost);
-}
-
-function resolveRerollIncrement(state) {
-    const increment = state?.cardShop?.rerollDiceIncrement;
-    if (!Number.isFinite(increment) || increment < 0) {
-        return 0;
-    }
-    return Math.ceil(increment);
-}
-
-function updateRerollDisplay(state) {
-    if (!state?.cardShop) {
-        return;
-    }
-    const cost = resolveRerollCost(state);
-    const formattedCost = formatDiceAmount(cost);
-    const priceElement = state.dom?.cardShopRerollPrice ?? null;
-    if (priceElement) {
-        priceElement.textContent = "";
-        const span = document.createElement("span");
-        span.className = "dice-shop-text";
-        span.textContent = formattedCost;
-        priceElement.append(span);
-    }
-    const button = state.dom?.cardShopRerollButton ?? null;
-    if (button) {
-        const affordable = canAffordDice(cost);
-        button.disabled = !affordable;
-        button.setAttribute("aria-label", `reroll: ${formattedCost}`);
-    }
 }
 
 function getOfferRarity(offer) {
@@ -302,13 +352,21 @@ function selectPoolByWeight(poolOdds) {
     return poolOdds[poolOdds.length - 1] ?? null;
 }
 
-function generateCardShopOffer(state) {
+function generateCardShopOffer(state, context = {}) {
     const selection = selectPoolByWeight(resolveCardShopPoolOdds(state));
     const pool = selection?.pool;
     if (!pool) {
         return null;
     }
-    const template = getRandomArrayItem(pool.cards);
+    let candidates = Array.isArray(pool.cards) ? [...pool.cards] : [];
+    if (
+        pool.id === "uncommon" &&
+        Array.isArray(context.upgradeTemplates) &&
+        context.upgradeTemplates.length > 0
+    ) {
+        candidates = candidates.concat(context.upgradeTemplates);
+    }
+    const template = getRandomArrayItem(candidates);
     if (!template) {
         return null;
     }
@@ -323,9 +381,32 @@ function generateCardShopOffer(state) {
             poolId: pool.id,
             rarity,
             price,
+            priceCurrency: "chips",
             label: template.label ?? "discard",
             icon: template.icon ?? "X",
             textSize
+        };
+    }
+
+    if (type === "upgrade" && template.upgradeId) {
+        if (Array.isArray(context.upgradeTemplates)) {
+            const templateIndex = context.upgradeTemplates.indexOf(template);
+            if (templateIndex >= 0) {
+                context.upgradeTemplates.splice(templateIndex, 1);
+            }
+        }
+        return {
+            type: "upgrade",
+            upgradeId: template.upgradeId,
+            rarity: rarity ?? "uncommon",
+            price: Number.isFinite(template.price) ? template.price : 0,
+            priceCurrency: template.priceCurrency ?? "status",
+            label: template.label ?? template.upgradeId,
+            description: template.description ?? "",
+            glyph: template.glyph ?? null,
+            glyphColor: template.glyphColor ?? null,
+            backgroundColor: template.backgroundColor ?? null,
+            textSize: template.textSize ?? null
         };
     }
 
@@ -346,6 +427,7 @@ function generateCardShopOffer(state) {
         card,
         rarity,
         price,
+        priceCurrency: "chips",
         poolId: pool.id,
         textSize
     };
@@ -372,9 +454,16 @@ function renderCardShop(state) {
 
     const { cardShop } = state;
     const slotsFragment = document.createDocumentFragment();
+    const availableUpgradeIds = new Set(
+        getUnpurchasedUniqueUpgrades(state).map((upgrade) => upgrade.id)
+    );
 
     for (let index = 0; index < cardShop.slots.length; index += 1) {
-        const offer = cardShop.slots[index];
+        let offer = cardShop.slots[index];
+        if (offer?.type === "upgrade" && offer.upgradeId && !availableUpgradeIds.has(offer.upgradeId)) {
+            state.cardShop.slots[index] = null;
+            offer = null;
+        }
         const slotWrapper = document.createElement("div");
         slotWrapper.className = "card-shop-slot-wrapper";
 
@@ -386,18 +475,18 @@ function renderCardShop(state) {
             slot.classList.add("has-offer");
             const cardButton = document.createElement("button");
             cardButton.type = "button";
-            cardButton.className = "card-shop-card";
+            cardButton.className = "card-shop-card card-shop-object";
             cardButton.dataset.source = "shop";
             cardButton.dataset.slot = `${index}`;
 
             const offerType = offer.type ?? "card";
             cardButton.dataset.offerType = offerType;
-            cardButton.draggable = offerType !== "discard";
+            cardButton.draggable = offerType === "card";
 
             const rarity = getOfferRarity(offer);
             if (rarity) {
                 cardButton.dataset.rarity = rarity;
-                if (rarity !== "common" && offerType === "card") {
+                if (rarity !== "common" && offerType !== "discard") {
                     cardButton.classList.add(`rarity-${rarity}`);
                 }
             }
@@ -409,6 +498,7 @@ function renderCardShop(state) {
                     cardButton.dataset.suit = suitName;
                     cardButton.classList.add(`suit-${suitName}`);
                 }
+                cardButton.style.borderColor = "transparent";
 
                 const rank = offer.card?.rank ?? "?";
                 const suit = offer.card?.suit ?? "";
@@ -426,16 +516,36 @@ function renderCardShop(state) {
                 if (!descriptionText && cardLabel) {
                     descriptionText = cardLabel;
                 }
+            } else if (offerType === "upgrade") {
+                cardButton.classList.add("card-shop-card-upgrade");
+                const glyph = offer.glyph ?? null;
+                const labelText = offer.label ?? "upgrade";
+                const description = offer.description ?? "";
+                cardButton.textContent = glyph ?? labelText;
+                const upgradeOutlineColor = offer.borderColor ?? "currentColor";
+                cardButton.style.setProperty("--card-shop-upgrade-outline-color", upgradeOutlineColor);
+                cardButton.style.borderColor = "transparent";
+                if (offer.backgroundColor) {
+                    cardButton.style.backgroundColor = offer.backgroundColor;
+                }
+                if (offer.glyphColor) {
+                    cardButton.style.color = offer.glyphColor;
+                }
+                descriptionText = description ? `${labelText}: ${description}` : labelText;
             } else {
                 cardButton.textContent = offer.icon ?? "X";
                 cardButton.classList.add("card-shop-card-discard");
                 descriptionText = "+1 discard";
+                cardButton.style.borderColor = "transparent";
             }
 
             // apply text size if specified (after all classes are set)
             const textSize = offer.textSize ?? offer.card?.textSize ?? null;
             if (textSize) {
                 cardButton.style.setProperty("font-size", textSize, "important");
+            }
+            if (!textSize) {
+                cardButton.style.removeProperty("font-size");
             }
 
             if (!descriptionText) {
@@ -455,7 +565,9 @@ function renderCardShop(state) {
             price.type = "button";
             price.className = "card-shop-card-price button";
             price.dataset.slot = `${index}`;
-            price.textContent = formatChipPrice(offer.price);
+            const formattedPrice = formatOfferPrice(offer);
+            price.textContent = formattedPrice;
+            price.dataset.currency = offer.priceCurrency ?? "chips";
 
             cardContainer.append(cardButton, description);
 
@@ -470,8 +582,6 @@ function renderCardShop(state) {
     }
 
     state.dom.cardShopSlots.replaceChildren(slotsFragment);
-
-    updateRerollDisplay(state);
 }
 
 export function updateDiscardDisplay(state) {
@@ -486,14 +596,21 @@ export function updateDiscardDisplay(state) {
     const discardButton = state.dom.cardShopDiscardButton ?? null;
     const hasDiscards = count > 0;
     const isActive = state.deckDiscardActive === true && hasDiscards;
+    const isPending = state.deckDiscardActivationRequested === true && !isActive;
 
     if (discardButton) {
         discardButton.disabled = !hasDiscards;
         discardButton.setAttribute("aria-pressed", isActive ? "true" : "false");
         discardButton.classList.toggle("is-active", isActive);
         discardButton.setAttribute("aria-label", `discards: ${count}`);
-        if (!hasDiscards && state.deckDiscardActive) {
+        if (isPending) {
+            discardButton.setAttribute("aria-busy", "true");
+        } else {
+            discardButton.removeAttribute("aria-busy");
+        }
+        if (!hasDiscards) {
             state.deckDiscardActive = false;
+            state.deckDiscardActivationRequested = false;
         }
     }
 
@@ -509,8 +626,11 @@ function rerollCardShop(state, { silent = false } = {}) {
         return;
     }
     state.cardShop.draggingOffer = null;
+    const context = {
+        upgradeTemplates: buildUpgradeOfferTemplates(state)
+    };
     for (let index = 0; index < state.cardShop.slots.length; index += 1) {
-        state.cardShop.slots[index] = generateCardShopOffer(state);
+        state.cardShop.slots[index] = generateCardShopOffer(state, context);
     }
     renderCardShop(state);
 }
@@ -534,6 +654,16 @@ function handleCardShopPurchase(state, source, slotIndex = null) {
             state.cardShop.slots[slotIndex] = null;
         }
         renderCardShop(state);
+        return;
+    }
+    if (offerType === "upgrade") {
+        if (offer.upgradeId) {
+            const purchased = purchaseUpgradeById(state, offer.upgradeId);
+            if (purchased && slotIndex != null && slotIndex >= 0) {
+                state.cardShop.slots[slotIndex] = null;
+                renderCardShop(state);
+            }
+        }
         return;
     }
 
@@ -568,10 +698,6 @@ export function setupCardShop(state) {
         return;
     }
 
-    if (typeof state?.cardShop?.diceUnsubscribe === "function") {
-        state.cardShop.diceUnsubscribe();
-    }
-
     const deckShopProfile = resolveDeckCardShopProfile();
     const slotCount = Math.max(1, deckShopProfile.slotCount ?? CARD_SHOP_SETTINGS.slotCount);
 
@@ -596,13 +722,19 @@ export function setupCardShop(state) {
         draggingOffer: null,
         baseRerollDiceCost: baseRerollCost,
         rerollDiceCost: baseRerollCost,
-        rerollDiceIncrement: rerollIncrement,
-        diceUnsubscribe: null
+        rerollDiceIncrement: rerollIncrement
     };
-    state.cardShop.diceUnsubscribe = subscribeToDiceChanges(() => updateRerollDisplay(state));
     state.refreshCardShopOdds = () => {
         rerollCardShop(state, { silent: true });
     };
+    state.rerollCardShopOffers = () => {
+        rerollCardShop(state);
+    };
+
+    state.uniqueUpgradeRerollCost = state.cardShop.rerollDiceCost;
+    if (typeof state.renderUpgrades === "function") {
+        state.renderUpgrades();
+    }
 
     if (state.discards == null) {
         state.discards = 0;
@@ -712,28 +844,5 @@ export function setupCardShop(state) {
         clearDragState();
     });
 
-    if (state.dom.cardShopRerollButton) {
-        state.dom.cardShopRerollButton.addEventListener("click", () => {
-            if (!state?.cardShop) {
-                return;
-            }
-            const cost = resolveRerollCost(state);
-            if (!canAffordDice(cost)) {
-                updateRerollDisplay(state);
-                return;
-            }
-            if (!spendDice(cost)) {
-                updateRerollDisplay(state);
-                return;
-            }
-            rerollCardShop(state);
-            const increment = resolveRerollIncrement(state);
-            const nextCost = Math.max(0, cost + increment);
-            state.cardShop.rerollDiceCost = nextCost;
-            updateRerollDisplay(state);
-        });
-    }
-
     rerollCardShop(state, { silent: true });
-    updateRerollDisplay(state);
 }

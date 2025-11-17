@@ -32,15 +32,6 @@ export default {
             glyph: "✶",
             glyphColor: "#92400e"
         },
-        increase_streak_multiplier: {
-            cost: 50,
-            costGrowthRate: 1.4,
-            costLinearCoefficient: 0.3,
-            increaseAmount: 0.25,
-            backgroundColor: "#e0e7ff",
-            glyph: "⨉",
-            glyphColor: "#312e81"
-        },
         decrease_draw_time: {
             cost: 100,
             costGrowthRate: 1.5,
@@ -62,6 +53,7 @@ export default {
             costLinearCoefficient: 0,
             title: "better diamonds",
             description: "doubles the effect of diamonds on chips payout.",
+            rarity: "uncommon",
             definition: {
                 id: "better_diamonds",
                 type: "unique",
@@ -97,6 +89,7 @@ export default {
             costLinearCoefficient: 0,
             title: "better spades",
             description: "doubles the effect of spades on dice payout.",
+            rarity: "uncommon",
             definition: {
                 id: "better_spades",
                 type: "unique",
@@ -132,6 +125,7 @@ export default {
             costLinearCoefficient: 0,
             title: "better hearts",
             description: "doubles the effect of hearts on status payout.",
+            rarity: "uncommon",
             definition: {
                 id: "better_hearts",
                 type: "unique",
@@ -167,6 +161,7 @@ export default {
             costLinearCoefficient: 0,
             title: "better clubs",
             description: "doubles the effect of clubs on burn card payout.",
+            rarity: "uncommon",
             definition: {
                 id: "better_clubs",
                 type: "unique",

@@ -8,23 +8,37 @@ import {
     TOTAL_SLOTS
 } from "./config.js";
 
+const RANK_RARITY = new Map([
+    ["10", "uncommon"],
+    ["J", "uncommon"],
+    ["Q", "uncommon"],
+    ["K", "uncommon"],
+    ["A", "rare"]
+]);
+
+function getCardRarity(rankSymbol) {
+    return RANK_RARITY.get(rankSymbol) ?? "common";
+}
+
+const STANDARD_DECK_BLUEPRINT = RANKS.flatMap((rank) =>
+    SUITS.map((suit) => ({
+        rank: rank.symbol,
+        value: rank.value,
+        rankName: rank.name,
+        suit: suit.symbol,
+        suitName: suit.name,
+        suitValue: SUIT_ORDER_INDEX.get(suit.symbol) ?? 0,
+        color: suit.color,
+        label: `${rank.name} of ${suit.name}`,
+        rarity: getCardRarity(rank.symbol)
+    }))
+);
+
 export function createStandardDeck() {
-    const deck = [];
-    RANKS.forEach((rank) => {
-        SUITS.forEach((suit) => {
-            deck.push({
-                rank: rank.symbol,
-                value: rank.value,
-                rankName: rank.name,
-                suit: suit.symbol,
-                suitName: suit.name,
-                color: suit.color,
-                label: `${rank.name} of ${suit.name}`,
-                isDrawn: false
-            });
-        });
-    });
-    return deck;
+    return STANDARD_DECK_BLUEPRINT.map((card) => ({
+        ...card,
+        isDrawn: false
+    }));
 }
 
 export function createRankFilteredDeck(allowedRanks) {

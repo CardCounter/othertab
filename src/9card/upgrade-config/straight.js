@@ -11,12 +11,6 @@ export default {
             costLinearCoefficient: 0.42,
             increaseAmount: 5
         },
-        increase_streak_multiplier: {
-            cost: 65,
-            costGrowthRate: 1.4,
-            costLinearCoefficient: 0.32,
-            increaseAmount: 0.35
-        },
         decrease_draw_time: {
             cost: 160,
             costGrowthRate: 1.6,
@@ -33,6 +27,7 @@ export default {
             cost: 1,
             costGrowthRate: 1,
             costLinearCoefficient: 0,
+            rarity: "rare",
             definition: {
                 id: "straight_four_card_scoring",
                 type: "unique",

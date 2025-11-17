@@ -22,7 +22,7 @@ export const UPGRADE_TYPES = {
     UNIQUE: "unique"
 };
 
-const BASIC_UPGRADE_IDS = ["increase_payout", "increase_streak_multiplier", "decrease_draw_time"];
+const BASIC_UPGRADE_IDS = ["increase_payout", "decrease_draw_time"];
 const BASIC_UPGRADE_ID_SET = new Set(BASIC_UPGRADE_IDS);
 const DEFAULT_UNLOCKED_UPGRADE_SLOTS = 5;
 const MAX_UPGRADE_SLOT_COUNT = 5;
@@ -137,43 +137,6 @@ registerUpgrade({
 });
 
 registerConfigDefinitions(DECK_UPGRADE_CONFIG);
-
-registerUpgrade({
-    id: "increase_streak_multiplier",
-    type: UPGRADE_TYPES.BASIC,
-    title: "streak multiplier",
-    description: "boost the chip payout multiplier for streaks.",
-    cost: 50,
-    costGrowthRate: 1.4,
-    costLinearCoefficient: 0.3,
-    defaults: {
-        amount: 0.25
-    },
-    apply(state, upgrade) {
-        if (!state) {
-            return;
-        }
-        const increase = Number.isFinite(upgrade?.computedAmount)
-            ? upgrade.computedAmount
-            : Number.isFinite(upgrade?.options?.amount)
-              ? upgrade.options.amount
-              : 0;
-        const currentMultiplier = Number.isFinite(state.chipStreakMultiplier)
-            ? state.chipStreakMultiplier
-            : DEFAULT_STREAK_CHIP_MULTIPLIER;
-        const nextMultiplier = currentMultiplier + increase;
-        state.chipStreakMultiplier = Math.max(nextMultiplier, 0);
-    },
-    getCurrentValue(state) {
-        const multiplier = Number.isFinite(state?.chipStreakMultiplier)
-            ? state.chipStreakMultiplier
-            : DEFAULT_STREAK_CHIP_MULTIPLIER;
-        return `multiplier: ${multiplier.toFixed(2)}x`;
-    },
-    resolveAmount(state, upgrade) {
-        return Number.isFinite(upgrade?.baseAmount) ? upgrade.baseAmount : upgrade?.options?.amount ?? 0;
-    }
-});
 
 registerUpgrade({
     id: "decrease_draw_time",
@@ -319,13 +282,25 @@ function createUpgradeInstance(entry) {
               : null;
 
     const backgroundColor = normalizeStringValue(
-        overrides.backgroundColor != null ? overrides.backgroundColor : definition?.backgroundColor
+        overrides.backgroundColor != null
+            ? overrides.backgroundColor
+            : definition?.backgroundColor ?? definition?.presentation?.backgroundColor
     );
     const glyph = normalizeStringValue(overrides.glyph != null ? overrides.glyph : definition?.glyph);
     const glyphColor = normalizeStringValue(
-        overrides.glyphColor != null ? overrides.glyphColor : definition?.glyphColor
+        overrides.glyphColor != null
+            ? overrides.glyphColor
+            : definition?.glyphColor ?? definition?.presentation?.glyphColor
+    );
+    const borderColor = normalizeStringValue(
+        overrides.borderColor != null
+            ? overrides.borderColor
+            : definition?.borderColor ?? definition?.presentation?.borderColor
     );
     const resolvedType = resolveUpgradeType(definition, overrides);
+    const resolvedRarity = normalizeStringValue(
+        overrides.rarity != null ? overrides.rarity : definition?.rarity
+    );
     const providedTextSize = normalizeStringValue(
         overrides.textSize != null ? overrides.textSize : definition?.textSize
     );
@@ -357,6 +332,9 @@ function createUpgradeInstance(entry) {
     if (textSize) {
         instance.textSize = textSize;
     }
+    if (borderColor) {
+        instance.borderColor = borderColor;
+    }
 
     if (resolvedType === UPGRADE_TYPES.UNIQUE) {
         const resolvedUniqueCost =
@@ -383,6 +361,9 @@ function createUpgradeInstance(entry) {
     if (textSize) {
         presentation.textSize = textSize;
     }
+    if (borderColor) {
+        presentation.borderColor = borderColor;
+    }
     if (Object.keys(presentation).length > 0) {
         instance.presentation = presentation;
         if (presentation.backgroundColor) {
@@ -394,6 +375,12 @@ function createUpgradeInstance(entry) {
         if (presentation.glyphColor) {
             instance.glyphColor = presentation.glyphColor;
         }
+        if (presentation.borderColor) {
+            instance.borderColor = presentation.borderColor;
+        }
+    }
+    if (resolvedRarity) {
+        instance.rarity = resolvedRarity;
     }
 
     return instance;
@@ -607,6 +594,10 @@ function normalizeUpgradeEntry(id, config = {}) {
     const textSize = normalizeStringValue(config.textSize);
     if (textSize) {
         entry.textSize = textSize;
+    }
+    const rarity = normalizeStringValue(config.rarity);
+    if (rarity) {
+        entry.rarity = rarity;
     }
 
     return entry;
@@ -903,7 +894,7 @@ function calculateUpgradeAmount(state, upgrade) {
 
 function getUpgradePresentation(upgrade) {
     if (!upgrade) {
-        return { backgroundColor: null, glyph: "", glyphColor: null, textSize: null };
+        return { backgroundColor: null, glyph: "", glyphColor: null, textSize: null, borderColor: null };
     }
     const presentation =
         upgrade.presentation && typeof upgrade.presentation === "object" ? upgrade.presentation : {};
@@ -914,11 +905,14 @@ function getUpgradePresentation(upgrade) {
         normalizeStringValue(upgrade.glyphColor) ?? normalizeStringValue(presentation.glyphColor);
     const textSize =
         normalizeStringValue(upgrade.textSize) ?? normalizeStringValue(presentation.textSize);
+    const borderColor =
+        normalizeStringValue(upgrade.borderColor) ?? normalizeStringValue(presentation.borderColor);
     return {
         backgroundColor: backgroundColor ?? null,
         glyph: glyph ?? "",
         glyphColor: glyphColor ?? null,
-        textSize: textSize ?? null
+        textSize: textSize ?? null,
+        borderColor: borderColor ?? null
     };
 }
 
@@ -1059,6 +1053,11 @@ function createUpgradeCardElement(state, upgrade) {
         card.classList.add("upgrade-card-purchased");
     }
     card.dataset.level = `${level}`;
+    const rarity = normalizeStringValue(upgrade?.rarity);
+    if (rarity) {
+        card.dataset.rarity = rarity;
+        card.classList.add(`rarity-${rarity}`);
+    }
 
     const { backgroundColor, glyph, glyphColor, textSize } = getUpgradePresentation(upgrade);
     const isBasicUpgrade = upgrade.type === UPGRADE_TYPES.BASIC;
@@ -1255,7 +1254,6 @@ function renderUpgrades(state) {
     }
 
     const basicContainer = state.dom.upgradeList;
-    const uniqueContainer = state.dom.upgradeUniqueList;
     const rerollButton = state.dom.upgradeUniqueRerollButton ?? null;
     const uniqueRow = state.dom.upgradeUniqueRow ?? null;
 
@@ -1269,17 +1267,6 @@ function renderUpgrades(state) {
     const basicUpgrades = upgrades.filter((upgrade) => upgrade?.type === UPGRADE_TYPES.BASIC);
     const uniqueCandidates = getUnpurchasedUniqueUpgrades(state);
     const deckHasUniqueUpgrades = upgrades.some((upgrade) => upgrade?.type === UPGRADE_TYPES.UNIQUE);
-    const slotIds = ensureUniqueUpgradeSlotState(state);
-    const slotUpgrades = slotIds.map((slotId) => {
-        if (!slotId) {
-            return null;
-        }
-        const upgrade = upgradesById.get(slotId) ?? null;
-        if (!upgrade || upgrade.type !== UPGRADE_TYPES.UNIQUE || upgrade.purchased === true) {
-            return null;
-        }
-        return upgrade;
-    });
 
     const basicFragment = document.createDocumentFragment();
     if (basicUpgrades.length === 0 && uniqueCandidates.length === 0) {
@@ -1297,27 +1284,10 @@ function renderUpgrades(state) {
     }
     basicContainer.replaceChildren(basicFragment);
 
-    const uniqueFragment = document.createDocumentFragment();
-    for (let index = 0; index < slotIds.length; index += 1) {
-        const upgrade = slotUpgrades[index];
-        if (upgrade) {
-            const card = createUpgradeCardElement(state, upgrade);
-            if (card) {
-                uniqueFragment.append(card);
-            }
-            continue;
-        }
-        const placeholder = document.createElement("article");
-        placeholder.className = "upgrade-card upgrade-card-placeholder";
-        placeholder.setAttribute("role", "listitem");
-        placeholder.setAttribute("aria-hidden", "true");
-        uniqueFragment.append(placeholder);
-    }
-    uniqueContainer.replaceChildren(uniqueFragment);
-
     const hasUpgradePools =
         state.upgradePools && typeof state.upgradePools === "object" && Object.keys(state.upgradePools).length > 0;
-    const shouldShowRow = deckHasUniqueUpgrades || hasUpgradePools;
+    const hasShopSlots = Boolean(state.cardShop);
+    const shouldShowRow = hasShopSlots || deckHasUniqueUpgrades || hasUpgradePools;
     if (uniqueRow) {
         uniqueRow.hidden = !shouldShowRow;
     }
@@ -1328,7 +1298,7 @@ function renderUpgrades(state) {
             rerollButton.hidden = false;
             const rerollCost = resolveUniqueUpgradeRerollCost(state);
             const formattedRerollCost = formatDiceAmount(rerollCost);
-            const hasCandidates = uniqueCandidates.length > 0;
+            const hasCandidates = hasShopSlots;
             const affordable = canAffordDice(rerollCost);
             const disableReroll =
                 state.isPurchasingUpgrades === true ||
@@ -1336,22 +1306,22 @@ function renderUpgrades(state) {
                 !hasCandidates ||
                 !affordable;
             rerollButton.disabled = disableReroll;
-            rerollButton.textContent = "reroll: ";
+            rerollButton.textContent = "reroll shop: ";
             const diceSpan = document.createElement("span");
             diceSpan.className = "dice-shop-text";
             diceSpan.textContent = formattedRerollCost;
             rerollButton.append(diceSpan);
             rerollButton.dataset.cost = `${rerollCost}`;
 
-            let ariaLabel = `reroll unique upgrades for ${formattedRerollCost}`;
+            let ariaLabel = `reroll shop for ${formattedRerollCost}`;
             if (state.isPurchasingUpgrades) {
                 ariaLabel = "reroll unavailable while purchasing upgrades";
             } else if (state.isRerollingUniqueUpgrades) {
                 ariaLabel = "reroll in progress";
             } else if (!hasCandidates) {
-                ariaLabel = "reroll unavailable (no upgrades remaining)";
+                ariaLabel = "reroll unavailable (shop not ready)";
             } else if (!affordable) {
-                ariaLabel = `reroll unique upgrades for ${formattedRerollCost} (not enough dice)`;
+                ariaLabel = `reroll shop for ${formattedRerollCost} (not enough dice)`;
             }
 
             rerollButton.setAttribute("aria-label", ariaLabel);
@@ -1379,7 +1349,7 @@ function resetUniqueUpgradeSlots(state) {
     state.uniqueUpgradeSlots = new Array(UNIQUE_UPGRADE_SLOT_COUNT).fill(null);
 }
 
-function getUnpurchasedUniqueUpgrades(state) {
+export function getUnpurchasedUniqueUpgrades(state) {
     if (!state?.upgrades) {
         return [];
     }
@@ -1511,12 +1481,23 @@ function rerollUniqueUpgrades(state) {
 
     const rerollCost = resolveUniqueUpgradeRerollCost(state);
     if (!spendDice(rerollCost)) {
-        // ensure we respect the minimum cost if spending fails
-        state.uniqueUpgradeRerollCost = Math.max(rerollCost, DEFAULT_UNIQUE_REROLL_COST);
+        const fallbackCost = Math.max(rerollCost, DEFAULT_UNIQUE_REROLL_COST);
+        state.uniqueUpgradeRerollCost = fallbackCost;
+        if (state.cardShop) {
+            state.cardShop.rerollDiceCost = fallbackCost;
+        }
         renderUpgrades(state);
         return;
     }
-    state.uniqueUpgradeRerollCost = rerollCost + 1;
+    const rerollIncrement =
+        Number.isFinite(state?.cardShop?.rerollDiceIncrement) && state.cardShop.rerollDiceIncrement >= 0
+            ? Math.ceil(state.cardShop.rerollDiceIncrement)
+            : 1;
+    const nextCost = Math.max(DEFAULT_UNIQUE_REROLL_COST, rerollCost + rerollIncrement);
+    state.uniqueUpgradeRerollCost = nextCost;
+    if (state.cardShop) {
+        state.cardShop.rerollDiceCost = nextCost;
+    }
     state.isRerollingUniqueUpgrades = true;
 
     try {
@@ -1557,6 +1538,11 @@ function rerollUniqueUpgrades(state) {
         });
 
         fillUniqueUpgradeSlots(state, { randomize: true, force: true });
+        if (typeof state.rerollCardShopOffers === "function") {
+            state.rerollCardShopOffers();
+        } else if (typeof state.refreshCardShopOdds === "function") {
+            state.refreshCardShopOdds();
+        }
     } finally {
         state.isRerollingUniqueUpgrades = false;
     }
@@ -1807,4 +1793,19 @@ export function setupDeckUpgrades(state) {
 
 export function getBasicUpgradeIds() {
     return [...BASIC_UPGRADE_IDS];
+}
+
+export function purchaseUpgradeById(state, upgradeId) {
+    if (!state || !upgradeId) {
+        return false;
+    }
+    const upgrade = state.upgrades?.find((entry) => entry.id === upgradeId);
+    if (!upgrade) {
+        return false;
+    }
+    const purchased = purchaseSingleUpgrade(state, upgrade);
+    if (purchased) {
+        renderUpgrades(state);
+    }
+    return purchased;
 }

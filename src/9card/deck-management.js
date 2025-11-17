@@ -14,6 +14,38 @@ const discardMode = {
     state: null
 };
 
+function isDrawInProgress(state) {
+    return state?.pendingDraw === true || state?.isAnimating === true;
+}
+
+function disableAutoDraw(state) {
+    if (!state) {
+        return;
+    }
+    if (state.autoDrawEnabled && typeof state.setAutoDrawEnabled === "function") {
+        state.setAutoDrawEnabled(false);
+    }
+}
+
+function finalizeDiscardActivation(state) {
+    if (!state?.dom?.deckGrid) {
+        return false;
+    }
+    if ((state.discards ?? 0) <= 0) {
+        state.deckDiscardActivationRequested = false;
+        updateDiscardDisplay(state);
+        return false;
+    }
+    if (discardMode.state && discardMode.state !== state) {
+        deactivateDiscardMode(discardMode.state);
+    }
+    discardMode.state = state;
+    state.deckDiscardActivationRequested = false;
+    setDeckDiscardActive(state, true);
+    updateDiscardDisplay(state);
+    return true;
+}
+
 function getDiscardButton(state) {
     return state?.dom?.cardShopDiscardButton ?? null;
 }
@@ -37,23 +69,40 @@ function activateDiscardMode(state) {
     if ((state.discards ?? 0) <= 0) {
         return;
     }
-    if (discardMode.state && discardMode.state !== state) {
-        deactivateDiscardMode(discardMode.state);
+    state.deckDiscardActivationRequested = true;
+    disableAutoDraw(state);
+    const activated = fulfillPendingDiscardActivation(state);
+    if (!activated && state.dom?.result) {
+        state.dom.result.textContent = "discard mode will activate after the draw finishes";
+        state.dom.result.classList.remove("success");
+        state.dom.result.classList.remove("fail");
     }
-    discardMode.state = state;
-    setDeckDiscardActive(state, true);
-    updateDiscardDisplay(state);
 }
 
 function deactivateDiscardMode(state = discardMode.state) {
     if (!state) {
         return;
     }
+    state.deckDiscardActivationRequested = false;
     setDeckDiscardActive(state, false);
     if (discardMode.state === state) {
         discardMode.state = null;
     }
     updateDiscardDisplay(state);
+}
+
+export function fulfillPendingDiscardActivation(state) {
+    if (!state || state.deckDiscardActivationRequested !== true) {
+        return false;
+    }
+    if (!state.dom?.deckGrid) {
+        state.deckDiscardActivationRequested = false;
+        return false;
+    }
+    if (isDrawInProgress(state)) {
+        return false;
+    }
+    return finalizeDiscardActivation(state);
 }
 
 export function clearPendingDelete(state = discardMode.state) {
@@ -114,6 +163,7 @@ export function setupDeckManagement(state) {
 
     state.sortDeckAndRender = sortAndRenderDeck;
     setDeckDiscardActive(state, false);
+    state.deckDiscardActivationRequested = false;
     if (discardMode.state === state) {
         discardMode.state = null;
     }
@@ -341,7 +391,9 @@ export function setupDeckManagement(state) {
                 updateDiscardDisplay(state);
                 return;
             }
-            if (state.deckDiscardActive === true) {
+            const discardEngaged =
+                state.deckDiscardActive === true || state.deckDiscardActivationRequested === true;
+            if (discardEngaged) {
                 deactivateDiscardMode(state);
             } else {
                 activateDiscardMode(state);
