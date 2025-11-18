@@ -48,7 +48,7 @@ export default {
             title: "all red",
             description: "hearts and diamonds count as the same suit",
             backgroundColor: "#fee2e2",
-            glyph: "♥",
+            glyph: "=",
             glyphColor: "#991b1b"
         }),
         createUniqueFlushDefinition({
@@ -57,7 +57,7 @@ export default {
             title: "all black",
             description: "spades and clubs count as the same suit",
             backgroundColor: "#e2e8f0",
-            glyph: "♠",
+            glyph: "=",
             glyphColor: "#0f172a"
         })
     ]
