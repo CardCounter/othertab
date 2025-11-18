@@ -1038,8 +1038,35 @@ class Minesweeper {
     }
 }
 
+function getSeedFromLocation() {
+    const search = window.location.search || '';
+    if (search.startsWith('?') && search.length > 1) {
+        return decodeURIComponent(search.slice(1));
+    }
+    const pathSegments = (window.location.pathname || '')
+        .split('/')
+        .filter(Boolean);
+    const minesSegmentIndex = pathSegments.indexOf('mines');
+    if (minesSegmentIndex === -1) {
+        return '';
+    }
+    const trailingSegments = pathSegments.slice(minesSegmentIndex + 1);
+    if (!trailingSegments.length) {
+        return '';
+    }
+    return decodeURIComponent(trailingSegments.join('/'));
+}
+
 // initialize the game when the page loads
 window.addEventListener('DOMContentLoaded', () => {
     document.documentElement.classList.remove('js-loading');
     const game = new Minesweeper();
+    const seedString = getSeedFromLocation();
+    if (seedString) {
+        try {
+            game.loadSeed(seedString);
+        } catch (error) {
+            console.error('failed to load mines seed from URL', error);
+        }
+    }
 });
