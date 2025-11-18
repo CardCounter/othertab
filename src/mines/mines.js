@@ -91,10 +91,6 @@ class Minesweeper {
             });
         }
 
-        this.loadButton = document.getElementById('load-button');
-        this.loadPanel = document.getElementById('load-panel');
-        this.seedInput = document.getElementById('seed-input');
-
         this.modeButton = document.getElementById('mode-button');
         this.modePanel = document.getElementById('mode-panel');
         if (this.modeButton && this.modePanel) {
@@ -121,7 +117,6 @@ class Minesweeper {
         this.initializeGrid();
         this.renderGrid();
         this.updateStats();
-        this.initializeLoadControls();
         this.hideTimer();
         this.showGridBorder();
 
@@ -239,105 +234,6 @@ class Minesweeper {
         if (timerEl) {
             timerEl.classList.add('hidden');
         }
-    }
-
-    initializeLoadControls() {
-        if (!this.loadButton || !this.loadPanel || !this.seedInput) {
-            return;
-        }
-
-        const hidePanel = () => {
-            this.loadPanel.classList.add('hidden');
-            this.loadPanel.setAttribute('aria-hidden', 'true');
-            this.loadButton.setAttribute('aria-expanded', 'false');
-            this.seedInput.value = '';
-        };
-
-        const showPanel = () => {
-            this.loadPanel.classList.remove('hidden');
-            this.loadPanel.setAttribute('aria-hidden', 'false');
-            this.loadButton.setAttribute('aria-expanded', 'true');
-            try {
-                this.seedInput.focus({ preventScroll: true });
-            } catch (_) {
-                this.seedInput.focus();
-            }
-        };
-
-        hidePanel();
-
-        let suppressNextOpen = false;
-        const markToggleIntent = () => {
-            suppressNextOpen = !this.loadPanel.classList.contains('hidden');
-        };
-
-        this.loadButton.addEventListener('pointerdown', markToggleIntent);
-        this.loadButton.addEventListener('mousedown', markToggleIntent);
-        this.loadButton.addEventListener('keydown', (event) => {
-            if (event.key === 'Enter' || event.key === ' ') {
-                markToggleIntent();
-            }
-        });
-
-        this.loadButton.addEventListener('click', () => {
-            if (suppressNextOpen) {
-                suppressNextOpen = false;
-                hidePanel();
-                return;
-            }
-            const isHidden = this.loadPanel.classList.contains('hidden');
-            if (isHidden) {
-                showPanel();
-            } else {
-                hidePanel();
-            }
-            if (this.modePanel) {
-                this.modePanel.classList.add('hidden');
-                this.modePanel.setAttribute('aria-hidden', 'true');
-            }
-            if (this.modeButton) {
-                this.modeButton.setAttribute('aria-expanded', 'false');
-            }
-        });
-
-        this.seedInput.addEventListener('keydown', (event) => {
-            if (event.key === 'Enter') {
-                event.preventDefault();
-                const seedStr = this.seedInput.value.trim();
-                if (!seedStr) {
-                    hidePanel();
-                    return;
-                }
-                try {
-                    this.loadSeed(seedStr);
-                    hidePanel();
-                } catch (error) {
-                    return;
-                }
-            } else if (event.key === 'Escape') {
-                event.preventDefault();
-                hidePanel();
-            }
-        });
-
-        this.seedInput.addEventListener('blur', () => {
-            setTimeout(() => {
-                if (this.loadPanel && !this.loadPanel.contains(document.activeElement)) {
-                    hidePanel();
-                }
-            }, 0);
-        });
-
-        document.addEventListener('click', (event) => {
-            if (!this.loadPanel || this.loadPanel.classList.contains('hidden')) {
-                return;
-            }
-            const target = event.target;
-            if (this.loadPanel.contains(target) || this.loadButton.contains(target)) {
-                return;
-            }
-            hidePanel();
-        });
     }
 
     loadSeed(seedString, options = {}) {
@@ -883,7 +779,7 @@ class Minesweeper {
                 shareText = `MINES_${difficultyLabel} + ${attempts} => ${timerValue}`;
             }
             if (this.currentSeed) {
-                shareText += `\n${this.currentSeed}`;
+                shareText += `\nhttps://othertab.com/mines/?${this.currentSeed}`;
             }
         } else if (this.currentSeed) {
             shareText += `\n${this.currentSeed}`;
