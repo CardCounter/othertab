@@ -40,6 +40,22 @@ body {
     text-align: center;
 }
 
+.card-grid > .card:first-child {
+    padding-top: 0;
+}
+
+@media (min-width: 450px) {
+    .card-grid > .card:nth-child(-n + 2) {
+        padding-top: 0;
+    }
+}
+
+@media (min-width: 650px) {
+    .card-grid > .card:nth-child(-n + 3) {
+        padding-top: 0;
+    }
+}
+
 .dark-mode .card {
     background-color: black;
 }
