@@ -1,3 +1,5 @@
+const SHORT_STACK_ID = "straight_four_card_scoring";
+
 export default {
     baseChipsAmount: 1,
     baseMultiplierAmount: 1.0,
@@ -23,13 +25,15 @@ export default {
     },
     unique: [
         {
-            id: "straight_four_card_scoring",
+            id: SHORT_STACK_ID,
             cost: 1,
             costGrowthRate: 1,
             costLinearCoefficient: 0,
             rarity: "rare",
+            title: "short stack",
+            description: "straights can be made with four cards",
             definition: {
-                id: "straight_four_card_scoring",
+                id: SHORT_STACK_ID,
                 type: "unique",
                 defaults: {
                     amount: 1,
@@ -42,7 +46,6 @@ export default {
                     state.straightFourCardActive = true;
                 },
                 getCurrentValue(state) {
-                    // Change these strings to update the hover description
                     return state?.straightFourCardActive
                         ? "4-card straights score"
                         : "straights can be made with four cards";

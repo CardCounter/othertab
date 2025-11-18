@@ -1017,7 +1017,7 @@ footer {
 }
 
 .card-shop-card.card-shop-card-upgrade {
-    text-transform: lowercase;
+    text-transform: none;
     position: relative;
     outline: 4px solid var(--card-shop-upgrade-outline-color, currentColor);
     outline-offset: -0.5rem;
@@ -1143,6 +1143,7 @@ footer {
 .upgrade-slot-glyph {
     font-size: 1.4rem;
     line-height: 1;
+    text-transform: none;
 }
 
 .upgrade-slot-tooltip {
@@ -1153,8 +1154,13 @@ footer {
     padding: 0.45rem 0.6rem;
     background: var(--page-background-color);
     border: 1px solid currentColor;
-    white-space: nowrap;
-    letter-spacing: 0.03em;
+    white-space: pre-wrap;
+    max-width: 1rem;
+    width: min(95vw, 1rem);
+    word-break: break-word;
+    overflow-wrap: break-word;
+    line-height: 1.2;
+    letter-spacing: 0;
     text-align: center;
     opacity: 0;
     pointer-events: none;
@@ -1169,6 +1175,28 @@ footer {
 .upgrade-slot:focus-within .upgrade-slot-tooltip {
     opacity: 1;
     transform: translate(-50%, -0.75rem);
+}
+
+.upgrade-slot-tooltip.tooltip-align-right {
+    left: auto;
+    right: 0;
+    transform: translate(0, -0.25rem);
+}
+
+.upgrade-slot:hover .upgrade-slot-tooltip.tooltip-align-right,
+.upgrade-slot:focus-within .upgrade-slot-tooltip.tooltip-align-right {
+    transform: translate(0, -0.75rem);
+}
+
+.upgrade-slot-tooltip.tooltip-align-left {
+    left: 0;
+    right: auto;
+    transform: translate(0, -0.25rem);
+}
+
+.upgrade-slot:hover .upgrade-slot-tooltip.tooltip-align-left,
+.upgrade-slot:focus-within .upgrade-slot-tooltip.tooltip-align-left {
+    transform: translate(0, -0.75rem);
 }
 
 .upgrade-list {
@@ -1316,6 +1344,24 @@ footer {
     text-transform: none;
 }
 
+.upgrade-card-discard-button {
+    border: none;
+    background: transparent;
+    color: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    padding: 0;
+    cursor: pointer;
+    align-self: flex-start;
+}
+
+.upgrade-card-discard-button:hover,
+.upgrade-card-discard-button:focus-visible {
+    text-decoration: underline;
+}
+
 .upgrade-card-visual-label {
     font-size: 1rem;
     line-height: 1.2;
@@ -1326,8 +1372,8 @@ footer {
 .upgrade-card-glyph {
     font-size: 2rem;
     line-height: 1;
+    text-transform: none;
 }
-
 .upgrade-card-body {
     display: flex;
     justify-content: flex-start;

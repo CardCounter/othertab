@@ -290,7 +290,7 @@ export async function handleDraw(state, options = {}) {
         }
     }
 
-    clearPendingDelete();
+    clearPendingDelete(state);
 
     state.isAnimating = true;
     state.pendingDraw = true;

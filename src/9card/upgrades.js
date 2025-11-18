@@ -962,6 +962,28 @@ function renderUpgradeSlots(state) {
     if (!state?.dom?.upgradeSlots) {
         return;
     }
+    const ensureTooltipPosition = (tooltip) => {
+        if (!tooltip) {
+            return;
+        }
+        tooltip.classList.remove("tooltip-align-right", "tooltip-align-left");
+        const margin = 8;
+        const viewportWidth =
+            window.innerWidth || document.documentElement?.clientWidth || document.body?.clientWidth || 0;
+        if (!viewportWidth) {
+            return;
+        }
+        const rect = tooltip.getBoundingClientRect();
+        if (!rect) {
+            return;
+        }
+        if (rect.right > viewportWidth - margin) {
+            tooltip.classList.add("tooltip-align-right");
+        } else if (rect.left < margin) {
+            tooltip.classList.add("tooltip-align-left");
+        }
+    };
+
     const container = state.dom.upgradeSlots;
     const unlockedSlots = getUnlockedUpgradeSlotCount(state);
     const purchasedUpgrades = getPurchasedUpgradesInOrder(state);
@@ -1026,8 +1048,20 @@ function renderUpgradeSlots(state) {
             slot.setAttribute("aria-label", trimmed);
             const tooltip = document.createElement("div");
             tooltip.className = "upgrade-slot-tooltip";
-            tooltip.textContent = trimmed;
             tooltip.setAttribute("aria-hidden", "true");
+            const words = trimmed.split(/\s+/).filter(Boolean);
+            words.forEach((word, index) => {
+                tooltip.append(document.createTextNode(word));
+                if (index < words.length - 1) {
+                    tooltip.append(document.createElement("br"));
+                }
+            });
+            slot.addEventListener("mouseenter", () =>
+                requestAnimationFrame(() => ensureTooltipPosition(tooltip))
+            );
+            slot.addEventListener("focus", () =>
+                requestAnimationFrame(() => ensureTooltipPosition(tooltip))
+            );
             slot.append(tooltip);
         }
 
@@ -1093,6 +1127,8 @@ function createUpgradeCardElement(state, upgrade) {
         accessibleParts.push(descriptionText);
     }
     const accessibleLabel = accessibleParts.join(". ") || displayTitle || descriptionText || "";
+    const shouldShowDiscardButton = upgrade.type === UPGRADE_TYPES.UNIQUE && upgrade.purchased === true;
+    const discardLabel = displayTitle || titleText || rawTitle || upgrade.id;
 
     if (showVisual) {
         const visual = document.createElement("div");
@@ -1138,6 +1174,17 @@ function createUpgradeCardElement(state, upgrade) {
             stat.append(descriptionElement);
             hasStatContent = true;
         }
+        if (shouldShowDiscardButton) {
+            const discardButton = document.createElement("button");
+            discardButton.type = "button";
+            discardButton.className = "upgrade-card-discard-button";
+            discardButton.dataset.upgradeId = upgrade.id;
+            discardButton.dataset.action = "discard";
+            discardButton.textContent = "discard";
+            discardButton.setAttribute("aria-label", `discard ${discardLabel}`);
+            stat.append(discardButton);
+            hasStatContent = true;
+        }
         if (hasStatContent) {
             header.append(stat);
         }
@@ -1158,6 +1205,17 @@ function createUpgradeCardElement(state, upgrade) {
             descriptionElement.className = "upgrade-card-description";
             descriptionElement.textContent = descriptionText;
             stat.append(descriptionElement);
+            hasStatContent = true;
+        }
+        if (shouldShowDiscardButton) {
+            const discardButton = document.createElement("button");
+            discardButton.type = "button";
+            discardButton.className = "upgrade-card-discard-button";
+            discardButton.dataset.upgradeId = upgrade.id;
+            discardButton.dataset.action = "discard";
+            discardButton.textContent = "discard";
+            discardButton.setAttribute("aria-label", `discard ${discardLabel}`);
+            stat.append(discardButton);
             hasStatContent = true;
         }
         if (hasStatContent) {
@@ -1647,6 +1705,14 @@ function purchaseUpgradeToMax(state, upgrade) {
 }
 
 function handleUpgradeClick(state, event) {
+    const discardButton = event.target.closest(".upgrade-card-discard-button");
+    if (discardButton) {
+        const id = discardButton.dataset.upgradeId;
+        if (id) {
+            discardUpgradeById(state, id);
+        }
+        return;
+    }
     const button = event.target.closest(".upgrade-card-button");
     if (!button) {
         return;
@@ -1791,6 +1857,72 @@ export function setupDeckUpgrades(state) {
     state.renderUpgrades();
 }
 
+function reapplySavedUpgrades(state, levelMap, purchaseOrder) {
+    if (!state || !Array.isArray(purchaseOrder)) {
+        return;
+    }
+    state.purchasedUpgradeOrder = [];
+    purchaseOrder.forEach((upgradeId) => {
+        const targetLevel = Number.isFinite(levelMap?.get(upgradeId)) ? levelMap.get(upgradeId) : 0;
+        if (targetLevel <= 0) {
+            return;
+        }
+        const upgrade = state.upgrades?.find((entry) => entry.id === upgradeId);
+        if (!upgrade) {
+            return;
+        }
+        for (let iteration = 0; iteration < targetLevel; iteration += 1) {
+            applyUpgrade(state, upgrade);
+        }
+    });
+}
+
+function discardUniqueUpgrade(state, upgradeId) {
+    if (!state || !upgradeId) {
+        return false;
+    }
+    const upgrade = state.upgrades?.find((entry) => entry.id === upgradeId);
+    if (!upgrade || upgrade.type !== UPGRADE_TYPES.UNIQUE || !upgrade.purchased) {
+        return false;
+    }
+
+    const levelMap = new Map();
+    state.upgrades.forEach((entry) => {
+        if (!entry?.id) {
+            return;
+        }
+        const entryLevel = Number.isFinite(entry.level) ? entry.level : 0;
+        levelMap.set(entry.id, entryLevel);
+    });
+    levelMap.set(upgradeId, 0);
+
+    const previousOrder = Array.isArray(state.purchasedUpgradeOrder)
+        ? state.purchasedUpgradeOrder.slice()
+        : [];
+    const filteredOrder = previousOrder.filter((id) => id !== upgradeId);
+
+    const previousRerollCost = Number.isFinite(state.uniqueUpgradeRerollCost)
+        ? state.uniqueUpgradeRerollCost
+        : null;
+
+    state.purchasedUpgradeOrder = [];
+    setupDeckUpgrades(state);
+    if (Number.isFinite(previousRerollCost)) {
+        state.uniqueUpgradeRerollCost = previousRerollCost;
+        if (state.cardShop) {
+            state.cardShop.rerollDiceCost = previousRerollCost;
+        }
+    }
+
+    reapplySavedUpgrades(state, levelMap, filteredOrder);
+    renderUpgrades(state);
+    if (typeof state.renderCardShop === "function") {
+        state.renderCardShop();
+    }
+
+    return true;
+}
+
 export function getBasicUpgradeIds() {
     return [...BASIC_UPGRADE_IDS];
 }
@@ -1808,4 +1940,8 @@ export function purchaseUpgradeById(state, upgradeId) {
         renderUpgrades(state);
     }
     return purchased;
+}
+
+export function discardUpgradeById(state, upgradeId) {
+    return discardUniqueUpgrade(state, upgradeId);
 }

@@ -11,8 +11,6 @@ import {
 import { formatChipAmount } from "./chips.js";
 import { formatStatusAmount } from "./status.js";
 import { formatBurnCardAmount } from "./burn-cards.js";
-
-const FOUR_CARD_STRAIGHT_FLAG = "straight_four_card_scoring";
 const CLASSIFICATION_PRIORITY = [
     "royal_flush",
     "straight_flush",
@@ -32,64 +30,6 @@ const VALUE_TO_RANK_SYMBOL = new Map(RANKS.map(({ value, symbol }) => [value, sy
 const SUIT_SYMBOL_TO_NAME = new Map(SUITS.map(({ symbol, name }) => [symbol, name]));
 const SUIT_SYMBOL_TO_COLOR = new Map(SUITS.map(({ symbol, color }) => [symbol, color]));
 const SUIT_SYMBOLS = SUITS.map(({ symbol }) => symbol);
-
-function hasUpgradeFlag(context, flag) {
-    if (!context || !flag) {
-        return false;
-    }
-    if (context.flags instanceof Set && context.flags.has(flag)) {
-        return true;
-    }
-    if (Array.isArray(context.flags) && context.flags.includes(flag)) {
-        return true;
-    }
-    if (Array.isArray(context.flagList) && context.flagList.includes(flag)) {
-        return true;
-    }
-    return false;
-}
-
-function shouldAllowFourCardStraight(context) {
-    if (!context) {
-        return false;
-    }
-    if (context.state?.straightFourCardActive) {
-        return true;
-    }
-    return hasUpgradeFlag(context, FOUR_CARD_STRAIGHT_FLAG);
-}
-
-function findFourCardStraightRun(values) {
-    if (!Array.isArray(values) || values.length < 4) {
-        return null;
-    }
-    const unique = [...new Set(values)].sort((a, b) => a - b);
-    const valueSet = new Set(unique);
-    let best = null;
-
-    unique.forEach((start) => {
-        const sequence = [start, start + 1, start + 2, start + 3];
-        const isRun = sequence.every((value) => valueSet.has(value));
-        if (!isRun) {
-            return;
-        }
-        const high = sequence[sequence.length - 1];
-        if (!best || high > best.high) {
-            best = { sequenceValues: sequence, high };
-        }
-    });
-
-    const wheelSequence = [14, 2, 3, 4];
-    const hasWheel = wheelSequence.every((value) => valueSet.has(value));
-    if (hasWheel) {
-        const wheel = { sequenceValues: wheelSequence, high: 4 };
-        if (!best || wheel.high > best.high) {
-            best = wheel;
-        }
-    }
-
-    return best;
-}
 
 export function isStraight(values, handSize, context = {}) {
     return detectStandardStraight(values, handSize, context);
@@ -128,18 +68,6 @@ export function detectStandardStraight(values, handSize, context = {}) {
                     sequenceValues: wheel
                 };
             }
-        }
-    }
-
-    if (shouldAllowFourCardStraight(context)) {
-        const run = findFourCardStraightRun(unique);
-        if (run) {
-            return {
-                straight: true,
-                high: run.high,
-                length: run.sequenceValues.length,
-                sequenceValues: run.sequenceValues
-            };
         }
     }
 

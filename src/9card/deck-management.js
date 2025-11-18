@@ -394,10 +394,9 @@ export function setupDeckManagement(state) {
             const discardEngaged =
                 state.deckDiscardActive === true || state.deckDiscardActivationRequested === true;
             if (discardEngaged) {
-                deactivateDiscardMode(state);
-            } else {
-                activateDiscardMode(state);
+                return;
             }
+            activateDiscardMode(state);
         });
         discardButton.dataset.deckDiscardButtonAttached = "true";
     }

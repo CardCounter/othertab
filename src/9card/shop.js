@@ -724,6 +724,7 @@ export function setupCardShop(state) {
         rerollDiceCost: baseRerollCost,
         rerollDiceIncrement: rerollIncrement
     };
+    state.renderCardShop = () => renderCardShop(state);
     state.refreshCardShopOdds = () => {
         rerollCardShop(state, { silent: true });
     };
