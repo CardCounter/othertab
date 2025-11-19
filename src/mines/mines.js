@@ -936,7 +936,15 @@ class Minesweeper {
 function getSeedFromLocation() {
     const search = window.location.search || '';
     if (search.startsWith('?') && search.length > 1) {
-        return decodeURIComponent(search.slice(1));
+        const params = new URLSearchParams(search);
+        const seedParam = params.get('seed') || params.get('s');
+        if (seedParam) {
+            return seedParam;
+        }
+        const rawSeed = search.slice(1);
+        if (!rawSeed.includes('=') && !rawSeed.includes('&')) {
+            return decodeURIComponent(rawSeed);
+        }
     }
     const pathSegments = (window.location.pathname || '')
         .split('/')
