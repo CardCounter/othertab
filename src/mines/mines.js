@@ -772,7 +772,7 @@ class Minesweeper {
             }
         })();
 
-        let shareText = `MINES_${difficultyLabel} => ${timerValue}`;
+        let shareText = `MINES_${difficultyLabel}\n${timerValue}`;
         const shareLink = this.currentSeed ? `https://othertab.com/mines/?${this.currentSeed}` : '';
         if (this.isSeedLoadedGame && this.loadedSeedString) {
             const attempts = Math.max(this.loadedSeedAttempts, 1);
