@@ -80,6 +80,12 @@ class Typing {
         this.typingDone = false;
         this.canType = true;
 
+        this.typingWrapper = document.querySelector('.typing-wrapper');
+        this.topVisibleLineIndex = 0;
+        this.currentLineIndex = 0;
+        this.completionIndicator = null;
+        this.resizeRaf = null;
+
         this.stageEl = document.querySelector('.typing-stage');
         if (this.stageEl) {
             this.stageEl.addEventListener('contextmenu', (event) => {
@@ -104,6 +110,7 @@ class Typing {
 
 
         this.initializeBoard(this.numWords);
+        window.addEventListener('resize', () => this.handleResize());
 
         const wordButtons = document.querySelectorAll('.mode-button');
         wordButtons.forEach(button => {
@@ -124,7 +131,11 @@ class Typing {
 
         document.addEventListener('keydown', (e) => {
             this.stopBlinking();
-            if (e.code === 'Space' && document.activeElement.tagName === 'BUTTON') {
+            const isSpace = e.code === 'Space' || e.key === ' ';
+            if (isSpace && document.activeElement.tagName === 'BUTTON') {
+                e.preventDefault();
+            }
+            if (isSpace && this.canType) {
                 e.preventDefault();
             }
             if (this.canType){
@@ -162,8 +173,7 @@ class Typing {
                             this.setTypingTitle(false);
 
 
-                            const typedText = document.getElementById('typed-text');
-                            typedText.innerHTML = typedText.innerHTML + `<span class="tombstone">∎</span>`;
+                            this.updateCompletionMarker();
 
                             this.stopTimer();
 
@@ -211,6 +221,9 @@ class Typing {
 
         typedText.innerHTML = this.displayArray.join('');
         this.characterArray = typedText.querySelectorAll('.character');
+        this.resetScrollPosition();
+        this.ensureCompletionIndicator(typedText);
+        this.updateCompletionMarker();
         this.moveCaretTo(-1);
     }
 
@@ -255,6 +268,91 @@ class Typing {
 
         const popup = document.getElementById('wpm-paste');
         if (popup) popup.classList.add('hidden');
+    }
+
+    resetScrollPosition(){
+        const typedText = document.getElementById('typed-text');
+        if (typedText){
+            typedText.style.transform = 'translateY(0px)';
+        }
+        this.topVisibleLineIndex = 0;
+        this.currentLineIndex = 0;
+    }
+
+    ensureCompletionIndicator(typedText){
+        if (!typedText) return;
+        if (!this.completionIndicator){
+            this.completionIndicator = document.createElement('span');
+            this.completionIndicator.classList.add('completion-indicator');
+        }
+        typedText.appendChild(this.completionIndicator);
+        this.completionIndicator.textContent = '';
+        this.completionIndicator.classList.remove('wrong', 'correct');
+    }
+
+    updateCompletionMarker(){
+        if (!this.completionIndicator) return;
+        this.completionIndicator.classList.remove('wrong', 'correct');
+        if (this.userTyped.length < this.masterArrayLength){
+            this.completionIndicator.textContent = '';
+            return;
+        }
+
+        if (this.boardAllCorrect){
+            this.completionIndicator.textContent = '∎';
+            this.completionIndicator.classList.add('correct');
+            return;
+        }
+
+        this.completionIndicator.textContent = '∅';
+        this.completionIndicator.classList.add('wrong');
+    }
+
+    handleResize(){
+        if (!this.characterArray.length) return;
+        if (this.resizeRaf) cancelAnimationFrame(this.resizeRaf);
+        this.resizeRaf = requestAnimationFrame(() => {
+            this.moveCaretTo(this.currentIndex);
+            this.resizeRaf = null;
+        });
+    }
+
+    getLineHeightPx(){
+        const typedText = document.getElementById('typed-text');
+        if (!typedText) return 0;
+
+        const computed = window.getComputedStyle(typedText);
+        const lineHeight = parseFloat(computed.lineHeight);
+        if (!Number.isNaN(lineHeight) && lineHeight > 0) return lineHeight;
+
+        const fontSize = parseFloat(computed.fontSize);
+        if (!Number.isNaN(fontSize) && fontSize > 0) {
+            return fontSize * 1.2;
+        }
+        return 0;
+    }
+
+    updateScrollForTarget(targetSpan){
+        const typedText = document.getElementById('typed-text');
+        if (!typedText || !targetSpan || !this.characterArray.length) return;
+
+        const firstSpan = this.characterArray[0];
+        if (!firstSpan) return;
+
+        const lineHeight = this.getLineHeightPx();
+        if (!lineHeight) return;
+
+        const firstRect = firstSpan.getBoundingClientRect();
+        const targetRect = targetSpan.getBoundingClientRect();
+        const deltaTop = (targetRect.top - firstRect.top);
+
+        const currentLine = Math.max(Math.round(deltaTop / lineHeight), 0);
+        if (currentLine !== this.currentLineIndex) {
+            this.currentLineIndex = currentLine;
+            this.topVisibleLineIndex = this.currentLineIndex > 0 ? this.currentLineIndex - 1 : 0;
+            const translateY = -(this.topVisibleLineIndex * lineHeight);
+            typedText.style.transform = `translateY(${translateY}px)`;
+        }
     }
 
     backspace(){
@@ -322,23 +420,33 @@ class Typing {
     }
 
     moveCaretTo(index){
-        if (index < this.masterArrayLength - 1){
-            const typedText = document.getElementById('typed-text');
+        const typedText = document.getElementById('typed-text');
+        const caret = document.getElementById('caret');
+        if (!typedText || !caret || !this.characterArray.length) return;
 
-            const target = typedText.querySelectorAll('.character')[index + 1];
-            const caret = document.getElementById('caret');
+        const wrapper = this.typingWrapper || typedText.parentElement;
+        if (!wrapper) return;
+
+        const lastCharIndex = this.characterArray.length - 1;
+        const nextIndex = Math.max(0, Math.min(index + 1, lastCharIndex));
+        const target = this.characterArray[nextIndex];
+        if (!target) return;
+
+        this.updateScrollForTarget(target);
+
+        const wrapperRect = wrapper.getBoundingClientRect();
+        const targetRect = target.getBoundingClientRect();
+
+        caret.style.left = (targetRect.left - wrapperRect.left) + 'px';
+        caret.style.top = (targetRect.top - wrapperRect.top) + 'px';
+
+        if (index < this.masterArrayLength - 1){
             caret.classList.remove('hidden');
-    
-            const textContainerLocation = typedText.getBoundingClientRect();
-            const targetLocation = target.getBoundingClientRect();
-    
-            caret.style.left = (targetLocation.left - textContainerLocation.left) + 'px';
-            caret.style.top = (targetLocation.top - textContainerLocation.top) + 'px';
         }
         else{
-            const caret = document.getElementById('caret');
             caret.classList.add('hidden'); 
         }
+        this.updateCompletionMarker();
     }
 
     startTimer() {
