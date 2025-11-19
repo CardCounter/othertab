@@ -773,16 +773,15 @@ class Minesweeper {
         })();
 
         let shareText = `MINES_${difficultyLabel} => ${timerValue}`;
+        const shareLink = this.currentSeed ? `https://othertab.com/mines/?${this.currentSeed}` : '';
         if (this.isSeedLoadedGame && this.loadedSeedString) {
             const attempts = Math.max(this.loadedSeedAttempts, 1);
             if (attempts > 1) {
                 shareText = `MINES_${difficultyLabel} + ${attempts} => ${timerValue}`;
             }
-            if (this.currentSeed) {
-                shareText += `\nhttps://othertab.com/mines/?${this.currentSeed}`;
-            }
-        } else if (this.currentSeed) {
-            shareText += `\n${this.currentSeed}`;
+        }
+        if (shareLink) {
+            shareText += `\n${shareLink}`;
         }
         this.currentShareText = shareText;
         if (this.shareButtonResetTimeout) {
