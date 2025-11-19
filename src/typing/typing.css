@@ -178,12 +178,11 @@ button:focus {
     position: relative;
     width: 100%;
     max-width: 1000px;
-    height: 200px;
-    font-size: 24px;
-
-    /* height: calc(1.2em * 3); */
-    height: auto;
+    font-size: var(--typing-font-size);
     line-height: 1.2;
+    min-height: calc(var(--typing-font-size) * 1.2 * 2);
+    max-height: calc(var(--typing-font-size) * 1.2 * 12);
+    overflow: hidden;
 }
 
 .typed-text {
@@ -200,6 +199,10 @@ button:focus {
     overflow-wrap: pre-wrap;
     word-break: normal;
 
+    display: inline-block;
+    transform: translateY(0);
+
+
     font-size: var(--typing-font-size);
     line-height: 1.2;
     color: grey;
@@ -214,6 +217,27 @@ button:focus {
 
 .dark-mode .typed-text {
     color: grey;
+}
+
+.completion-indicator {
+    margin-left: 0.35rem;
+    font-weight: 600;
+}
+
+.completion-indicator.wrong {
+    color: black;
+}
+
+.dark-mode .completion-indicator.wrong {
+    color: white;
+}
+
+.completion-indicator.correct {
+    color: black;
+}
+
+.dark-mode .completion-indicator.correct {
+    color: white;
 }
 
 .caret{
