@@ -71,6 +71,10 @@ body {
     color: inherit;
 }
 
+button {
+    font-style: italic;
+}
+
 .title {
     font-size: 1rem;
     font-weight: 700;
