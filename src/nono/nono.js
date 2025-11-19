@@ -1,4 +1,4 @@
-import { buildNonoShareLink } from "../scripts/nono-share-link.js";
+import { buildNonoShareLink } from "./nono-share-link.js";
 
 // settings panel
 document.addEventListener('DOMContentLoaded', () => {
@@ -1725,7 +1725,7 @@ class Nono {
 
         const sizeLabel = currentGame.size < 10 ? `0${currentGame.size}` : `${currentGame.size}`;
         const shareLink = buildNonoShareLink(seedStr);
-        const plainText = `NONO_${sizeLabel} => ${timeString}${shareLink ? `\n${shareLink}` : ''}`;
+        const plainText = `NONO_${sizeLabel}\n${timeString}${shareLink ? `\n${shareLink}` : ''}`;
 
         const shareButton = document.getElementById('copy-button');
         if (shareButton) shareButton.classList.remove('hidden');

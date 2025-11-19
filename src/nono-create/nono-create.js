@@ -1,4 +1,4 @@
-import { buildNonoShareLink } from "../scripts/nono-share-link.js";
+import { buildNonoShareLink } from "../nono/nono-share-link.js";
 
 (function () {
   "use strict";
