@@ -1,16 +1,18 @@
+import { buildNonoShareLink } from "../scripts/nono-share-link.js";
+
 // settings panel
 document.addEventListener('DOMContentLoaded', () => {
     const settingsButton = document.getElementById('settings-button');
     const settingsPanel = document.getElementById('settings-panel');
-    const loadPanel = document.getElementById('load-panel');
+
+    if (!settingsButton || !settingsPanel) {
+        return;
+    }
 
     settingsButton.addEventListener('click', (e) => {
         const isHidden = settingsPanel.classList.contains('hidden');
         if (isHidden) {
             settingsPanel.classList.remove('hidden');
-            if (loadPanel) {
-                loadPanel.classList.add('hidden');
-            }
         } else {
             settingsPanel.classList.add('hidden');
         }
@@ -32,7 +34,6 @@ document.addEventListener('DOMContentLoaded', () => {
     settingsPanel.addEventListener('click', (e) => {
         e.stopPropagation();
     });
-
 });
 
 class Nono {
@@ -130,81 +131,20 @@ class Nono {
         this.mainKeyActions();
 
         // ensure seed/load buttons exist even if not in html
-        this.ensureSeedLoadButtons();
         // seed / load ui
         this.initSeedControls();
     }
 
-    ensureSeedLoadButtons() {
-        const footer = document.querySelector('footer');
-        const settingsGroup = footer?.querySelector('.settings-group');
-        if (!footer || !settingsGroup) return;
-
-        const sizeAnchor = settingsGroup.querySelector('.panel-anchor');
-
-        let seedBtn = document.getElementById('seed-button');
-        if (!seedBtn) {
-            seedBtn = document.createElement('button');
-            seedBtn.id = 'seed-button';
-            seedBtn.className = 'settings-button';
-            seedBtn.textContent = 'seed';
-            if (sizeAnchor?.nextSibling) {
-                settingsGroup.insertBefore(seedBtn, sizeAnchor.nextSibling);
-            } else {
-                settingsGroup.appendChild(seedBtn);
-            }
-        }
-
-        let loadBtn = document.getElementById('load-button');
-        let loadAnchor = loadBtn?.closest('.panel-anchor') ?? null;
-        if (!loadBtn) {
-            loadAnchor = document.createElement('div');
-            loadAnchor.className = 'panel-anchor';
-            loadBtn = document.createElement('button');
-            loadBtn.id = 'load-button';
-            loadBtn.className = 'settings-button';
-            loadBtn.textContent = 'load';
-            loadAnchor.appendChild(loadBtn);
-            settingsGroup.appendChild(loadAnchor);
-        } else if (!loadAnchor) {
-            loadAnchor = document.createElement('div');
-            loadAnchor.className = 'panel-anchor';
-            loadBtn.replaceWith(loadAnchor);
-            loadAnchor.appendChild(loadBtn);
-            settingsGroup.appendChild(loadAnchor);
-        }
-
-        // ensure load panel exists and is inside the anchor
-        let loadPanel = document.getElementById('load-panel');
-        if (!loadPanel) {
-            loadPanel = document.createElement('div');
-            loadPanel.id = 'load-panel';
-            loadPanel.className = 'settings-panel hidden';
-            loadPanel.style.gap = '0.5rem';
-            loadPanel.style.padding = '0.5rem';
-            loadPanel.innerHTML = `
-                <input id="seed-input" type="text" placeholder="enter seed" style="width: 100%;" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
-            `;
-        }
-
-        if (loadAnchor) {
-            loadAnchor.appendChild(loadPanel);
-        } else {
-            settingsGroup.appendChild(loadPanel);
-        }
-    }
-
     initSeedControls() {
         const seedBtn = document.getElementById('seed-button');
-        const loadBtn = document.getElementById('load-button');
-        const loadPanelEl = document.getElementById('load-panel');
-        const seedInput = document.getElementById('seed-input');
         const sizeBtn = document.getElementById('settings-button');
         let copyResetTimer = null;
 
         const setCopyInterlock = (locked) => {
-            [sizeBtn, loadBtn].forEach(btn => {
-                if (!btn) return;
+            [sizeBtn, seedBtn].forEach(btn => {
+                if (!btn) {
+                    return;
+                }
                 btn.disabled = locked;
                 if (locked) {
                     btn.setAttribute('aria-disabled', 'true');
@@ -214,22 +154,14 @@ class Nono {
             });
         };
 
-        const hideLoadPanel = () => {
-            if (!loadPanelEl || !seedInput) return;
-            loadPanelEl.classList.add('hidden');
-            seedInput.value = '';
-        };
-
         if (seedBtn) {
             seedBtn.addEventListener('click', async () => {
                 const settingsPanel = document.getElementById('settings-panel');
                 settingsPanel?.classList.add('hidden');
-                hideLoadPanel();
                 try {
                     const seedStr = window.Seed ? window.Seed.createSeedFromLayout(this.possibleLayout, this.size) : '';
-                    if (!seedStr) return;
-
-                    if (!navigator.clipboard || !navigator.clipboard.writeText) {
+                    const shareLink = buildNonoShareLink(seedStr);
+                    if (!shareLink || !navigator.clipboard || !navigator.clipboard.writeText) {
                         return;
                     }
                     setCopyInterlock(true);
@@ -237,7 +169,7 @@ class Nono {
                         clearTimeout(copyResetTimer);
                         copyResetTimer = null;
                     }
-                    await navigator.clipboard.writeText(seedStr);
+                    await navigator.clipboard.writeText(shareLink);
                     seedBtn.textContent = 'copied';
                     copyResetTimer = setTimeout(() => {
                         seedBtn.textContent = 'seed';
@@ -252,72 +184,6 @@ class Nono {
                     seedBtn.textContent = 'seed';
                     setCopyInterlock(false);
                 }
-            });
-        }
-
-        if (loadBtn && loadPanelEl && seedInput) {
-            let suppressNextOpen = false;
-
-            const markToggleIntent = () => {
-                suppressNextOpen = !loadPanelEl.classList.contains('hidden');
-            };
-
-            loadBtn.addEventListener('pointerdown', markToggleIntent);
-            loadBtn.addEventListener('mousedown', markToggleIntent);
-            loadBtn.addEventListener('keydown', (event) => {
-                if (event.key === 'Enter' || event.key === ' ') {
-                    markToggleIntent();
-                }
-            });
-
-            loadBtn.addEventListener('click', () => {
-                // show the panel above buttons without hiding them
-                if (suppressNextOpen) {
-                    suppressNextOpen = false;
-                    hideLoadPanel();
-                    return;
-                }
-                const isHidden = loadPanelEl.classList.contains('hidden');
-                if (isHidden) {
-                    loadPanelEl.classList.remove('hidden');
-                    try {
-                        seedInput.focus({ preventScroll: true });
-                    } catch (_) {
-                        seedInput.focus();
-                    }
-                } else {
-                    hideLoadPanel();
-                }
-                const settingsPanel = document.getElementById('settings-panel');
-                settingsPanel?.classList.add('hidden');
-            });
-
-            seedInput.addEventListener('keydown', (event) => {
-                if (event.key === 'Enter') {
-                    event.preventDefault();
-                    const seedStr = seedInput.value.trim();
-                    if (!seedStr) {
-                        hideLoadPanel();
-                        return;
-                    }
-                    try {
-                        this.loadSeed(seedStr);
-                        hideLoadPanel();
-                    } catch (e) {
-                        // invalid seed; leave panel open for correction
-                    }
-                } else if (event.key === 'Escape') {
-                    event.preventDefault();
-                    hideLoadPanel();
-                }
-            });
-
-            seedInput.addEventListener('blur', () => {
-                setTimeout(() => {
-                    if (!loadPanelEl.contains(document.activeElement)) {
-                        hideLoadPanel();
-                    }
-                }, 0);
             });
         }
     }
@@ -718,10 +584,6 @@ class Nono {
     mainKeyActions(){
         document.addEventListener('keydown', (e) => {
             if ((e.code === 'Enter' || e.code === 'NumpadEnter') && !e.repeat) {
-                const activeEl = document.activeElement;
-                if (activeEl && activeEl.id === 'seed-input') {
-                    return;
-                }
                 this.reset();
                 return;
             }
@@ -1881,7 +1743,8 @@ class Nono {
         if (timerElement) timerElement.textContent = `${timeString}`;
 
         const sizeLabel = currentGame.size < 10 ? `0${currentGame.size}` : `${currentGame.size}`;
-        const plainText = `NONO_${sizeLabel} => ${timeString}${seedStr ? `\n${seedStr}` : ''}`;
+        const shareLink = buildNonoShareLink(seedStr);
+        const plainText = `NONO_${sizeLabel} => ${timeString}${shareLink ? `\n${shareLink}` : ''}`;
 
         const shareButton = document.getElementById('copy-button');
         if (shareButton) shareButton.classList.remove('hidden');
@@ -1903,13 +1766,47 @@ class Nono {
 
 }
 
+function getSeedFromLocation() {
+    const search = window.location.search || '';
+    if (search.startsWith('?') && search.length > 1) {
+        const params = new URLSearchParams(search);
+        const seedParam = params.get('seed') || params.get('s');
+        if (seedParam) {
+            return seedParam;
+        }
+        const rawSeed = search.slice(1);
+        if (!rawSeed.includes('=') && !rawSeed.includes('&')) {
+            return decodeURIComponent(rawSeed);
+        }
+    }
+    const pathSegments = (window.location.pathname || '').split('/').filter(Boolean);
+    const nonoSegmentIndex = pathSegments.indexOf('nono');
+    if (nonoSegmentIndex === -1) {
+        return '';
+    }
+    const trailingSegments = pathSegments.slice(nonoSegmentIndex + 1);
+    if (!trailingSegments.length) {
+        return '';
+    }
+    return decodeURIComponent(trailingSegments.join('/'));
+}
+
 window.addEventListener('DOMContentLoaded', () => {
     const notifyReady = () => {
         document.dispatchEvent(new Event('fouc:ready'));
     };
 
+    let game;
     try {
-        new Nono();
+        game = new Nono();
+        const seedString = getSeedFromLocation();
+        if (seedString) {
+            try {
+                game.loadSeed(seedString);
+            } catch (error) {
+                console.error('failed to load nono seed from URL', error);
+            }
+        }
     } finally {
         if (typeof window.requestAnimationFrame === 'function') {
             window.requestAnimationFrame(notifyReady);

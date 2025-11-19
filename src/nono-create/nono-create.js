@@ -1,3 +1,5 @@
+import { buildNonoShareLink } from "../scripts/nono-share-link.js";
+
 (function () {
   "use strict";
 
@@ -391,14 +393,19 @@
         }
         try {
           const seed = window.Seed.createSeedFromLayout(board, size);
+          const shareLink = buildNonoShareLink(seed);
+          const copyValue = shareLink || seed;
+          if (!copyValue) {
+            throw new Error("Unable to build seed");
+          }
           if (navigator.clipboard && navigator.clipboard.writeText) {
-            await navigator.clipboard.writeText(seed);
+            await navigator.clipboard.writeText(copyValue);
             seedButton.textContent = "copied";
             setTimeout(() => {
               seedButton.textContent = "seed";
             }, 1200);
           } else {
-            window.prompt("Seed", seed);
+            window.prompt("Seed URL", copyValue);
           }
         } catch (error) {
           console.error("Unable to copy seed", error);

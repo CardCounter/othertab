@@ -484,8 +484,7 @@ button:hover {
     /* color: red; */
 }
 
-#settings-panel,
-#load-panel {
+#settings-panel {
     position: absolute;
     left: 0;
     bottom: calc(100% + 4px);
@@ -499,12 +498,7 @@ button:hover {
     flex-direction: row;
 }
 
-#load-panel {
-    left: auto;
-}
-
-#settings-panel:not(.hidden),
-#load-panel:not(.hidden) {
+#settings-panel:not(.hidden) {
     display: flex;
 }
 
@@ -519,41 +513,4 @@ button:hover {
     position: relative;
     display: inline-flex;
     align-items: center;
-}
-
-/* keep this, janky */
-#load-panel {
-    /* z-index: 1000; */
-    background: var(--bg-color);
-    min-width: 9rem;
-    left: -4.5rem;
-    right: 0;
-    bottom: calc(100% + 4px);
-}
-
-#load-panel input {
-    color: var(--color);
-    background-color: var(--bg-color);
-    border: none;
-    caret-color: blue;
-    font-size: 16px;
-}
-
-#load-panel input:focus {
-    outline: none;
-    box-shadow: none;
-}
-
-#load-panel input::placeholder {
-    color: grey;
-}
-
-.dark-mode #load-panel input {
-    background-color: black;
-    color: white;
-    caret-color: red;
-}
-
-.dark-mode #load-panel input::placeholder {
-    color: grey;
 }
