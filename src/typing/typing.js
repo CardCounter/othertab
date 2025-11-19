@@ -1,3 +1,4 @@
+import { TypingSeed } from './seed.js';
 import { words_none } from './words/1k.js';
 
 
@@ -56,7 +57,8 @@ class Typing {
 
 
         this.words = words_none; 
-        this.wordsLength = this.words.length - 1;
+        this.wordListKey = 'none';
+        this.wordListSize = this.words.length;
 
 
         this.masterString = '';
@@ -66,6 +68,8 @@ class Typing {
         this.characterArray = [];
         this.userTyped = [];
         this.currentIndex = -1;
+        this.currentSeed = '';
+        this.currentWordIndices = [];
 
         this.timer = 0;
         this.timerInterval = null;
@@ -79,6 +83,7 @@ class Typing {
         this.boardAllCorrect = false;
         this.typingDone = false;
         this.canType = true;
+        this.shareResetTimer = null;
 
         this.typingWrapper = document.querySelector('.typing-wrapper');
         this.topVisibleLineIndex = 0;
@@ -104,19 +109,36 @@ class Typing {
             this.currentWordMode = 'mode-50';
         }
         
-        document.getElementById(this.currentWordMode).classList.add('active');
-        this.numWords = document.getElementById(this.currentWordMode).dataset.time;
+        this.wordButtons = document.querySelectorAll('.mode-button');
+        const initialModeButton = document.getElementById(this.currentWordMode);
+        if (initialModeButton){
+            initialModeButton.classList.add('active');
+            this.numWords = parseInt(initialModeButton.dataset.time, 10);
+        }
+        else{
+            this.currentWordMode = 'mode-50';
+            this.numWords = 50;
+            const fallbackButton = document.getElementById(this.currentWordMode);
+            if (fallbackButton){
+                fallbackButton.classList.add('active');
+            }
+        }
+        if (!Number.isFinite(this.numWords) || this.numWords <= 0){
+            this.numWords = 50;
+        }
 
 
 
-        this.initializeBoard(this.numWords);
+        const seeded = this.initializeFromUrlSeed();
+        if (!seeded){
+            this.resetBoard(this.numWords);
+        }
         window.addEventListener('resize', () => this.handleResize());
 
-        const wordButtons = document.querySelectorAll('.mode-button');
-        wordButtons.forEach(button => {
+        this.wordButtons.forEach(button => {
             button.addEventListener('click', () => {
 
-                wordButtons.forEach(btn => btn.classList.remove('active'));
+                this.wordButtons.forEach(btn => btn.classList.remove('active'));
                 
 
                 button.classList.add('active');
@@ -124,7 +146,7 @@ class Typing {
 
                 this.currentWordMode = button.id;
                 localStorage.setItem('TYPING-currentWordMode', button.id);
-                this.numWords = document.getElementById(this.currentWordMode).dataset.time;
+                this.numWords = parseInt(button.dataset.time, 10);
                 this.resetBoard(this.numWords);
             });
         });
@@ -206,13 +228,34 @@ class Typing {
         });   
     }
 
-    initializeBoard(numWords){
+    initializeBoard(numWords, options = {}){
         const typedText = document.getElementById('typed-text');
+        if (!typedText) return;
 
-        this.masterString = this.chooseRandomWords(numWords);
+        const { wordIndices, seed, skipUrlUpdate } = options;
+        let indices = Array.isArray(wordIndices) ? wordIndices.slice() : null;
+        const providedCount = Number(numWords);
+        let desiredCount = indices?.length || (providedCount > 0 ? providedCount : this.numWords || 0);
+        if (desiredCount <= 0){
+            desiredCount = 1;
+        }
+        if (!indices || !indices.length || indices.length !== desiredCount){
+            indices = this.chooseRandomWordIndices(desiredCount);
+        }
+
+        const derivedSeed = indices.length ? (seed || this.generateSeedFromIndices(indices)) : '';
+
+        this.currentSeed = derivedSeed;
+        this.currentWordIndices = indices.slice();
+        this.numWords = indices.length;
+
+        if (!skipUrlUpdate){
+            this.updateSeedInUrl(this.currentSeed);
+        }
+
+        this.masterString = this.buildWordString(indices);
         this.numCharMasterString = this.masterString.length;
-
-        this.numWordsMasterString = this.masterString.split(' ').length
+        this.numWordsMasterString = indices.length;
 
 
         this.masterArray = this.masterString.split('');
@@ -227,17 +270,100 @@ class Typing {
         this.moveCaretTo(-1);
     }
 
-    chooseRandomWords(count){
-        const newWords = [];
-        for (let i = 0; i < count; i++){
-            newWords.push(this.words[Math.floor(Math.random() * this.wordsLength)]);
+    chooseRandomWordIndices(count){
+        const total = Number(count) || 0;
+        const indices = [];
+        for (let i = 0; i < total; i++){
+            indices.push(Math.floor(Math.random() * this.wordListSize));
         }
-        let wordString = newWords.join(' ');
-
-        return wordString.trim();
+        return indices;
     }
 
-    resetBoard(numWords){
+    buildWordString(indices){
+        const words = indices.map(idx => {
+            if (idx >= 0 && idx < this.wordListSize){
+                return this.words[idx];
+            }
+            return this.words[0];
+        });
+        return words.join(' ').trim();
+    }
+
+    generateSeedFromIndices(indices){
+        if (!Array.isArray(indices) || !indices.length){
+            return '';
+        }
+        return TypingSeed.createSeed({
+            wordIndices: indices,
+            wordListKey: this.wordListKey,
+            vocabSize: this.wordListSize
+        });
+    }
+
+    updateSeedInUrl(seed){
+        if (typeof window === 'undefined' || !window.history || typeof window.history.replaceState !== 'function'){
+            return;
+        }
+        const url = new URL(window.location.href);
+        url.search = seed ? `?${seed}` : '';
+        const newRelative = `${url.pathname}${url.search}${url.hash}`;
+        window.history.replaceState({}, '', newRelative);
+    }
+
+    buildSeedUrl(){
+        if (typeof window === 'undefined' || !this.currentSeed){
+            return '';
+        }
+        return `${window.location.origin}${window.location.pathname}?${this.currentSeed}`;
+    }
+
+    initializeFromUrlSeed(){
+        if (typeof window === 'undefined'){
+            return false;
+        }
+        const search = window.location.search;
+        const seedParam = search && search.startsWith('?') ? search.slice(1) : '';
+        if (!seedParam){
+            return false;
+        }
+        try {
+            const parsed = TypingSeed.parseSeed(seedParam, { vocabSize: this.wordListSize });
+            if (!parsed.wordIndices.length){
+                return false;
+            }
+            this.numWords = parsed.wordCount;
+            this.updateActiveModeButton(parsed.wordCount);
+            this.resetBoard(parsed.wordCount, { wordIndices: parsed.wordIndices, seed: parsed.seed, skipUrlUpdate: true });
+            this.updateSeedInUrl(parsed.seed);
+            return true;
+        }
+        catch (error){
+            console.error('invalid typing seed', error);
+            this.updateSeedInUrl('');
+            return false;
+        }
+    }
+
+    updateActiveModeButton(wordCount){
+        if (!this.wordButtons || !this.wordButtons.length){
+            return;
+        }
+        let matched = false;
+        this.wordButtons.forEach(button => {
+            const isMatch = parseInt(button.dataset.time, 10) === wordCount;
+            button.classList.toggle('active', isMatch);
+            if (isMatch){
+                matched = true;
+                this.currentWordMode = button.id;
+                localStorage.setItem('TYPING-currentWordMode', button.id);
+            }
+        });
+        if (!matched){
+            this.currentWordMode = null;
+        }
+    }
+
+    resetBoard(numWords, options = {}){
         this.stopTimer();
 
         this.masterString = '';
@@ -261,10 +387,14 @@ class Typing {
         this.typingDone = false;
         this.canType = true;
 
-        this.initializeBoard(numWords);
+        this.initializeBoard(numWords, options);
         this.setTypingTitle(false);
 
-        document.getElementById('copy-button').textContent = 'share';
+        this.clearShareResetTimer();
+        const copyButton = document.getElementById('copy-button');
+        if (copyButton) {
+            copyButton.textContent = 'share';
+        }
 
         const popup = document.getElementById('wpm-paste');
         if (popup) popup.classList.add('hidden');
@@ -489,6 +619,13 @@ class Typing {
         return Math.round((1 - (this.numMistakes / this.numCharMasterString)) * 100);
     }
 
+    clearShareResetTimer() {
+        if (this.shareResetTimer) {
+            clearTimeout(this.shareResetTimer);
+            this.shareResetTimer = null;
+        }
+    }
+
     showWPMPopup(){
         const popup = document.getElementById('wpm-paste');
         const text = document.getElementById('wpm-text');
@@ -497,22 +634,32 @@ class Typing {
         const hasCompletedFirstTest = localStorage.getItem('TYPING-first-test-completed');
         const isFirstTime = !hasCompletedFirstTest;
 
-        if (isFirstTime) {
-            text.innerHTML = `press enter to reset. wpm ${this.wpm} acc ${this.acc}%`;
-        } else {
-            text.innerHTML = `wpm ${this.wpm} acc ${this.acc}%`;
-        }
+        const intro = isFirstTime ? 'press enter to reset. ' : '';
+        text.innerHTML = `${intro}wpm ${this.wpm}, acc ${this.acc}%.`;
 
-        const plainText = `TYPING ${this.numWords}
-${this.wpm} wpm
-${this.acc}% acc`;
+        const lines = [
+            `TYPING_${this.numWords}`,
+            `${this.wpm} wpm`,
+            `${this.acc}% acc`
+        ];
+        const seedUrl = this.currentSeed ? `https://othertab.com/typing/?${this.currentSeed}` : 'https://othertab.com/typing/';
+        lines.push(seedUrl);
+        const plainText = lines.join('\n');
 
         const shareButton = document.getElementById('copy-button');
 
-        shareButton.addEventListener('click', () => {
-            navigator.clipboard.writeText(plainText);
-            shareButton.textContent = 'copied';
-        });
+        if (shareButton) {
+            shareButton.textContent = 'share';
+            shareButton.onclick = () => {
+                navigator.clipboard.writeText(plainText);
+                shareButton.textContent = 'copied';
+                this.clearShareResetTimer();
+                this.shareResetTimer = setTimeout(() => {
+                    shareButton.textContent = 'share';
+                    this.shareResetTimer = null;
+                }, 1000);
+            };
+        }
             
 
         popup.classList.remove('hidden');

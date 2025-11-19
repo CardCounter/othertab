@@ -41,7 +41,8 @@ class Nono {
         if (!this.isGameOver) callback();
     }
 
-    constructor() {
+    constructor(options = {}) {
+        const { initialSeed } = options;
         // get size
         if (localStorage.getItem('NONO-currentSize')){
             this.sizeMode = localStorage.getItem('NONO-currentSize');
@@ -89,6 +90,10 @@ class Nono {
         this.numActivatedCells = 0;
         [this.topNums, this.sideNums] = this.getNums();
 
+        this.currentSeed = '';
+        this.deferSeedUrlUpdate = Boolean(initialSeed);
+        this.syncSeedState();
+
         this.hoveredCell = null;
         this.lastValidDragCell = null; // track last valid drag position
         this.isActionDown = false;
@@ -130,62 +135,45 @@ class Nono {
         this.mainGameActions();
         this.mainKeyActions();
 
-        // ensure seed/load buttons exist even if not in html
-        // seed / load ui
-        this.initSeedControls();
     }
 
-    initSeedControls() {
-        const seedBtn = document.getElementById('seed-button');
-        const sizeBtn = document.getElementById('settings-button');
-        let copyResetTimer = null;
-
-        const setCopyInterlock = (locked) => {
-            [sizeBtn, seedBtn].forEach(btn => {
-                if (!btn) {
-                    return;
-                }
-                btn.disabled = locked;
-                if (locked) {
-                    btn.setAttribute('aria-disabled', 'true');
-                } else {
-                    btn.removeAttribute('aria-disabled');
-                }
-            });
-        };
-
-        if (seedBtn) {
-            seedBtn.addEventListener('click', async () => {
-                const settingsPanel = document.getElementById('settings-panel');
-                settingsPanel?.classList.add('hidden');
-                try {
-                    const seedStr = window.Seed ? window.Seed.createSeedFromLayout(this.possibleLayout, this.size) : '';
-                    const shareLink = buildNonoShareLink(seedStr);
-                    if (!shareLink || !navigator.clipboard || !navigator.clipboard.writeText) {
-                        return;
-                    }
-                    setCopyInterlock(true);
-                    if (copyResetTimer) {
-                        clearTimeout(copyResetTimer);
-                        copyResetTimer = null;
-                    }
-                    await navigator.clipboard.writeText(shareLink);
-                    seedBtn.textContent = 'copied';
-                    copyResetTimer = setTimeout(() => {
-                        seedBtn.textContent = 'seed';
-                        setCopyInterlock(false);
-                        copyResetTimer = null;
-                    }, 1000);
-                } catch (e) {
-                    if (copyResetTimer) {
-                        clearTimeout(copyResetTimer);
-                        copyResetTimer = null;
-                    }
-                    seedBtn.textContent = 'seed';
-                    setCopyInterlock(false);
-                }
-            });
+    deriveSeedFromLayout() {
+        if (!window.Seed || !this.possibleLayout) {
+            return '';
         }
+        try {
+            return window.Seed.createSeedFromLayout(this.possibleLayout, this.size) || '';
+        } catch (error) {
+            console.error('failed to derive nono seed', error);
+            return '';
+        }
+    }
+
+    syncSeedState(options = {}) {
+        const { skipUrlUpdate = false } = options;
+        const seedString = this.deriveSeedFromLayout();
+        this.currentSeed = seedString;
+        const shouldSkip = skipUrlUpdate || this.deferSeedUrlUpdate;
+        if (shouldSkip) {
+            if (this.deferSeedUrlUpdate) {
+                this.deferSeedUrlUpdate = false;
+            }
+            return;
+        }
+        if (!seedString) {
+            return;
+        }
+        this.updateSeedInUrl(seedString);
+    }
+
+    updateSeedInUrl(seed) {
+        if (typeof window === 'undefined' || !window.history || typeof window.history.replaceState !== 'function') {
+            return;
+        }
+        const url = new URL(window.location.href);
+        url.search = seed ? `?${seed}` : '';
+        const nextRelative = `${url.pathname}${url.search}${url.hash}`;
+        window.history.replaceState({}, '', nextRelative);
     }
 
     loadSeed(seedString) {
@@ -212,14 +200,11 @@ class Nono {
         this.numActivatedCellsMaster = this.getNumActivatedCells(this.possibleLayout);
         this.numActivatedCells = 0;
 
-        // reset seed button text
-        const seedBtn = document.getElementById('seed-button');
-        if (seedBtn) seedBtn.textContent = 'seed';
-
         let t1, t2;
         [t1, t2] = this.getNums();
         this.topNums = t1;
         this.sideNums = t2;
+        this.syncSeedState();
 
         this.hoveredCell = null;
         this.lastValidDragCell = null; // track last valid drag position
@@ -275,7 +260,7 @@ class Nono {
         [t1, t2] = this.getNums();
         this.topNums = t1;
         this.sideNums = t2;
-
+        this.syncSeedState();
         this.hoveredCell = null;
         this.lastValidDragCell = null; // track last valid drag position
         this.isActionDown = false;
@@ -308,10 +293,6 @@ class Nono {
             shareButton.onclick = null;
             shareButton.classList.add('hidden');
         }
-
-        // reset seed button text
-        const seedBtn = document.getElementById('seed-button');
-        if (seedBtn) seedBtn.textContent = 'seed';
 
         const timerElement = document.getElementById('timer');
         if (timerElement) timerElement.textContent = '0:00';
@@ -1796,10 +1777,10 @@ window.addEventListener('DOMContentLoaded', () => {
         document.dispatchEvent(new Event('fouc:ready'));
     };
 
+    const seedString = getSeedFromLocation();
     let game;
     try {
-        game = new Nono();
-        const seedString = getSeedFromLocation();
+        game = new Nono({ initialSeed: seedString });
         if (seedString) {
             try {
                 game.loadSeed(seedString);
