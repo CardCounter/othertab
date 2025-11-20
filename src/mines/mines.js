@@ -49,21 +49,6 @@ class Minesweeper {
         this.shareButtonResetTimeout = null;
         this.resetHintElement = document.getElementById('reset-hint');
         this.hideResetHint();
-        this.retryContainer = document.getElementById('retry-container');
-        this.retryButton = document.getElementById('retry-button');
-        this.loadedSeedAttempts = 0;
-        this.loadedSeedString = '';
-        this.hideRetryOption();
-        this.seededWarningElement = document.getElementById('seeded-warning');
-        this.hideSeededWarning();
-        this.blockedCursorTimeout = null;
-        this.previousCursorValue = '';
-        if (this.retryButton) {
-            this.retryButton.addEventListener('click', () => {
-                this.retryButton.blur();
-                this.retryLoadedSeed();
-            });
-        }
         if (this.shareButton) {
             this.shareButton.onclick = () => {
                 if (!this.currentShareText || this.shareButton.classList.contains('hidden')) {
@@ -160,13 +145,9 @@ class Minesweeper {
                 }
             }
                 
-            // reset game with `
+            // reset game with r
             if (e.code === 'KeyR') {
-                if (this.isSeedLoadedGame) {
-                    e.preventDefault();
-                    this.showActionBlockedCursor();
-                    return;
-                }
+                e.preventDefault();
                 this.resetGame();
             }
 
@@ -236,21 +217,12 @@ class Minesweeper {
         }
     }
 
-    loadSeed(seedString, options = {}) {
+    loadSeed(seedString) {
         if (!window.MinesSeed) {
             return;
         }
         const parsed = window.MinesSeed.parseSeed(seedString);
-        const preserveAttempts = Boolean(options.preserveAttempts);
-        if (!preserveAttempts || this.loadedSeedString !== parsed.seed) {
-            this.loadedSeedAttempts = 1;
-        } else if (this.loadedSeedAttempts < 1) {
-            this.loadedSeedAttempts = 1;
-        }
-        this.loadedSeedString = parsed.seed;
-        this.hideRetryOption();
         this.hideResetHint();
-        this.hideSeededWarning();
         this.stopTimer();
         this.showGridBorder();
         this.difficulty = parsed.mode;
@@ -301,7 +273,6 @@ class Minesweeper {
         document.getElementById('timer').textContent = this.formatTime(this.timer);
         this.hideTimer();
         this.hideResetHint();
-        this.showSeededWarning();
 
         if (this.shareButton) {
             this.shareButton.textContent = 'share';
@@ -533,9 +504,9 @@ class Minesweeper {
             this.gameOver = true;
             this.stopTimer();
             this.showResetHintIfFirstTime();
-            this.showRetryOption();
             this.hideGridBorder();
             this.revealAllMines(cell);
+            this.showSeedFailureShare();
             return;
         }
         
@@ -560,7 +531,6 @@ class Minesweeper {
             this.stopTimer();
             this.showWinPopup();
             this.showResetHintIfFirstTime();
-            this.showRetryOption();
             this.hideGridBorder();
         }
     }
@@ -753,36 +723,47 @@ class Minesweeper {
         return `${minutes}:${String(seconds).padStart(2, '0')}`;
     }
 
+    getDifficultyLabel() {
+        switch (this.difficulty) {
+            case 'easy':
+                return 'E';
+            case 'medium':
+                return 'M';
+            case 'hard':
+                return 'H';
+            default:
+                return this.difficulty.charAt(0).toUpperCase();
+        }
+    }
+
     showWinPopup(){
         if (!this.shareButton) {
             return;
         }
         const timerValue = this.formatTime(this.timer);
-
-        const difficultyLabel = (() => {
-            switch (this.difficulty) {
-                case 'easy':
-                    return 'E';
-                case 'medium':
-                    return 'M';
-                case 'hard':
-                    return 'H';
-                default:
-                    return this.difficulty.charAt(0).toUpperCase();
-            }
-        })();
-
+        const difficultyLabel = this.getDifficultyLabel();
         let shareText = `MINES_${difficultyLabel}\n${timerValue}`;
         const shareLink = this.currentSeed ? `https://othertab.com/mines/?${this.currentSeed}` : '';
-        if (this.isSeedLoadedGame && this.loadedSeedString) {
-            const attempts = Math.max(this.loadedSeedAttempts, 1);
-            if (attempts > 1) {
-                shareText = `MINES_${difficultyLabel} + ${attempts} => ${timerValue}`;
-            }
-        }
         if (shareLink) {
             shareText += `\n${shareLink}`;
         }
+        this.currentShareText = shareText;
+        if (this.shareButtonResetTimeout) {
+            clearTimeout(this.shareButtonResetTimeout);
+            this.shareButtonResetTimeout = null;
+        }
+        this.shareButton.textContent = 'share';
+        this.shareButton.classList.remove('hidden');
+    }
+
+    showSeedFailureShare() {
+        if (!this.shareButton || !this.isSeedLoadedGame || !this.currentSeed) {
+            return;
+        }
+        const timerValue = this.formatTime(this.timer);
+        const difficultyLabel = this.getDifficultyLabel();
+        let shareText = `MINES_${difficultyLabel}\nX, ${timerValue}`;
+        shareText += `\nhttps://othertab.com/mines/?${this.currentSeed}`;
         this.currentShareText = shareText;
         if (this.shareButtonResetTimeout) {
             clearTimeout(this.shareButtonResetTimeout);
@@ -816,69 +797,6 @@ class Minesweeper {
         this.resetHintElement.classList.add('hidden');
     }
 
-    showRetryOption() {
-        if (!this.retryContainer || !this.isSeedLoadedGame || !this.loadedSeedString || !this.gameOver) {
-            return;
-        }
-        this.retryContainer.classList.remove('hidden');
-        this.retryContainer.setAttribute('aria-hidden', 'false');
-        this.showSeededWarning();
-    }
-
-    hideRetryOption() {
-        if (!this.retryContainer) {
-            return;
-        }
-        this.retryContainer.classList.add('hidden');
-        this.retryContainer.setAttribute('aria-hidden', 'true');
-    }
-
-    retryLoadedSeed() {
-        if (!this.retryButton || !this.isSeedLoadedGame || !this.loadedSeedString) {
-            return;
-        }
-        if (this.loadedSeedAttempts < 1) {
-            this.loadedSeedAttempts = 1;
-        }
-        this.loadedSeedAttempts += 1;
-        this.loadSeed(this.loadedSeedString, { preserveAttempts: true });
-    }
-
-    showSeededWarning() {
-        if (!this.seededWarningElement) {
-            return;
-        }
-        this.seededWarningElement.classList.remove('hidden');
-        this.seededWarningElement.setAttribute('aria-hidden', 'false');
-    }
-
-    hideSeededWarning() {
-        if (!this.seededWarningElement) {
-            return;
-        }
-        this.seededWarningElement.classList.add('hidden');
-        this.seededWarningElement.setAttribute('aria-hidden', 'true');
-    }
-
-    showActionBlockedCursor() {
-        const body = document.body;
-        if (!body) {
-            return;
-        }
-        if (this.blockedCursorTimeout) {
-            clearTimeout(this.blockedCursorTimeout);
-            this.blockedCursorTimeout = null;
-            body.style.cursor = this.previousCursorValue || '';
-        }
-        this.previousCursorValue = body.style.cursor;
-        body.style.cursor = 'not-allowed';
-        this.blockedCursorTimeout = setTimeout(() => {
-            body.style.cursor = this.previousCursorValue || '';
-            this.previousCursorValue = body.style.cursor;
-            this.blockedCursorTimeout = null;
-        }, 250);
-    }
-
     hideGridBorder() {
         if (this.gridWrapper) {
             this.gridWrapper.classList.add('board-finished');
@@ -891,9 +809,23 @@ class Minesweeper {
         }
     }
 
+    clearSeedFromUrl() {
+        if (!window.location || !window.history || !window.history.replaceState) {
+            return;
+        }
+        const hasSeedQuery = Boolean(window.location.search);
+        if (!hasSeedQuery) {
+            return;
+        }
+        const cleanUrl = `${window.location.pathname}${window.location.hash || ''}`;
+        window.history.replaceState(null, '', cleanUrl);
+    }
+
     resetGame() {
+        if (this.isSeedLoadedGame) {
+            this.clearSeedFromUrl();
+        }
         this.stopTimer();
-        this.hideRetryOption();
         this.hideResetHint();
         this.setDifficultySettings(this.difficulty);
         this.grid = [];
@@ -904,13 +836,10 @@ class Minesweeper {
         this.seedLockActive = false;
         this.seedStartCell = null;
         this.currentSeed = '';
-        this.loadedSeedString = '';
-        this.loadedSeedAttempts = 0;
         this.flagsRemaining = this.mines;
         this.timer = 0;
         this.isWin = false;
         this.showGridBorder();
-        this.hideSeededWarning();
 
         // reset timer display
         document.getElementById('timer').textContent = this.formatTime(this.timer);
