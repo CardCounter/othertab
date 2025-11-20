@@ -220,7 +220,7 @@ button:focus {
     text-align: left;
     position: relative;
     width: 100%;
-    max-width: 1000px;
+    max-width: 65rem;
     font-size: var(--typing-font-size);
     line-height: 1.2;
     min-height: calc(var(--typing-font-size) * 1.2 * 2);
