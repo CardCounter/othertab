@@ -40,6 +40,7 @@ class Minesweeper {
         this.gridWrapper = document.querySelector('.grid-wrapper');
         this.isWin = false;
         this.isMouseDown = false;
+        this.mouseDownButton = null;
         this.currentShareText = '';
         this.currentSeed = '';
         this.isSeedLoadedGame = false;
@@ -151,6 +152,16 @@ class Minesweeper {
                 this.resetGame();
             }
 
+        });
+
+        document.addEventListener('mouseup', (event) => {
+            if (event.button === 0) {
+                this.handleGlobalMouseRelease();
+            }
+        });
+
+        window.addEventListener('blur', () => {
+            this.handleGlobalMouseRelease();
         });
         
     }
@@ -338,11 +349,36 @@ class Minesweeper {
         );
     }
 
+    applyCellPressedStyle(cell) {
+        cell.classList.add('pressed');
+    }
+
+    clearCellPressedStyle(cell) {
+        cell.classList.remove('pressed');
+    }
+
+    clearAllPressedStyles() {
+        if (!this.gridWrapper) {
+            return;
+        }
+        const pressedCells = this.gridWrapper.querySelectorAll('.cell.pressed');
+        pressedCells.forEach(cell => this.clearCellPressedStyle(cell));
+    }
+
+    handleGlobalMouseRelease() {
+        if (!this.isMouseDown) {
+            return;
+        }
+        this.isMouseDown = false;
+        this.mouseDownButton = null;
+        this.clearAllPressedStyles();
+    }
+
     renderGrid() {
         const gridElement = document.getElementById('grid');
         gridElement.innerHTML = '';
-        gridElement.style.gridTemplateColumns = `repeat(${this.cols}, 30px)`; // change cell size here
-        gridElement.style.gridTemplateRows = `repeat(${this.rows}, 30px)`;
+        gridElement.style.gridTemplateColumns = `repeat(${this.cols}, 2rem)`; // change cell size here
+        gridElement.style.gridTemplateRows = `repeat(${this.rows}, 2rem)`;
         
         for (let row = 0; row < this.rows; row++) {
             for (let col = 0; col < this.cols; col++) {
@@ -357,10 +393,9 @@ class Minesweeper {
                         return;
                     }
                     this.isMouseDown = true;
-                    if (!(e.button == 2)){
-                        if (!cell.classList.contains('revealed')) {
-                            cell.style.backgroundColor = '#999999';
-                        }
+                    this.mouseDownButton = e.button;
+                    if (e.button !== 2 && !cell.classList.contains('revealed')) {
+                        this.applyCellPressedStyle(cell);
                     }
 
                     // middle click or left right, note button vs buttons
@@ -371,14 +406,12 @@ class Minesweeper {
 
                 cell.addEventListener('mouseup', (e) => {
                     this.isMouseDown = false;
+                    this.mouseDownButton = null;
+                    this.clearCellPressedStyle(cell);
                     if (this.isCellLocked(row, col) || this.gameOver) {
                         return;
                     }
-                    if (!(e.button == 2)){
-                        if (!cell.classList.contains('revealed')) {
-                            cell.style.backgroundColor = '';
-                        }
-
+                    if (e.button !== 2){
                         if (!this.grid[row][col].isFlagged) {
                             this.reveal(row, col);
                         }
@@ -399,18 +432,16 @@ class Minesweeper {
                     if (this.isCellLocked(row, col) || this.gameOver) {
                         return;
                     }
-                    if (this.isMouseDown && !cell.classList.contains('revealed')) {
-                        cell.style.backgroundColor = '#999999';
+                    if (this.isMouseDown && this.mouseDownButton !== 2 && !cell.classList.contains('revealed')) {
+                        this.applyCellPressedStyle(cell);
                     }
-
                 });
-                
+
                 // fix for the hover state bug, force reset of style when mouse leaves
                 cell.addEventListener('mouseleave', () => { 
                     if (!cell.classList.contains('revealed')) {
-                        cell.style.backgroundColor = '';
+                        this.clearCellPressedStyle(cell);
                     }
-
                 });
 
                 this.updateCellAppearance(cell, row, col);  
@@ -587,7 +618,7 @@ class Minesweeper {
         const cellData = this.grid[row][col];
         
         // first clear existing classes that might be present
-        cell.classList.remove('revealed', 'mine', 'flag', 'start-cell', 'locked-cell');
+        cell.classList.remove('revealed', 'mine', 'flag', 'start-cell', 'locked-cell', 'pressed');
         cell.textContent = '';
 
         // remove all color classes
