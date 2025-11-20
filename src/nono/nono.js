@@ -1,4 +1,5 @@
 import { buildNonoShareLink } from "./nono-share-link.js";
+import { replaceUrlPathWithSeed } from "../scripts/url-utils.js";
 
 // settings panel
 document.addEventListener('DOMContentLoaded', () => {
@@ -167,13 +168,7 @@ class Nono {
     }
 
     updateSeedInUrl(seed) {
-        if (typeof window === 'undefined' || !window.history || typeof window.history.replaceState !== 'function') {
-            return;
-        }
-        const url = new URL(window.location.href);
-        url.search = seed ? `?${seed}` : '';
-        const nextRelative = `${url.pathname}${url.search}${url.hash}`;
-        window.history.replaceState({}, '', nextRelative);
+        replaceUrlPathWithSeed('nono', seed);
     }
 
     loadSeed(seedString) {
