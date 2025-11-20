@@ -1,5 +1,6 @@
 import { TypingSeed } from './seed.js';
 import { words_none } from './words/1k.js';
+import { replaceUrlPathWithSeed } from '../scripts/url-utils.js';
 
 
 
@@ -301,13 +302,7 @@ class Typing {
     }
 
     updateSeedInUrl(seed){
-        if (typeof window === 'undefined' || !window.history || typeof window.history.replaceState !== 'function'){
-            return;
-        }
-        const url = new URL(window.location.href);
-        url.search = seed ? `?${seed}` : '';
-        const newRelative = `${url.pathname}${url.search}${url.hash}`;
-        window.history.replaceState({}, '', newRelative);
+        replaceUrlPathWithSeed('typing', seed);
     }
 
     buildSeedUrl(){
