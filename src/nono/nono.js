@@ -1742,6 +1742,24 @@ class Nono {
 
 }
 
+function shouldUseSeedFromNavigation() {
+    if (typeof window === 'undefined' || typeof performance === 'undefined') {
+        return true;
+    }
+    if (typeof performance.getEntriesByType === 'function') {
+        const entries = performance.getEntriesByType('navigation');
+        if (entries && entries.length) {
+            return entries[0].type !== 'reload';
+        }
+    }
+    const nav = performance.navigation;
+    if (nav && typeof nav.type === 'number') {
+        const reloadType = typeof nav.TYPE_RELOAD === 'number' ? nav.TYPE_RELOAD : 1;
+        return nav.type !== reloadType;
+    }
+    return true;
+}
+
 function getSeedFromLocation() {
     const search = window.location.search || '';
     if (search.startsWith('?') && search.length > 1) {
@@ -1773,10 +1791,12 @@ window.addEventListener('DOMContentLoaded', () => {
     };
 
     const seedString = getSeedFromLocation();
+    const canUseSeed = shouldUseSeedFromNavigation();
+    const initialSeed = canUseSeed ? seedString : '';
     let game;
     try {
-        game = new Nono({ initialSeed: seedString });
-        if (seedString) {
+        game = new Nono({ initialSeed });
+        if (canUseSeed && seedString) {
             try {
                 game.loadSeed(seedString);
             } catch (error) {
