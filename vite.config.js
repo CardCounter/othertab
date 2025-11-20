@@ -1,6 +1,6 @@
 import { defineConfig } from 'vite';
 import { resolve, join } from 'node:path';
-import { readdirSync, statSync } from 'node:fs';
+import { readdirSync, statSync, mkdirSync, copyFileSync } from 'node:fs';
 import { minify } from 'html-minifier-terser';
 
 function collectHtmlInputs(rootDir) {
@@ -18,6 +18,7 @@ function collectHtmlInputs(rootDir) {
 }
 
 const srcRoot = resolve(__dirname, 'src');
+const buildOutDir = resolve(__dirname, 'build');
 const htmlInputs = collectHtmlInputs(srcRoot);
 
 const htmlMinifyPlugin = {
@@ -37,6 +38,17 @@ const htmlMinifyPlugin = {
     }
 };
 
+const copyNormalizeScriptPlugin = {
+    name: 'copy-normalize-slashes',
+    apply: 'build',
+    closeBundle() {
+        const source = join(srcRoot, 'scripts/normalize-slashes.js');
+        const destinationDir = join(buildOutDir, 'scripts');
+        mkdirSync(destinationDir, { recursive: true });
+        copyFileSync(source, join(destinationDir, 'normalize-slashes.js'));
+    }
+};
+
 export default defineConfig({
     root: 'src',
     build: {
@@ -46,5 +58,5 @@ export default defineConfig({
             input: htmlInputs
         }
     },
-    plugins: [htmlMinifyPlugin]
+    plugins: [htmlMinifyPlugin, copyNormalizeScriptPlugin]
 });
