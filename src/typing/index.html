@@ -33,29 +33,6 @@
 
     <main>
         <div class="typing-stage">
-            <div class="top-bar">
-            <!-- <div class="punctuation-dropdown">
-                <button class="dropdown-button">punctuation</button>
-                <div class="dropdown-content">
-                    <div class="option">none</div>
-                    <div class="option">some</div>
-                    <div class="option">a lot</div>
-                </div>
-            </div> -->
-
-                <div class="modes">
-                    <button id="mode-10" class="mode-button" data-time="10">10</button>
-                    <button id="mode-25" class="mode-button" data-time="25">25</button>
-                    <button id="mode-50" class="mode-button" data-time="50">50</button>
-                    <button id="mode-100" class="mode-button" data-time="100">100</button>
-                </div>
-
-                <div id="wpm-paste" class="wpm-paste hidden">
-                    <div id="wpm-text" class="wpm-text"></div>
-                    <button id="copy-button" class="copy-button">share</button>
-                </div>
-            </div>
-
             <div id="game-container" class="game-container">
                 <div class="typing-wrapper">
                     <span class="typed-text" id="typed-text"></span>
@@ -65,13 +42,32 @@
         </div> 
     </main>
 
-    <footer class="footer-m">
+    <footer>
+        <div class="footer-left">
+            <div class="mode-group">
+                <div class="panel-anchor">
+                    <button id="mode-toggle" class="mode-toggle">modes</button>
+                    <div id="mode-panel" class="mode-panel hidden">
+                        <button id="mode-10" class="mode-button" data-time="10">10</button>
+                        <button id="mode-25" class="mode-button" data-time="25">25</button>
+                        <button id="mode-50" class="mode-button" data-time="50">50</button>
+                        <button id="mode-100" class="mode-button" data-time="100">100</button>
+                    </div>
+                </div>
+            </div>
+        </div>
         <div class="footer-center">
             <p class="footer-brand">o_T</p>
             <a href="controls/" class="footer-link">controls</a>
             <a href="stats/" class="footer-link">stats</a>
             <a href="../privacy/" class="footer-link">privacy</a>
             <a href="https://ko-fi.com/othertab" class="footer-link">support</a>
+        </div>
+        <div class="footer-right">
+            <div id="wpm-paste" class="wpm-paste hidden">
+                <div id="wpm-text" class="wpm-text"></div>
+                <button id="copy-button" class="copy-button">share</button>
+            </div>
         </div>
     </footer>
     <script type="module" src="../scripts/mobile-block.js"></script>
