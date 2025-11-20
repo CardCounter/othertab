@@ -319,6 +319,9 @@ class Typing {
         if (typeof window === 'undefined'){
             return false;
         }
+        if (!shouldUseSeedFromNavigation()){
+            return false;
+        }
         const search = window.location.search;
         const seedParam = search && search.startsWith('?') ? search.slice(1) : '';
         if (!seedParam){
@@ -659,7 +662,7 @@ class Typing {
         const isFirstTime = !hasCompletedFirstTest;
 
         const intro = isFirstTime ? 'press enter to reset. ' : '';
-        text.innerHTML = `${intro}wpm ${this.wpm}, acc ${this.acc}%.`;
+        text.innerHTML = `${intro}wpm ${this.wpm}, acc ${this.acc}%`;
 
         const lines = [
             `TYPING_${this.numWords}`,
@@ -733,6 +736,24 @@ class Typing {
         localStorage.setItem('TYPING-avg', JSON.stringify(avgData));
     }
 
+}
+
+function shouldUseSeedFromNavigation(){
+    if (typeof window === 'undefined' || typeof performance === 'undefined'){
+        return true;
+    }
+    if (typeof performance.getEntriesByType === 'function'){
+        const entries = performance.getEntriesByType('navigation');
+        if (entries && entries.length){
+            return entries[0].type !== 'reload';
+        }
+    }
+    const nav = performance.navigation;
+    if (nav && typeof nav.type === 'number'){
+        const reloadType = typeof nav.TYPE_RELOAD === 'number' ? nav.TYPE_RELOAD : 1;
+        return nav.type !== reloadType;
+    }
+    return true;
 }
 
 window.addEventListener('DOMContentLoaded', () => {
