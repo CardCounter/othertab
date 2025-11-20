@@ -20,7 +20,6 @@ main {
     justify-content: flex-start;
     width: 100%;
     box-sizing: border-box;
-    padding: 1.5rem 0;
 }
 
 .typing-stage {
@@ -66,27 +65,85 @@ button:focus {
     box-shadow: none;
 }
 
-.top-bar {
-    display: flex;
+.mode-group {
+    display: inline-flex;
+    flex-direction: row;
     align-items: center;
-    justify-content: space-between;
-    width: 100%;
-    margin: 0 0 0.5rem 0;
+    gap: 0.5rem;
 }
 
-.top-bar .modes {
+.panel-anchor {
+    position: relative;
     display: inline-flex;
     align-items: center;
-    gap: 0.5rem;
+}
+.mode-toggle {
+    padding: 0;
+    margin: 0;
+    font-size: 16px;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    border: none;
+    border-radius: 0;
+    cursor: pointer;
 }
 
-.wpm-paste{
-    display: flex;
+.mode-panel {
+    position: absolute;
+    left: 0;
+    bottom: calc(100% + 4px);
+    display: inline-flex;
     flex-direction: row;
-    /* margin: 1rem 0; */
     align-items: center;
     gap: 0.5rem;
-    margin-left: auto;
+    background-color: var(--bg-color);
+    font-size: 1rem;
+}
+
+.mode-panel .mode-button {
+    cursor: pointer;
+    margin: 0;
+    padding: 0;
+    font-size: 16px;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    border: none;
+    border-radius: 0;
+}
+
+.mode-panel .mode-button.active {
+    background-color: blue;
+    color: blue;
+}
+
+.dark-mode .mode-panel .mode-button.active {
+    background-color: red;
+    color: red;
+}
+
+.mode-panel .mode-button.active:hover {
+    background-color: blue;
+    color: blue;
+}
+
+.dark-mode .mode-panel .mode-button.active:hover {
+    background-color: red;
+    color: red;
+}
+
+.mode-panel .mode-button:hover {
+    background-color: grey;
+}
+
+.mode-panel .mode-button:focus-visible {
+    outline: none;
+}
+
+.wpm-paste {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
 }
 
 .copy-button{
@@ -99,29 +156,9 @@ button:focus {
     border: none; 
 }
 
-.mode-button{
-    cursor: pointer;
-    margin: 0;
-    padding: 0 0; /* change this for vertical bars on mode buttons */
-    font-size: 16px;
-    background-color: var(--bg-color); /* call --bg from global */
-    color: var(--text-color);
-    border: none; 
-}
-
-.mode-button.active{
-    background-color: blue;
-    color: blue;
-}
-
-.dark-mode .mode-button.active{
-    background-color: red;
-    color: red;
-}
-
 .punctuation-dropdown {
-	position: relative;
-	display: inline-block;
+    position: relative;
+    display: inline-block;
 }
 
 .dropdown-button {

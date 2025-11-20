@@ -91,6 +91,7 @@ class Typing {
         this.currentLineIndex = 0;
         this.completionIndicator = null;
         this.resizeRaf = null;
+        this.modePanelEl = null;
 
         this.stageEl = document.querySelector('.typing-stage');
         if (this.stageEl) {
@@ -135,6 +136,7 @@ class Typing {
             this.resetBoard(this.numWords);
         }
         window.addEventListener('resize', () => this.handleResize());
+        this.setupModePanel();
 
         this.wordButtons.forEach(button => {
             button.addEventListener('click', () => {
@@ -149,6 +151,7 @@ class Typing {
                 localStorage.setItem('TYPING-currentWordMode', button.id);
                 this.numWords = parseInt(button.dataset.time, 10);
                 this.resetBoard(this.numWords);
+                this.modePanelEl?.classList.add('hidden');
             });
         });
 
@@ -393,6 +396,7 @@ class Typing {
 
         const popup = document.getElementById('wpm-paste');
         if (popup) popup.classList.add('hidden');
+        this.modePanelEl?.classList.add('hidden');
     }
 
     resetScrollPosition(){
@@ -619,6 +623,31 @@ class Typing {
             clearTimeout(this.shareResetTimer);
             this.shareResetTimer = null;
         }
+    }
+
+    setupModePanel() {
+        const toggleButton = document.getElementById('mode-toggle');
+        const panel = document.getElementById('mode-panel');
+
+        if (!toggleButton || !panel) {
+            return;
+        }
+
+        this.modePanelEl = panel;
+
+        const closePanel = (event) => {
+            if (!panel.contains(event.target) && event.target !== toggleButton) {
+                panel.classList.add('hidden');
+            }
+        };
+
+        toggleButton.addEventListener('click', (event) => {
+            panel.classList.toggle('hidden');
+            event.stopPropagation();
+        });
+
+        document.addEventListener('click', closePanel);
+        document.addEventListener('contextmenu', closePanel);
     }
 
     showWPMPopup(){
