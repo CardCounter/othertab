@@ -245,12 +245,12 @@ button:hover {
 
 .difficulty-button.active {
     background-color: blue;
-    color: blue;
+    color: transparent;
 }
 
 .dark-mode .difficulty-button.active {
     background-color: red;
-    color: red;
+    color: transparent;
 }
 
 .hidden {

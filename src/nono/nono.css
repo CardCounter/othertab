@@ -416,22 +416,22 @@ table tr:last-child td.drag-preview {
 
 .difficulty-button.active{
     background-color: blue;
-    color: blue;
+    color: transparent;
 }
 
 .dark-mode .difficulty-button.active{
     background-color: red;
-    color: red;
+    color: transparent;
 }
 
 .difficulty-button.active:hover{
     background-color: blue;
-    color: blue;
+    color: transparent;
 }
 
 .dark-mode .difficulty-button.active:hover{
     background-color: red;
-    color: red;
+    color: transparent;
 }
 
 .difficulty-button:hover {

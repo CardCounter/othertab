@@ -117,22 +117,22 @@ button:focus {
 
 .mode-panel .mode-button.active {
     background-color: blue;
-    color: blue;
+    color: transparent;
 }
 
 .dark-mode .mode-panel .mode-button.active {
     background-color: red;
-    color: red;
+    color: transparent;
 }
 
 .mode-panel .mode-button.active:hover {
     background-color: blue;
-    color: blue;
+    color: transparent;
 }
 
 .dark-mode .mode-panel .mode-button.active:hover {
     background-color: red;
-    color: red;
+    color: transparent;
 }
 
 .mode-panel .mode-button:hover {
