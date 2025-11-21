@@ -159,7 +159,7 @@ select:hover {
 .brush-types {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    grid-template-rows: repeat(2, 1fr);
+    grid-auto-rows: 1fr;
     gap: 4px;
     margin-top: 8px;
     width: 60px;

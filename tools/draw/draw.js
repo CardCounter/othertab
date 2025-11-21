@@ -39,6 +39,11 @@ window.addEventListener('DOMContentLoaded', () => {
 
     let currentBrushSizeType = '5';
 
+    let strokeDirX = 1;
+    let strokeDirY = 0;
+    let hasStrokeDir = false;
+    let strokePhase = 0;
+
 
     function restoreBrushFromErase() {
         if (rightClickErasing && prevBrushType) {
@@ -481,6 +486,9 @@ window.addEventListener('DOMContentLoaded', () => {
 
         drawing = true;
 
+        hasStrokeDir = false;
+        strokePhase = Math.random() * Math.PI * 2;
+
         if (selectedBrushType === 'line') {
             lineStartPos = pos;
             initGhostCanvas();
@@ -503,7 +511,14 @@ window.addEventListener('DOMContentLoaded', () => {
         }
         
         if (lastPos) {
-
+            const dx = pos.x - lastPos.x;
+            const dy = pos.y - lastPos.y;
+            const len = Math.hypot(dx, dy);
+            if (len > 0) {
+                strokeDirX = dx / len;
+                strokeDirY = dy / len;
+                hasStrokeDir = true;
+            }
             drawLine(lastPos, pos);
         }
         
@@ -552,6 +567,9 @@ window.addEventListener('DOMContentLoaded', () => {
             case 'square':
                 drawSquareBrush(pos);
                 break;
+            case 'crayon':
+                drawCrayonBrush(pos);
+                break;
             case 'line':
                 drawLineTool(pos);
                 break;
@@ -585,6 +603,98 @@ window.addEventListener('DOMContentLoaded', () => {
             ctx.fillStyle = selectedColor;
             ctx.fillRect(actualStartX, actualStartY, actualWidth, actualHeight);
         }
+    }
+
+    function drawCrayonBrush(pos) {
+        let radius = Math.max(1, brushSize / 2);
+        const highRes = canvasSize >= 512;
+        const isMediumBrush = highRes && currentBrushSizeType === '10';
+        const paddingMultiplier = isMediumBrush ? 0.35 : 0.15;
+
+        if (isMediumBrush) {
+            radius = Math.max(radius * 1.45, brushSize);
+        }
+
+        const padding = Math.max(2, Math.ceil(radius * paddingMultiplier));
+        const startX = Math.max(0, Math.floor(pos.x - radius - padding));
+        const startY = Math.max(0, Math.floor(pos.y - radius - padding));
+        const endX = Math.min(canvasSize, Math.ceil(pos.x + radius + padding));
+        const endY = Math.min(canvasSize, Math.ceil(pos.y + radius + padding));
+        const width = endX - startX;
+        const height = endY - startY;
+
+        if (width <= 0 || height <= 0) {
+            return;
+        }
+
+        const rgb = hexToRgb(selectedColor);
+        const imageData = ctx.getImageData(startX, startY, width, height);
+        const data = imageData.data;
+        let dirX = strokeDirX;
+        let dirY = strokeDirY;
+        if (!hasStrokeDir) {
+            dirX = 1;
+            dirY = 0;
+        }
+
+        let textureDensity = highRes ? 0.9 : 0.7;
+        let waxStrength = highRes ? 0.75 : 0.6;
+        let jitterRange = Math.max(0.4, radius * 0.1);
+        let highlightMin = 0.9;
+        let highlightRange = 0.25;
+        let stripeFrequency = isMediumBrush ? 10 : 6;
+
+        if (isMediumBrush) {
+            textureDensity = 0.97;
+            waxStrength = 0.85;
+            jitterRange = Math.max(0.3, radius * 0.06);
+            highlightMin = 0.98;
+            highlightRange = 0.18;
+        }
+
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                const dx = (startX + x) - pos.x;
+                const dy = (startY + y) - pos.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                const jitter = (Math.random() - 0.5) * jitterRange;
+
+                if (distance + jitter > radius) {
+                    continue;
+                }
+
+                const along = dx * dirX + dy * dirY;
+                const across = -dx * dirY + dy * dirX;
+                const normAcross = Math.min(1, Math.abs(across) / radius);
+                const coreFactor = Math.max(0, 1 - distance / radius);
+
+                const stripe = 0.5 + 0.5 * Math.sin((along / radius) * stripeFrequency + strokePhase);
+
+                let coverage = textureDensity;
+                coverage *= 0.6 + 0.4 * stripe;
+                coverage *= 0.5 + 0.5 * coreFactor;
+                coverage *= 0.85 + 0.3 * (1 - normAcross);
+
+                if (Math.random() > coverage) {
+                    continue;
+                }
+
+                const idx = (y * width + x) * 4;
+                const highlight = highlightMin + Math.random() * highlightRange;
+                const targetR = Math.min(255, rgb.r * highlight);
+                const targetG = Math.min(255, rgb.g * highlight);
+                const targetB = Math.min(255, rgb.b * highlight);
+                const mix = Math.min(0.95, Math.max(0.25, waxStrength + (Math.random() - 0.5) * 0.25));
+                const inv = 1 - mix;
+
+                data[idx] = Math.round(targetR * mix + data[idx] * inv);
+                data[idx + 1] = Math.round(targetG * mix + data[idx + 1] * inv);
+                data[idx + 2] = Math.round(targetB * mix + data[idx + 2] * inv);
+                data[idx + 3] = Math.min(255, data[idx + 3] * (1 - mix * 0.15) + 255 * mix);
+            }
+        }
+
+        ctx.putImageData(imageData, startX, startY);
     }
 
     function drawLineTool(pos) {
@@ -1542,6 +1652,7 @@ window.addEventListener('DOMContentLoaded', () => {
         }
 
         if (key === 'w') { setActiveBrushType('square'); e.preventDefault(); return; }
+        if (key === 'c') { setActiveBrushType('crayon'); e.preventDefault(); return; }
         if (key === 'e') { setActiveBrushType('eraser'); e.preventDefault(); return; }
         if (key === 's') { setActiveBrushType('line'); e.preventDefault(); return; }
         if (key === 'd') { setActiveBrushType('fill'); e.preventDefault(); return; }
