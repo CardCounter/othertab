@@ -1,5 +1,6 @@
 window.addEventListener('DOMContentLoaded', () => {
     const canvasContainer = document.getElementById('canvas-stack');
+    const canvasStage = document.getElementById('canvas-stage');
     const colorPalette = document.getElementById('color-palette');
     const editButton = document.getElementById('edit-button');
     const resetButton = document.getElementById('reset-button');
@@ -12,6 +13,8 @@ window.addEventListener('DOMContentLoaded', () => {
     const saveError = document.getElementById('save-error');
     const addLayerButton = document.getElementById('add-layer-button');
     const layersList = document.getElementById('layers-list');
+    const jitterToggle = document.getElementById('jitter-toggle');
+    const jitterFlipCanvas = document.getElementById('jitter-flip-canvas');
 
     const CANVAS_SIZE = 1024;
     const BRUSH_SIZE = 6;
@@ -42,10 +45,29 @@ window.addEventListener('DOMContentLoaded', () => {
     let strokePatchSeed = Math.random() * 5000;
     let strokeWidthVariant = Math.random();
     let strokeWaveSeed = Math.random() * 1000;
+    let jitterEnabled = false;
+    let jitterFlipCtx = jitterFlipCanvas ? jitterFlipCanvas.getContext('2d', { willReadFrequently: true }) : null;
+    let jitterSwapTimer = null;
+    let jitterShowingOriginal = true;
+    let jitterLastInputPos = null;
+    let jitterLastRenderedPos = null;
+    let jitterStrokeSeed = Math.random() * 10000;
+    let jitterStrokeVariant = Math.random();
+    let jitterStrokePatchSeed = Math.random() * 5000;
+    let jitterStrokeWidthVariant = Math.random();
+    let jitterStrokeWaveSeed = Math.random() * 1000;
+    let jitterStrokeDirX = 1;
+    let jitterStrokeDirY = 0;
+    let jitterStrokeSpeed = 0;
+    let jitterStrokeBaseOffsetX = 0;
+    let jitterStrokeBaseOffsetY = 0;
 
     let color1 = '#000000';
     let color2 = '#FFFFFF';
     let activeColorSlot = 1;
+    if (canvasStage) {
+        canvasStage.classList.add('show-original');
+    }
 
     function restoreBrushFromErase() {
         if (rightClickErasing && prevBrushType) {
@@ -58,6 +80,315 @@ window.addEventListener('DOMContentLoaded', () => {
 
     function clearAllLayerActiveClasses() {
         layers.forEach(l => l.item.classList.remove('active'));
+    }
+
+    function ensureJitterSurfaces() {
+        if (!jitterFlipCanvas) return;
+        if (jitterFlipCanvas.width !== CANVAS_SIZE || jitterFlipCanvas.height !== CANVAS_SIZE) {
+            jitterFlipCanvas.width = CANVAS_SIZE;
+            jitterFlipCanvas.height = CANVAS_SIZE;
+        }
+        if (!jitterFlipCtx && jitterFlipCanvas) {
+            jitterFlipCtx = jitterFlipCanvas.getContext('2d', { willReadFrequently: true });
+            if (jitterFlipCtx) {
+                jitterFlipCtx.imageSmoothingEnabled = false;
+            }
+        }
+    }
+
+    function clearJitterCanvases() {
+        if (jitterFlipCtx) {
+            jitterFlipCtx.setTransform(1, 0, 0, 1, 0, 0);
+            jitterFlipCtx.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+            jitterFlipCtx.fillStyle = CANVAS_BACKGROUND;
+            jitterFlipCtx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+        }
+    }
+
+    function syncJitterCanvasWithLayers() {
+        if (!jitterFlipCtx) return;
+        jitterFlipCtx.setTransform(1, 0, 0, 1, 0, 0);
+        jitterFlipCtx.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+        jitterFlipCtx.fillStyle = CANVAS_BACKGROUND;
+        jitterFlipCtx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+        for (let i = layers.length - 1; i >= 0; i--) {
+            const layer = layers[i];
+            if (!layer) continue;
+            jitterFlipCtx.globalAlpha = layer.alphaInput ? parseFloat(layer.alphaInput.value) : 1;
+            jitterFlipCtx.drawImage(layer.canvas, 0, 0, layer.size, layer.size, 0, 0, CANVAS_SIZE, CANVAS_SIZE);
+        }
+        jitterFlipCtx.globalAlpha = 1;
+    }
+
+    function setStageModeToOriginal(showOriginal = true) {
+        if (!canvasStage) return;
+        canvasStage.classList.toggle('show-original', showOriginal);
+        canvasStage.classList.toggle('show-jitter', !showOriginal);
+    }
+
+    function startJitterSwapLoop() {
+        if (jitterSwapTimer !== null) return;
+        jitterSwapTimer = setInterval(() => {
+            jitterShowingOriginal = !jitterShowingOriginal;
+            setStageModeToOriginal(jitterShowingOriginal);
+        }, 120);
+    }
+
+    function stopJitterSwapLoop() {
+        if (jitterSwapTimer !== null) {
+            clearInterval(jitterSwapTimer);
+            jitterSwapTimer = null;
+        }
+        jitterShowingOriginal = true;
+        setStageModeToOriginal(true);
+    }
+
+    function enableJitterMode() {
+        if (jitterEnabled || !jitterFlipCanvas || !canvasStage) return;
+        ensureJitterSurfaces();
+        clearJitterCanvases();
+        syncJitterCanvasWithLayers();
+        canvasStage.classList.add('jitter-enabled');
+        setStageModeToOriginal(true);
+        jitterEnabled = true;
+        jitterLastInputPos = null;
+        jitterLastRenderedPos = null;
+        startJitterSwapLoop();
+    }
+
+    function disableJitterMode() {
+        if (!jitterEnabled) return;
+        jitterEnabled = false;
+        stopJitterSwapLoop();
+        if (canvasStage) {
+            canvasStage.classList.remove('jitter-enabled');
+        }
+        jitterLastInputPos = null;
+        jitterLastRenderedPos = null;
+        clearJitterCanvases();
+    }
+
+    function withJitterContext(task) {
+        if (!jitterFlipCtx || !jitterFlipCanvas) return;
+        const prevCtx = ctx;
+        const prevCanvas = canvas;
+        const prevCanvasSize = canvasSize;
+        const prevStrokeSeed = strokeSeed;
+        const prevStrokeVariant = strokeVariant;
+        const prevStrokePatchSeed = strokePatchSeed;
+        const prevStrokeWidthVariant = strokeWidthVariant;
+        const prevStrokeWaveSeed = strokeWaveSeed;
+        const prevStrokeDirX = strokeDirX;
+        const prevStrokeDirY = strokeDirY;
+        const prevStrokeSpeed = strokeSpeed;
+
+        ctx = jitterFlipCtx;
+        canvas = jitterFlipCanvas;
+        canvasSize = CANVAS_SIZE;
+        strokeSeed = jitterStrokeSeed;
+        strokeVariant = jitterStrokeVariant;
+        strokePatchSeed = jitterStrokePatchSeed;
+        strokeWidthVariant = jitterStrokeWidthVariant;
+        strokeWaveSeed = jitterStrokeWaveSeed;
+        strokeDirX = jitterStrokeDirX;
+        strokeDirY = jitterStrokeDirY;
+        strokeSpeed = jitterStrokeSpeed;
+
+        try {
+            task();
+        } finally {
+            ctx = prevCtx;
+            canvas = prevCanvas;
+            canvasSize = prevCanvasSize;
+            strokeSeed = prevStrokeSeed;
+            strokeVariant = prevStrokeVariant;
+            strokePatchSeed = prevStrokePatchSeed;
+            strokeWidthVariant = prevStrokeWidthVariant;
+            strokeWaveSeed = prevStrokeWaveSeed;
+            strokeDirX = prevStrokeDirX;
+            strokeDirY = prevStrokeDirY;
+            strokeSpeed = prevStrokeSpeed;
+        }
+    }
+
+    function drawJitterCrayon(pos, widthFactor = 1) {
+        withJitterContext(() => {
+            drawCrayonBrush(pos, widthFactor);
+        });
+    }
+
+    function drawJitterStrokeCap(pos, widthFactor = 1) {
+        withJitterContext(() => {
+            drawStrokeCap(pos, widthFactor);
+        });
+    }
+
+    function drawJitterEraser(pos) {
+        withJitterContext(() => {
+            drawEraser(pos);
+        });
+    }
+
+    function getJitterStrokeWidthFactor(pos) {
+        const jitter = signedNoise(
+            Math.floor(pos.x * 0.15),
+            Math.floor(pos.y * 0.15),
+            jitterStrokeSeed * 2.1 + jitterStrokePatchSeed * 0.83
+        );
+        return 1 + jitter * 0.25;
+    }
+
+    function drawAtPositionJitter(pos, widthFactor = 1) {
+        if (!jitterEnabled || !jitterFlipCtx) return;
+        switch (selectedBrushType) {
+            case 'crayon':
+                drawJitterCrayon(pos, widthFactor);
+                break;
+            case 'eraser':
+                drawJitterEraser(pos);
+                break;
+            default:
+                drawJitterCrayon(pos, widthFactor);
+        }
+    }
+
+    function jitterizePoint(baseX, baseY, travel, dirX, dirY, perpX, perpY, waveStrength) {
+        let x = baseX + jitterStrokeBaseOffsetX;
+        let y = baseY + jitterStrokeBaseOffsetY;
+        const wavePhase = jitterStrokeWaveSeed * 0.019 + travel * 0.31 + jitterStrokeVariant * 4.7;
+        const sinWave = Math.sin(wavePhase) * waveStrength * (0.4 + BRUSH_WAVINESS * 0.6);
+        const noiseWave = signedNoise(
+            Math.floor((baseX + jitterStrokeWaveSeed) * 0.05),
+            Math.floor((baseY + jitterStrokeWaveSeed) * 0.05),
+            jitterStrokeSeed * 1.5 + travel * 0.4
+        ) * waveStrength * (0.35 + BRUSH_WAVINESS * 0.5);
+        const wobble = sinWave + noiseWave;
+        x += perpX * wobble;
+        y += perpY * wobble;
+        const alongNoise = signedNoise(
+            Math.floor((baseX - wobble) * 0.07),
+            Math.floor((baseY + wobble) * 0.07),
+            jitterStrokePatchSeed * 0.9 + jitterStrokeWaveSeed * 0.2
+        ) * waveStrength * (0.25 + BRUSH_WAVINESS * 0.3);
+        x += dirX * alongNoise;
+        y += dirY * alongNoise;
+        x += signedNoise(
+            Math.floor((baseX + travel) * 0.13),
+            Math.floor((baseY - travel) * 0.13),
+            jitterStrokeSeed * 2.1
+        ) * 1.8;
+        y += signedNoise(
+            Math.floor(baseX * 0.17),
+            Math.floor(baseY * 0.17),
+            jitterStrokeSeed * 2.6
+        ) * 1.8;
+        return { x, y };
+    }
+
+    function drawLineJitter(fromRaw, toRaw) {
+        if (!jitterEnabled || !jitterFlipCtx || !fromRaw || !toRaw) return;
+        const dx = toRaw.x - fromRaw.x;
+        const dy = toRaw.y - fromRaw.y;
+        const distance = Math.hypot(dx, dy);
+        if (distance === 0) {
+            if (selectedBrushType === 'eraser') {
+                drawAtPositionJitter(toRaw, 1);
+                jitterLastRenderedPos = { x: toRaw.x, y: toRaw.y };
+            } else {
+                const dirX = jitterStrokeDirX;
+                const dirY = jitterStrokeDirY;
+                const perpX = -dirY;
+                const perpY = dirX;
+                const point = jitterizePoint(toRaw.x, toRaw.y, 0, dirX, dirY, perpX, perpY, 6);
+                drawAtPositionJitter(point, getJitterStrokeWidthFactor(point));
+                jitterLastRenderedPos = point;
+            }
+            return;
+        }
+
+        if (selectedBrushType === 'eraser') {
+            const eraserSteps = Math.max(1, Math.ceil(distance / 0.9));
+            for (let i = 0; i <= eraserSteps; i++) {
+                const t = eraserSteps === 0 ? 0 : i / eraserSteps;
+                const sample = {
+                    x: fromRaw.x + dx * t,
+                    y: fromRaw.y + dy * t
+                };
+                drawAtPositionJitter(sample, 1);
+            }
+            jitterLastRenderedPos = { x: toRaw.x, y: toRaw.y };
+            return;
+        }
+
+        const stepSize = 0.9;
+        const steps = Math.max(1, Math.ceil(distance / stepSize));
+        const dirX = dx / distance;
+        const dirY = dy / distance;
+        const lerp = 0.25;
+        jitterStrokeDirX = jitterStrokeDirX * (1 - lerp) + dirX * lerp;
+        jitterStrokeDirY = jitterStrokeDirY * (1 - lerp) + dirY * lerp;
+        const dirNorm = Math.hypot(jitterStrokeDirX, jitterStrokeDirY) || 1;
+        jitterStrokeDirX /= dirNorm;
+        jitterStrokeDirY /= dirNorm;
+        jitterStrokeSpeed = jitterStrokeSpeed * 0.8 + Math.min(distance, 25) * 0.2;
+
+        const perpX = -jitterStrokeDirY;
+        const perpY = jitterStrokeDirX;
+        const wavinessLevel = Math.min(1, Math.max(0, BRUSH_WAVINESS));
+        const baseWaveStrength = Math.max(0.6, brushSize * (0.25 + jitterStrokeVariant * 0.3));
+        const waveStrength = baseWaveStrength * (0.4 + wavinessLevel * 1.4);
+
+        for (let i = 0; i <= steps; i++) {
+            const t = i / steps;
+            const baseX = fromRaw.x + dx * t;
+            const baseY = fromRaw.y + dy * t;
+            const travel = distance * t;
+            const jitterPoint = jitterizePoint(baseX, baseY, travel, jitterStrokeDirX, jitterStrokeDirY, perpX, perpY, waveStrength);
+            drawAtPositionJitter(jitterPoint, getJitterStrokeWidthFactor(jitterPoint));
+        }
+        const finalPoint = jitterizePoint(toRaw.x, toRaw.y, distance, jitterStrokeDirX, jitterStrokeDirY, perpX, perpY, waveStrength);
+        jitterLastRenderedPos = finalPoint;
+    }
+
+    function beginJitterStroke(pos) {
+        if (!jitterEnabled || !jitterFlipCtx) return;
+        if (selectedBrushType === 'eraser') {
+            jitterLastInputPos = pos;
+            jitterLastRenderedPos = pos;
+            drawAtPositionJitter(pos, 1);
+            return;
+        }
+        jitterStrokeSeed = Math.random() * 10000;
+        jitterStrokeVariant = Math.random();
+        jitterStrokePatchSeed = Math.random() * 5000;
+        jitterStrokeWidthVariant = Math.random();
+        jitterStrokeWaveSeed = Math.random() * 7000;
+        const angle = Math.random() * Math.PI * 2;
+        jitterStrokeDirX = Math.cos(angle);
+        jitterStrokeDirY = Math.sin(angle);
+        jitterStrokeSpeed = 0;
+        const offsetRange = Math.max(2, brushSize * 0.4);
+        jitterStrokeBaseOffsetX = (Math.random() - 0.5) * offsetRange * 2.5;
+        jitterStrokeBaseOffsetY = (Math.random() - 0.5) * offsetRange * 2.5;
+        jitterLastInputPos = pos;
+        const perpX = -jitterStrokeDirY;
+        const perpY = jitterStrokeDirX;
+        const initialPoint = jitterizePoint(pos.x, pos.y, 0, jitterStrokeDirX, jitterStrokeDirY, perpX, perpY, Math.max(0.6, brushSize * 0.3));
+        jitterLastRenderedPos = initialPoint;
+        const widthFactor = getJitterStrokeWidthFactor(initialPoint);
+        drawAtPositionJitter(initialPoint, widthFactor);
+        if (selectedBrushType === 'crayon') {
+            drawJitterStrokeCap(initialPoint, widthFactor);
+        }
+    }
+
+    function endJitterStroke() {
+        if (!jitterEnabled || !jitterFlipCtx) return;
+        if (jitterLastRenderedPos && selectedBrushType === 'crayon') {
+            drawJitterStrokeCap(jitterLastRenderedPos, getJitterStrokeWidthFactor(jitterLastRenderedPos));
+        }
+        jitterLastInputPos = null;
+        jitterLastRenderedPos = null;
     }
 
     function createLayer() {
@@ -398,6 +729,9 @@ window.addEventListener('DOMContentLoaded', () => {
         if (selectedBrushType === 'crayon') {
             drawStrokeCap(pos, widthFactor);
         }
+        if (jitterEnabled) {
+            beginJitterStroke(pos);
+        }
         draw(e);
     }
 
@@ -424,6 +758,13 @@ window.addEventListener('DOMContentLoaded', () => {
         }
         
         lastPos = pos;
+        if (jitterEnabled) {
+            if (!jitterLastInputPos) {
+                jitterLastInputPos = pos;
+            }
+            drawLineJitter(jitterLastInputPos, pos);
+            jitterLastInputPos = pos;
+        }
     }
 
     function drawLine(from, to) {
@@ -778,6 +1119,9 @@ window.addEventListener('DOMContentLoaded', () => {
             
 
             updatePreview(activeLayer);
+            if (jitterEnabled) {
+                syncJitterCanvasWithLayers();
+            }
             
 
             saveCanvasState();
@@ -1074,6 +1418,9 @@ window.addEventListener('DOMContentLoaded', () => {
         }
         drawing = false;
         lastPos = null;
+        if (jitterEnabled) {
+            endJitterStroke();
+        }
         restoreBrushFromErase();
     }
 
@@ -1117,6 +1464,9 @@ window.addEventListener('DOMContentLoaded', () => {
         } else {
             updatePreview(layer);
         }
+        if (jitterEnabled) {
+            syncJitterCanvasWithLayers();
+        }
     }
 
     function redo() {
@@ -1131,6 +1481,9 @@ window.addEventListener('DOMContentLoaded', () => {
             layer.previewCtx.clearRect(0, 0, layer.preview.width, layer.preview.height);
         } else {
             updatePreview(layer);
+        }
+        if (jitterEnabled) {
+            syncJitterCanvasWithLayers();
         }
     }
 
@@ -1303,6 +1656,16 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    if (jitterToggle) {
+        jitterToggle.addEventListener('change', () => {
+            if (jitterToggle.checked) {
+                enableJitterMode();
+            } else {
+                disableJitterMode();
+            }
+        });
+    }
+
 
     updateColorDisplays();
     
@@ -1356,6 +1719,9 @@ window.addEventListener('DOMContentLoaded', () => {
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         saveCanvasState();
         updatePreview(layers[activeLayerIndex]);
+        if (jitterEnabled) {
+            syncJitterCanvasWithLayers();
+        }
     });
 
 

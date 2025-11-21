@@ -68,6 +68,25 @@ main {
 
 }
 
+.canvas-column {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+}
+
+.canvas-stage {
+    position: relative;
+    width: 80vmin;
+    height: 80vmin;
+    border: 1px solid var(--text-color);
+    background-color: #e0e0e0;
+}
+
+.dark-mode .canvas-stage {
+    background-color: #202020;
+}
+
 .right-section {
     display: flex;
     flex-direction: column;
@@ -98,6 +117,26 @@ main {
     gap: 20px;
     margin-top: 8px;
     justify-content: center;
+}
+
+.canvas-controls {
+    margin-top: 8px;
+    display: flex;
+    justify-content: center;
+}
+
+.jitter-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-size: 0.85rem;
+}
+
+.jitter-toggle input {
+    width: 16px;
+    height: 16px;
 }
 
 .edit-overlay {
@@ -230,15 +269,10 @@ select:hover {
 /* Layering styles */
 #canvas-stack {
     position: relative;
-    width: 80vmin;
-    height: 80vmin;
-    background-color: #e0e0e0;
-    border: 1px solid var(--text-color);
+    width: 100%;
+    height: 100%;
+    background-color: transparent;
     touch-action: none;
-}
-
-.dark-mode #canvas-stack {
-    background-color: #202020;
 }
 
 .drawing-layer {
@@ -248,6 +282,38 @@ select:hover {
     width: 100%;
     height: 100%;
     touch-action: none;
+}
+
+#jitter-flip-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border: none;
+    pointer-events: none;
+    opacity: 0;
+    image-rendering: pixelated;
+}
+
+.canvas-stage.jitter-enabled #jitter-flip-canvas {
+    opacity: 1;
+}
+
+.canvas-stage.show-original #canvas-stack {
+    opacity: 1;
+}
+
+.canvas-stage.show-original #jitter-flip-canvas {
+    opacity: 0;
+}
+
+.canvas-stage.show-jitter #canvas-stack {
+    opacity: 0;
+}
+
+.canvas-stage.show-jitter #jitter-flip-canvas {
+    opacity: 1;
 }
 
 .layers-section {

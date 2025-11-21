@@ -56,11 +56,21 @@
                             <div id="color2-display" class="color-display"></div>
                         </div>
                     </div>
-                    <div class="canvas-controls"></div>
+                    <div class="canvas-controls">
+                        <label class="jitter-toggle" for="jitter-toggle">
+                            <input type="checkbox" id="jitter-toggle">
+                            <span>jitter</span>
+                        </label>
+                    </div>
                 </div>
             </div>
             <div class="center-section">
-                <div id="canvas-stack"></div>
+                <div class="canvas-column">
+                    <div id="canvas-stage" class="canvas-stage">
+                        <div id="canvas-stack"></div>
+                        <canvas id="jitter-flip-canvas" class="jitter-flip-canvas" width="1024" height="1024"></canvas>
+                    </div>
+                </div>
             </div>
             <div class="right-section">
                 <div class="layers-section">
