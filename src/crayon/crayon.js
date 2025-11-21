@@ -13,8 +13,11 @@ window.addEventListener('DOMContentLoaded', () => {
     const addLayerButton = document.getElementById('add-layer-button');
     const layersList = document.getElementById('layers-list');
 
-    const CANVAS_SIZE = 512;
-    const BRUSH_SIZE = 1;
+    const CANVAS_SIZE = 1024;
+    const BRUSH_SIZE = 6;
+    const BRUSH_CONCENTRATION = 0.5; // 0=concentrated, 1=grainy
+    const BRUSH_PATCHINESS = 0.5; // 0=smooth, 1=patchy
+    const BRUSH_WAVINESS = 0.7; // 0=straight, 1=wavy
     const CANVAS_BACKGROUND = '#FFFFFF';
 
     let layers = [];
@@ -38,6 +41,7 @@ window.addEventListener('DOMContentLoaded', () => {
     let strokeVariant = 0;
     let strokePatchSeed = Math.random() * 5000;
     let strokeWidthVariant = Math.random();
+    let strokeWaveSeed = Math.random() * 1000;
 
     let color1 = '#000000';
     let color2 = '#FFFFFF';
@@ -383,14 +387,16 @@ window.addEventListener('DOMContentLoaded', () => {
         strokeVariant = Math.random();
         strokePatchSeed = Math.random() * 5000;
         strokeWidthVariant = Math.random();
+        strokeWaveSeed = Math.random() * 7000;
         const initialAngle = Math.random() * Math.PI * 2;
         strokeDirX = Math.cos(initialAngle);
         strokeDirY = Math.sin(initialAngle);
         strokeSpeed = 0;
 
-        drawAtPosition(pos);
+        const widthFactor = getStrokeWidthFactor(pos);
+        drawAtPosition(pos, false, widthFactor);
         if (selectedBrushType === 'crayon') {
-            drawStrokeCap(pos);
+            drawStrokeCap(pos, widthFactor);
         }
         draw(e);
     }
@@ -421,52 +427,91 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     function drawLine(from, to) {
+        const dx = to.x - from.x;
+        const dy = to.y - from.y;
+        const distance = Math.hypot(dx, dy);
 
-        let x0 = from.x;
-        let y0 = from.y;
-        let x1 = to.x;
-        let y1 = to.y;
-        
-        const dx = Math.abs(x1 - x0);
-        const dy = Math.abs(y1 - y0);
-        const sx = x0 < x1 ? 1 : -1;
-        const sy = y0 < y1 ? 1 : -1;
-        let err = dx - dy;
-        
-        while (true) {
-            drawAtPosition({ x: x0, y: y0 });
-            if (x0 === x1 && y0 === y1) break;
-            
-            const e2 = 2 * err;
-            if (e2 > -dy) {
-                err -= dy;
-                x0 += sx;
-            }
-            if (e2 < dx) {
-                err += dx;
-                y0 += sy;
-            }
+        if (distance === 0) {
+            drawAtPosition(from, false, getStrokeWidthFactor(from));
+            return;
+        }
+
+        const stepSize = 0.9;
+        const steps = Math.max(1, Math.ceil(distance / stepSize));
+        const dirX = dx / distance;
+        const dirY = dy / distance;
+        const perpX = -dirY;
+        const perpY = dirX;
+        const wavinessLevel = Math.min(1, Math.max(0, BRUSH_WAVINESS));
+        const baseWaveStrength = Math.max(0.3, brushSize * (0.2 + strokeVariant * 0.15));
+        const waveStrength = baseWaveStrength * (0.15 + wavinessLevel * 1.2);
+        const sinAmp = 0.4 + wavinessLevel * 0.4;
+        const noiseAmp = 0.25 + wavinessLevel * 0.55;
+        const alongAmp = 0.12 + wavinessLevel * 0.28;
+
+        for (let i = 0; i <= steps; i++) {
+            const t = i / steps;
+            let x = from.x + dx * t;
+            let y = from.y + dy * t;
+            const travel = distance * t;
+            const wavePhase = strokeWaveSeed * 0.02 + travel * 0.25 + strokeVariant * 3.3;
+            const sinWave = Math.sin(wavePhase) * waveStrength * sinAmp;
+            const noiseWave = signedNoise(
+                Math.floor((x + strokeWaveSeed) * 0.05),
+                Math.floor((y + strokeWaveSeed) * 0.05),
+                strokeSeed * 1.5 + travel * 0.3
+            ) * waveStrength * noiseAmp;
+            const wobble = sinWave + noiseWave;
+            x += perpX * wobble;
+            y += perpY * wobble;
+            const alongNoise = signedNoise(
+                Math.floor((x - wobble) * 0.07),
+                Math.floor((y + wobble) * 0.07),
+                strokePatchSeed * 1.1 + strokeWaveSeed * 0.3
+            ) * waveStrength * alongAmp;
+            x += dirX * alongNoise;
+            y += dirY * alongNoise;
+            const sample = { x, y };
+            drawAtPosition(sample, true, getStrokeWidthFactor(sample));
         }
 
         updatePreview(layers[activeLayerIndex]);
     }
 
-    function drawAtPosition(pos) {
+    function getStrokeWidthFactor(pos) {
+        const jitter = signedNoise(
+            Math.floor(pos.x * 0.15),
+            Math.floor(pos.y * 0.15),
+            strokeSeed * 2.1 + strokePatchSeed * 0.83
+        );
+        return 1 + jitter * 0.2;
+    }
+
+    function drawAtPosition(pos, skipPreview = false, widthFactor = 1) {
         switch (selectedBrushType) {
             case 'crayon':
-                drawCrayonBrush(pos);
+                drawCrayonBrush(pos, widthFactor);
                 break;
             case 'eraser':
                 drawEraser(pos);
                 break;
             default:
-                drawCrayonBrush(pos);
+                drawCrayonBrush(pos, widthFactor);
         }
-        updatePreview(layers[activeLayerIndex]);
+        if (!skipPreview) {
+            updatePreview(layers[activeLayerIndex]);
+        }
     }
 
-    function drawCrayonBrush(pos) {
-        const baseRadius = Math.max(1.5, brushSize * (0.45 + strokeWidthVariant * 0.35));
+    function drawCrayonBrush(pos, widthFactor = 1) {
+        const widthScale = Math.max(0.5, widthFactor);
+        const concentrationLevel = Math.min(1, Math.max(0, BRUSH_CONCENTRATION));
+        const patchinessLevel = Math.min(1, Math.max(0, BRUSH_PATCHINESS));
+        const denseBoost = 1 + (1 - concentrationLevel) * 0.5;
+        const patchFalloff = 0.02 + patchinessLevel * 0.35 + concentrationLevel * 0.05;
+        const gritFalloff = 0.04 + patchinessLevel * 0.45 + concentrationLevel * 0.05;
+        const dropoutBias = (concentrationLevel * 0.1) + (patchinessLevel * 0.15);
+        const baseRadius = Math.max(0.2, brushSize * (0.45 + strokeWidthVariant * 0.35) * widthScale);
         const momentum = Math.min(strokeSpeed, 25);
         const parallelRadius = baseRadius * (0.95 + momentum * 0.05);
         const perpRadius = baseRadius * (0.45 + strokeVariant * 0.35);
@@ -526,7 +571,18 @@ window.addEventListener('DOMContentLoaded', () => {
                 const localNoise = signedNoise(startX + x, startY + y, strokeSeed);
                 const clusterNoise = signedNoise(Math.floor((startX + x) / 3), Math.floor((startY + y) / 3), strokeSeed * 1.7);
                 const jitter = (Math.random() - 0.5) * (0.35 + momentum * 0.015);
-                let coverage = grainBase + directionTexture + crossHatch + (localNoise * (0.35 + strokeVariant * 0.2)) + (clusterNoise * 0.15) - jitter;
+                const patchNoise = signedNoise(Math.floor((startX + x) / 6), Math.floor((startY + y) / 6), strokePatchSeed * 1.9);
+                const gritNoise = signedNoise(Math.floor((startX + x) / 2), Math.floor((startY + y) / 2), strokeSeed * 2.6);
+                let coverage = grainBase +
+                    directionTexture +
+                    crossHatch +
+                    (localNoise * (0.35 + strokeVariant * 0.2)) +
+                    (clusterNoise * 0.15) -
+                    jitter;
+                coverage *= denseBoost;
+                coverage -= Math.abs(patchNoise) * patchFalloff;
+                coverage -= Math.max(0, gritNoise) * gritFalloff;
+                coverage -= dropoutBias;
 
                 if (coverage <= Math.random()) {
                     continue;
@@ -543,8 +599,13 @@ window.addEventListener('DOMContentLoaded', () => {
         ctx.putImageData(imageData, startX, startY);
     }
 
-    function drawStrokeCap(pos) {
-        const radius = Math.max(1.5, brushSize * (0.6 + strokeWidthVariant * 0.4));
+    function drawStrokeCap(pos, widthFactor = 1) {
+        const widthScale = Math.max(0.5, widthFactor);
+        const radius = Math.max(0.25, brushSize * (0.6 + strokeWidthVariant * 0.4) * widthScale);
+        const concentrationLevel = Math.min(1, Math.max(0, BRUSH_CONCENTRATION));
+        const patchinessLevel = Math.min(1, Math.max(0, BRUSH_PATCHINESS));
+        const capDenseBoost = 1 + (1 - concentrationLevel) * 0.4;
+        const capDropout = (concentrationLevel * 0.1) + (patchinessLevel * 0.22);
         const margin = Math.ceil(radius + 3);
         const startX = Math.max(0, Math.floor(pos.x - margin));
         const startY = Math.max(0, Math.floor(pos.y - margin));
@@ -571,7 +632,8 @@ window.addEventListener('DOMContentLoaded', () => {
                 const ringNoise = signedNoise(startX + x, startY + y, capSeed);
                 const microNoise = signedNoise(Math.floor((startX + x) / 2), Math.floor((startY + y) / 2), capSeed * 0.5);
                 const jitter = (Math.random() - 0.5) * 0.4;
-                const coverage = 0.82 - fade * 0.65 + ringNoise * 0.25 + microNoise * 0.15 - jitter;
+                let coverage = 0.82 - fade * 0.65 + ringNoise * 0.25 + microNoise * 0.15 - jitter;
+                coverage = coverage * capDenseBoost - capDropout;
                 if (coverage <= Math.random()) continue;
 
                 const idx = (y * width + x) * 4;
@@ -639,7 +701,7 @@ window.addEventListener('DOMContentLoaded', () => {
         const sanitizedFilename = sanitizeFilename(userInput);
         
 
-        const outputSize = canvasSize < 512 ? 512 : canvasSize;
+        const outputSize = Math.max(CANVAS_SIZE, canvasSize);
         
 
         const tempCanvas = document.createElement('canvas');
@@ -1006,7 +1068,7 @@ window.addEventListener('DOMContentLoaded', () => {
     function stop(e) {
         if (drawing) {
             if (lastPos && selectedBrushType === 'crayon') {
-                drawStrokeCap(lastPos);
+                drawStrokeCap(lastPos, getStrokeWidthFactor(lastPos));
             }
             saveCanvasState();
         }

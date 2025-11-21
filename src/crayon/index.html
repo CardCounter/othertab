@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en" class="js-loading">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="o_c">
+    <link rel="icon" href="images/crayon-light.png" type="image/png" media="(prefers-color-scheme: light)">
+    <link rel="icon" href="images/crayon-dark.png" type="image/png" media="(prefers-color-scheme: dark)">
+    <title>crayon</title>
+    <style>
+        html.js-loading {
+          visibility: hidden;
+          opacity: 0;
+        }
+    </style>
+    <script>document.documentElement.classList.add('js-loading');</script>
+    <link rel="stylesheet" href="../css/global.css">
+    <link rel="stylesheet" href="../css/header-footer.css">
+    <link rel="stylesheet" href="../css/link.css">
+    <link rel="stylesheet" href="../css/button.css">
+    <link rel="stylesheet" href="crayon.css">
+</head>
+<body>
+    <header>
+        <a href="../"><button id="home-button" class="page-button">o_t</button></a>
+        <p class="title">CRAYON</p>
+        <button id="dark-toggle" class="page-button">d_m</button>
+    </header>
+
+    <main>
+        <div class="drawing-area">
+            <div class="left-section">
+                <div class="left-content">
+                    <div class="drawing-controls">
+                        <div class="brush-size-controls">
+                            <label>brush size</label>
+                            <div class="brush-sizes">
+                                <button class="brush-size button active" data-size="10" disabled>M</button>
+                            </div>
+                        </div>
+                        
+                        <div class="brush-types">
+                            <button class="brush-type button active" data-type="crayon" style="font-size: 20px;" title="crayon">cr</button>
+                            <button class="brush-type button" data-type="eraser" style="font-size: 24px;">X</button>
+                        </div>
+
+                    </div>
+                    <div class="color-palette" id="color-palette"></div>
+                    <div class="palette-controls">
+                        <button id="edit-button">edit</button>
+                        <button id="reset-button">reset</button>
+                    </div>
+                    <div class="dual-color-controls">
+                        <div class="color-switch-bg">
+                            <div id="color1-display" class="color-display"></div>
+                            <div id="color2-display" class="color-display"></div>
+                        </div>
+                    </div>
+                    <div class="canvas-controls"></div>
+                </div>
+            </div>
+            <div class="center-section">
+                <div id="canvas-stack"></div>
+            </div>
+            <div class="right-section">
+                <div class="layers-section">
+                    <button id="add-layer-button">add layer</button>
+                    <div id="layers-list"></div>
+                </div>
+            </div>
+        </div>
+
+        <input id="load-input" type="file" accept="image/*" style="display: none;">
+        
+    </main>
+
+    <footer>
+        <div class="footer-left">
+            <div class="panel-anchor">
+                <button id="save-button" class="page-button">save</button>
+                <div id="save-input-container" class="save-input-container hidden" aria-hidden="true">
+                    <div id="save-error" class="save-error hidden">enter a drawing name</div>
+                    <input type="text" id="save-filename" placeholder="drawing name" maxlength="50">
+                </div>
+            </div>
+            <button id="load-button" class="page-button">load</button>
+        </div>
+        <div class="footer-center">
+            <p class="footer-brand">o_c</p>
+            <a href="controls/" class="footer-link">controls</a>
+            <a href="../privacy/" class="footer-link">privacy</a>
+            <a href="https://ko-fi.com/othertab" class="footer-link">support</a>
+        </div>
+        <div class="footer-right">
+            <button id="clear-button" class="page-button">clear</button>
+        </div>
+    </footer>
+    <script type="module" src="../scripts/darkmode.js"></script>
+    <script type="module" src="../scripts/fouc.js"></script>
+    <script type="module" src="./crayon.js"></script>
+</body>
+</html>
