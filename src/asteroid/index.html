@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="o_a">
-    <title>asteroid</title>
+    <title>asteroid_miner_alpha</title>
     <style>
         html.js-loading {
             visibility: hidden;
@@ -13,8 +13,8 @@
     </style>
     <script>document.documentElement.classList.add('js-loading');</script>
     <script>
-        window.OTHERTAB_MOBILE_HEADER = 'ASTEROID';
-        window.OTHERTAB_MOBILE_MESSAGE = 'needs a cursor to dodge asteroids';
+        window.OTHERTAB_MOBILE_HEADER = 'ASTEROID_MINER_ALPHA';
+        window.OTHERTAB_MOBILE_MESSAGE = 'asteroid miner only works on desktop';
     </script>
     <link rel="stylesheet" href="../css/global.css">
     <link rel="stylesheet" href="../css/header-footer.css">
@@ -24,7 +24,7 @@
 <body>
     <header>
         <a href="../"><button id="home-button" class="page-button">o_t</button></a>
-        <p class="title">ASTEROID</p>
+        <p class="title">ASTEROID_MINER_ALPHA</p>
         <button id="dark-toggle" class="page-button">d_m</button>
     </header>
 
@@ -34,7 +34,7 @@
                 <canvas id="asteroid-canvas" aria-hidden="true"></canvas>
             </div>
             <div class="ore-overlay">
-                <div id="ore-converter" class="ore-converter corner-square ore" aria-label="ore refinery zone" title="hover to refine ore">
+                <div id="ore-converter" class="ore-converter corner-square ore" aria-label="ore refinery zone">
                     <span class="square-label">ore</span>
                 </div>
                 <div id="radius-upgrade" class="corner-square radius" role="button" aria-label="radius upgrade zone">
@@ -44,7 +44,7 @@
                     <span class="square-label">strength</span>
                 </div>
                 <div id="num-upgrade" class="corner-square num" role="button" aria-label="laser count upgrade zone">
-                    <span class="square-label">num</span>
+                    <span class="square-label">lasers</span>
                 </div>
             </div>
         </div>
@@ -56,12 +56,14 @@
         </div>
         <div class="footer-center">
             <p class="footer-brand">o_a</p>
+            <a href="./tutorial/" class="footer-link">tutorial</a>
             <a href="../privacy/" class="footer-link">privacy</a>
             <a href="https://ko-fi.com/othertab" class="footer-link">support</a>
         </div>
         <div class="footer-right">
             <p id="ore-display" class="score-display">ore: 0</p>
             <p id="score-display" class="score-display">points: 0</p>
+            <button id="share-button" class="share-button hidden" type="button">share</button>
         </div>
     </footer>
     <script type="module" src="../scripts/mobile-block.js"></script>
