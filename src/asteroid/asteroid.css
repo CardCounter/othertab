@@ -9,6 +9,8 @@
     --pointer-circle-color: var(--mining-circle-color);
     --pointer-laser-color: var(--laser-color);
     --ore-converter-active-bg: rgba(0, 0, 0, 0.05);
+    --share-button-bg: blue;
+    --share-button-text: white;
 }
 
 body.dark-mode {
@@ -22,6 +24,8 @@ body.dark-mode {
     --pointer-circle-color: var(--mining-circle-color);
     --pointer-laser-color: var(--laser-color);
     --ore-converter-active-bg: rgba(255, 255, 255, 0.12);
+    --share-button-bg: red;
+    --share-button-text: black;
 }
 
 html,
@@ -113,19 +117,21 @@ main {
 }
 
 .share-button {
-    background: transparent;
-    color: var(--asteroid-text);
+    background-color: var(--share-button-bg);
+    color: var(--share-button-text);
     font-size: 1rem;
     text-transform: lowercase;
     border: none;
     padding: 0;
     margin: 0;
     cursor: pointer;
+    transition: background-color 0.16s ease, color 0.16s ease;
 }
 
 .share-button:hover {
     background-color: grey;
     margin: 0;
+    color: var(--asteroid-text);
 }
 
 .hidden {
