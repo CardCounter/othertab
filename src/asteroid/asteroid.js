@@ -606,7 +606,7 @@ function handlePlayerDeath(reason) {
     state.playing = false;
     state.gameOver = true;
     shareButton.classList.remove('hidden');
-    state.shareText = `made it to round ${state.round} with ${state.credits} credits in crayon.`;
+    state.shareText = `made it to round ${state.round} with ${state.credits} credits in asteroid.`;
     setBanner('game over', reason || 'cursor drift lost', 3200);
     openShop({ reason: 'reset to launch again', afterDeath: true });
 }
@@ -699,7 +699,7 @@ resizeCanvas();
 initUI();
 tick(performance.now());
 }).catch((error) => {
-    console.error('crayon: unable to start Matter.js scene', error);
+    console.error('asteroid: unable to start Matter.js scene', error);
     const banner = document.getElementById('banner');
     if (banner) {
         banner.classList.remove('hidden');
