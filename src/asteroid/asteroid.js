@@ -19,7 +19,7 @@ const ASTEROID_SHARE_URL = 'https://othertab.com/asteroid/';
 let shareButtonResetTimeout = null;
 let currentWinShareText = '';
 
-const SPAWN_INTERVAL = { min: 1000, max: 3000 };
+const SPAWN_INTERVAL = { min: 1500, max: 4500 };
 const ASTEROID_SPIN = { min: -2.2, max: 2.2 }; // radians per second
 const OUT_OF_BOUNDS_MARGIN = 160;
 const ASTEROID_LINE_WIDTH = 3;
@@ -52,42 +52,42 @@ const ASTEROID_TIERS = [
         sides: 3,
         size: { min: 14, max: 24 },
         speed: { min: 220, max: 360 },
-        health: { min: 20, max: 40 },
+        health: { min: 100, max: 250 },
     },
     {
         name: 'square',
         sides: 4,
         size: { min: 20, max: 34 },
         speed: { min: 180, max: 320 },
-        health: { min: 40, max: 70 },
+        health: { min: 150, max: 300 },
     },
     {
         name: 'pentagon',
         sides: 5,
         size: { min: 26, max: 44 },
         speed: { min: 150, max: 280 },
-        health: { min: 60, max: 90 },
+        health: { min: 250, max: 400 },
     },
     {
         name: 'hexagon',
         sides: 6,
         size: { min: 30, max: 56 },
         speed: { min: 130, max: 240 },
-        health: { min: 80, max: 120 },
+        health: { min: 350, max: 500 },
     },
     {
         name: 'heptagon',
         sides: 7,
         size: { min: 34, max: 72 },
         speed: { min: 110, max: 210 },
-        health: { min: 110, max: 170 },
+        health: { min: 350, max: 500 },
     },
     {
         name: 'octagon',
         sides: 8,
         size: { min: 40, max: 90 },
         speed: { min: 90, max: 180 },
-        health: { min: 150, max: 230 },
+        health: { min: 400, max: 600 },
     },
 ];
 
@@ -723,7 +723,7 @@ function handleOreConversion(delta) {
 
 function updateOreRatio(now) {
     if (now - state.lastOreRatioUpdate > ORE_RATIO_UPDATE_INTERVAL) {
-        state.oreRatio = Math.floor(Math.random() * 4) + 1; // 1 to 4
+        state.oreRatio = Math.floor(Math.random() * 6) + 1; // 1 to 6
         state.lastOreRatioUpdate = now;
         updateResourceDisplays();
     }
