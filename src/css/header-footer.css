@@ -57,7 +57,7 @@ header .title {
 
 .page-button {
     padding: 0;
-    cursor: pointer;
+    /* cursor: pointer; */
     background-color: white;
     color: black;
     border: none;

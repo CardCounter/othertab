@@ -36,10 +36,13 @@ const UPGRADE_HOLD_DURATION = 1; // seconds to stay in zone before purchase
 const STRENGTH_INCREMENT = 50;
 const RADIUS_INCREMENT = 10;
 const LASER_COUNT_BASE = 1;
+const ORE_RATIO_UPDATE_INTERVAL = 10000;
+const DIFFICULTY_RAMP_PER_MINUTE = 0.25;
+
 const UPGRADE_CONFIG = {
-    num: { cost: 1, increment: 1 },
-    strength: { cost: 1, increment: STRENGTH_INCREMENT },
-    radius: { cost: 1, increment: RADIUS_INCREMENT },
+    num: { increment: 1 },
+    strength: { increment: STRENGTH_INCREMENT },
+    radius: { increment: RADIUS_INCREMENT },
 };
 const ZONE_PULSE_CLASS = 'square-pulse';
 
@@ -111,12 +114,20 @@ const state = {
     },
     points: 0,
     ore: 0,
+    oreRatio: 1,
+    lastOreRatioUpdate: 0,
+    gameStartTime: performance.now(),
     oreConversionActive: false,
     oreConversionProgress: 0,
     upgrades: {
         num: LASER_COUNT_BASE,
         strength: 0,
         radius: 0,
+    },
+    upgradeLevels: {
+        num: 1,
+        strength: 1,
+        radius: 1,
     },
     zoneInteractions: {
         ore: { hovered: false, progress: 0 },
@@ -230,6 +241,10 @@ function stopAllZoneInteractions() {
     });
 }
 
+function getUpgradeCost(zoneKey) {
+    return state.upgradeLevels[zoneKey] || 1;
+}
+
 function hasReachedUpgradeLimit(zoneKey, config) {
     if (!config || typeof config.maxValue !== 'number') {
         return false;
@@ -243,10 +258,14 @@ function hasReachedUpgradeLimit(zoneKey, config) {
 function applyUpgrade(zoneKey) {
     const config = UPGRADE_CONFIG[zoneKey];
     if (!config) return false;
-    if (state.points < config.cost) return false;
+    
+    const cost = getUpgradeCost(zoneKey);
+    if (state.points < cost) return false;
     if (hasReachedUpgradeLimit(zoneKey, config)) return false;
 
-    state.points -= config.cost;
+    state.points -= cost;
+    state.upgradeLevels[zoneKey] = (state.upgradeLevels[zoneKey] || 0) + 1;
+
     switch (zoneKey) {
         case 'num':
             state.upgrades.num = Math.min(
@@ -284,7 +303,9 @@ function handleUpgradeZones(delta) {
             continue;
         }
         const config = UPGRADE_CONFIG[zoneKey];
-        if (!config || state.points < config.cost) {
+        const cost = getUpgradeCost(zoneKey);
+
+        if (!config || state.points < cost) {
             continue;
         }
         if (hasReachedUpgradeLimit(zoneKey, config)) {
@@ -308,15 +329,36 @@ function purgeInvalidMiningTargets() {
 
 function updateResourceDisplays() {
     if (scoreDisplay) {
-        scoreDisplay.textContent = `points: ${state.points}`;
+        scoreDisplay.textContent = `§${state.points}`;
     }
     if (oreDisplay) {
         oreDisplay.textContent = `ore: ${state.ore}`;
     }
+    
+    // Update upgrade zones
+    if (strengthUpgradeSquare) {
+        const cost = getUpgradeCost('strength');
+        const val = MINING_DAMAGE_PER_SECOND + state.upgrades.strength;
+        strengthUpgradeSquare.innerHTML = `<span class="square-label">strength: ${val}<br>§${cost}</span>`;
+    }
+    if (radiusUpgradeSquare) {
+        const cost = getUpgradeCost('radius');
+        const val = POINTER_RING_RADIUS + state.upgrades.radius;
+        radiusUpgradeSquare.innerHTML = `<span class="square-label">radius: ${val}<br>§${cost}</span>`;
+    }
+    if (numUpgradeSquare) {
+        const cost = getUpgradeCost('num');
+        const val = state.upgrades.num;
+        numUpgradeSquare.innerHTML = `<span class="square-label">lasers: ${val}<br>§${cost}</span>`;
+    }
+    // Update ore converter with ratio
+    if (oreConverter) {
+        oreConverter.innerHTML = `<span class="square-label">ore<br>1 : ${state.oreRatio}</span>`;
+    }
 }
 
 function getPointsLabel() {
-    return state.points === 1 ? 'point' : 'points';
+    return '§';
 }
 
 function updateShareScoreDisplay(visible) {
@@ -478,6 +520,8 @@ function createAsteroidFromTier(tierIndex, options = {}) {
         spawnData = computeEdgeSpawn(radius);
     }
 
+    const difficultyMultiplier = 1 + ((performance.now() - state.gameStartTime) / 60000) * DIFFICULTY_RAMP_PER_MINUTE;
+
     let vx;
     let vy;
     if (options.velocity) {
@@ -488,12 +532,16 @@ function createAsteroidFromTier(tierIndex, options = {}) {
             typeof spawnData.angle === 'number'
                 ? spawnData.angle
                 : Math.random() * Math.PI * 2;
-        const speed = options.speed ?? randRange(tier.speed.min, tier.speed.max);
+        const speedMin = tier.speed.min * difficultyMultiplier;
+        const speedMax = tier.speed.max * difficultyMultiplier;
+        const speed = options.speed ?? randRange(speedMin, speedMax);
         vx = Math.cos(heading) * speed;
         vy = Math.sin(heading) * speed;
     }
 
-    const health = options.health ?? randRange(tier.health.min, tier.health.max);
+    const healthMin = tier.health.min * difficultyMultiplier;
+    const healthMax = tier.health.max * difficultyMultiplier;
+    const health = options.health ?? randRange(healthMin, healthMax);
 
     return {
         id: asteroidIdCounter++,
@@ -548,11 +596,15 @@ function breakAsteroid(asteroid) {
     asteroid.destroyed = true;
     const nextTierIndex = asteroid.tierIndex - 1;
     if (nextTierIndex >= 0) {
+        const difficultyMultiplier = 1 + ((performance.now() - state.gameStartTime) / 60000) * DIFFICULTY_RAMP_PER_MINUTE;
         const tier = ASTEROID_TIERS[nextTierIndex];
+        const speedMin = tier.speed.min * difficultyMultiplier;
+        const speedMax = tier.speed.max * difficultyMultiplier;
+
         const parentSpeed = Math.hypot(asteroid.vx, asteroid.vy);
         const parentHasMomentum = parentSpeed > 0;
         const clampedParentSpeed = parentHasMomentum
-            ? clamp(parentSpeed, tier.speed.min, tier.speed.max)
+            ? clamp(parentSpeed, speedMin, speedMax)
             : 0;
         const baseHeading = parentHasMomentum
             ? Math.atan2(asteroid.vy, asteroid.vx)
@@ -564,10 +616,10 @@ function breakAsteroid(asteroid) {
             const speed = parentHasMomentum
                 ? clamp(
                       clampedParentSpeed * randRange(0.9, 1.1),
-                      tier.speed.min,
-                      tier.speed.max
+                      speedMin,
+                      speedMax
                   )
-                : randRange(tier.speed.min, tier.speed.max);
+                : randRange(speedMin, speedMax);
             const offsetAngle = Math.random() * Math.PI * 2;
             const offsetDistance = randRange(0, asteroid.radius * 0.4);
             addAsteroidFromTier(nextTierIndex, {
@@ -662,10 +714,18 @@ function handleOreConversion(delta) {
     );
     if (wholeUnits > 0) {
         state.ore -= wholeUnits;
-        state.points += wholeUnits;
+        state.points += wholeUnits * state.oreRatio;
         state.oreConversionProgress -= wholeUnits;
         updateResourceDisplays();
         triggerZonePulse('ore');
+    }
+}
+
+function updateOreRatio(now) {
+    if (now - state.lastOreRatioUpdate > ORE_RATIO_UPDATE_INTERVAL) {
+        state.oreRatio = Math.floor(Math.random() * 4) + 1; // 1 to 4
+        state.lastOreRatioUpdate = now;
+        updateResourceDisplays();
     }
 }
 
@@ -887,10 +947,18 @@ function resetGame() {
     lastFrame = performance.now();
     state.points = 0;
     state.ore = 0;
+    state.oreRatio = 1;
+    state.gameStartTime = performance.now();
+    state.lastOreRatioUpdate = performance.now();
     state.oreConversionProgress = 0;
     state.upgrades.num = LASER_COUNT_BASE;
     state.upgrades.strength = 0;
     state.upgrades.radius = 0;
+    state.upgradeLevels = {
+        num: 1,
+        strength: 1,
+        radius: 1,
+    };
     stopAllZoneInteractions();
     updateResourceDisplays();
     clearMiningState();
@@ -1008,6 +1076,7 @@ function loop(now) {
     }
 
     handleUpgradeZones(delta);
+    updateOreRatio(now);
     handleOreConversion(delta);
     drawAsteroids();
     requestAnimationFrame(loop);
