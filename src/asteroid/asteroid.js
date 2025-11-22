@@ -30,17 +30,17 @@ const POINTER_RING_LINE_WIDTH = 1.5;
 const SPLIT_COUNT = 2;
 const SPLIT_DIRECTION_VARIANCE = Math.PI / 6;
 const POINTER_COLLECTION_PADDING = 6;
-const ORE_CONVERSION_RATE = 2; // ore per second converted to points
+const ORE_CONVERSION_RATE = 1; // ore per second converted to points
 const UPGRADE_HOLD_DURATION = 1; // seconds to stay in zone before purchase
 const STRENGTH_INCREMENT = 50;
 const RADIUS_INCREMENT = 10;
 const LASER_COUNT_BASE = 1;
-const ZONE_PULSE_CLASS = 'square-pulse';
 const UPGRADE_CONFIG = {
     num: { cost: 1, increment: 1 },
     strength: { cost: 1, increment: STRENGTH_INCREMENT },
     radius: { cost: 1, increment: RADIUS_INCREMENT },
 };
+const ZONE_PULSE_CLASS = 'square-pulse';
 
 const ASTEROID_TIERS = [
     {
@@ -118,6 +118,7 @@ const state = {
         radius: 0,
     },
     zoneInteractions: {
+        ore: { hovered: false, progress: 0 },
         radius: { hovered: false, progress: 0 },
         strength: { hovered: false, progress: 0 },
         num: { hovered: false, progress: 0 },
@@ -272,20 +273,23 @@ function handleUpgradeZones(delta) {
             zoneState.progress = 0;
             continue;
         }
+        zoneState.progress += delta;
+        if (zoneState.progress < UPGRADE_HOLD_DURATION) {
+            continue;
+        }
+        zoneState.progress = 0;
+        if (zoneKey === 'ore') {
+            activateOreConversion();
+            continue;
+        }
         const config = UPGRADE_CONFIG[zoneKey];
         if (!config || state.points < config.cost) {
-            zoneState.progress = 0;
             continue;
         }
         if (hasReachedUpgradeLimit(zoneKey, config)) {
-            zoneState.progress = 0;
             continue;
         }
-        zoneState.progress += delta;
-        if (zoneState.progress >= UPGRADE_HOLD_DURATION) {
-            applyUpgrade(zoneKey);
-            zoneState.progress = 0;
-        }
+        applyUpgrade(zoneKey);
     }
 }
 
@@ -641,6 +645,17 @@ function handleOreConversion(delta) {
     }
 }
 
+function activateOreConversion() {
+    if (state.oreConversionActive) {
+        return;
+    }
+    state.oreConversionActive = true;
+    if (oreConverter) {
+        oreConverter.classList.add('active');
+    }
+    state.oreConversionProgress = Math.max(state.oreConversionProgress, ORE_CONVERSION_RATE);
+}
+
 function handleMining(delta) {
     if (!state.pointer.active) {
         clearMiningState();
@@ -990,15 +1005,11 @@ if (shareButton) {
     shareButton.addEventListener('click', handleShareButtonClick);
 }
 if (oreConverter) {
-    const activateConverter = () => {
-        state.oreConversionActive = true;
-        oreConverter.classList.add('active');
-    };
-    const deactivateConverter = () => {
+    oreConverter.addEventListener('pointerenter', () => setZoneHover('ore', true));
+    oreConverter.addEventListener('pointerleave', () => {
+        setZoneHover('ore', false);
         deactivateOreConverter();
-    };
-    oreConverter.addEventListener('pointerenter', activateConverter);
-    oreConverter.addEventListener('pointerleave', deactivateConverter);
+    });
 }
 
 const upgradeSquares = {
@@ -1016,6 +1027,7 @@ for (const [zoneKey, element] of Object.entries(upgradeSquares)) {
 for (const element of Object.values(zoneElements)) {
     attachPulseReset(element);
 }
+
 applyLineWidth(ASTEROID_LINE_WIDTH);
 updateResourceDisplays();
 
