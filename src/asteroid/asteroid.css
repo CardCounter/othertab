@@ -34,7 +34,7 @@ header, footer {
     color: inherit;
 }
 
-.crayon-stage {
+.asteroid-stage {
     position: relative;
     width: 100%;
     height: calc(100vh - 9rem);
