@@ -31,6 +31,10 @@ body.dark-mode {
 html,
 body {
     height: 100%;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
 }
 
 body {
@@ -134,6 +138,13 @@ main {
     color: var(--asteroid-text);
 }
 
+.share-score {
+    font-size: 1rem;
+    text-transform: lowercase;
+    color: var(--asteroid-text);
+    margin: 0;
+}
+
 .hidden {
     display: none !important;
 }
@@ -192,6 +203,20 @@ footer .footer-right {
 .corner-square.num {
     top: 1.25rem;
     left: 1.25rem;
+}
+.header-stats {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    padding: 0;
+    font-weight: 1000;
+    margin: 0 auto;
+    width: fit-content;
+}
+
+.header-stats .score-display {
+    margin: 0;
+    font-size: 1.5rem;
 }
 
 @keyframes square-pulse {

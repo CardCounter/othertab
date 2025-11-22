@@ -14,6 +14,7 @@ const zoneElements = {
     num: numUpgradeSquare,
 };
 const shareButton = document.getElementById('share-button');
+const shareScoreMessage = document.getElementById('share-score');
 const ASTEROID_SHARE_URL = 'https://othertab.com/asteroid/';
 let shareButtonResetTimeout = null;
 let currentWinShareText = '';
@@ -314,8 +315,25 @@ function updateResourceDisplays() {
     }
 }
 
+function getPointsLabel() {
+    return state.points === 1 ? 'point' : 'points';
+}
+
+function updateShareScoreDisplay(visible) {
+    if (!shareScoreMessage) {
+        return;
+    }
+    if (visible) {
+        shareScoreMessage.textContent = `${state.points} ${getPointsLabel()}`;
+        shareScoreMessage.classList.remove('hidden');
+    } else {
+        shareScoreMessage.textContent = '';
+        shareScoreMessage.classList.add('hidden');
+    }
+}
+
 function getWinShareText() {
-    const label = state.points === 1 ? 'point' : 'points';
+    const label = getPointsLabel();
     return `ASTEROID\n${state.points} ${label}\n${ASTEROID_SHARE_URL}`;
 }
 
@@ -330,6 +348,7 @@ function showWinShareButton() {
     }
     shareButton.textContent = 'share';
     shareButton.classList.remove('hidden');
+    updateShareScoreDisplay(true);
 }
 
 function hideWinShareButton() {
@@ -343,6 +362,7 @@ function hideWinShareButton() {
     shareButton.textContent = 'share';
     shareButton.classList.add('hidden');
     currentWinShareText = '';
+    updateShareScoreDisplay(false);
 }
 
 function handleShareButtonClick() {
@@ -608,16 +628,20 @@ function detectCollisions() {
 
 function handleCollectiblePickup() {
     if (!state.pointer.active || state.frozen || !state.collectibles.length) return;
+    const pointerRadius = getPointerRadius();
     const collectedIds = new Set();
+
     for (const collectible of state.collectibles) {
         const dx = state.pointer.x - collectible.x;
         const dy = state.pointer.y - collectible.y;
         const distance = Math.hypot(dx, dy);
-        if (distance <= collectible.radius + POINTER_COLLECTION_PADDING) {
+        const threshold = pointerRadius + collectible.radius;
+        if (distance <= threshold) {
             collectedIds.add(collectible.id);
             state.ore += collectible.value;
         }
     }
+
     if (collectedIds.size) {
         state.collectibles = state.collectibles.filter(
             (collectible) => !collectedIds.has(collectible.id)

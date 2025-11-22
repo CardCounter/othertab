@@ -27,6 +27,10 @@
         <p class="title">ASTEROID_MINER_ALPHA</p>
         <button id="dark-toggle" class="page-button">d_m</button>
     </header>
+    <div class="header-stats" aria-live="polite">
+        <p id="ore-display" class="score-display">ore: 0</p>
+        <p id="score-display" class="score-display">points: 0</p>
+    </div>
 
     <main>
         <div class="play-surface">
@@ -37,14 +41,14 @@
                 <div id="ore-converter" class="ore-converter corner-square ore" aria-label="ore refinery zone">
                     <span class="square-label">ore</span>
                 </div>
-                <div id="radius-upgrade" class="corner-square radius" role="button" aria-label="radius upgrade zone">
-                    <span class="square-label">radius</span>
-                </div>
                 <div id="strength-upgrade" class="corner-square strength" role="button" aria-label="strength upgrade zone">
                     <span class="square-label">strength</span>
                 </div>
                 <div id="num-upgrade" class="corner-square num" role="button" aria-label="laser count upgrade zone">
                     <span class="square-label">lasers</span>
+                </div>
+                <div id="radius-upgrade" class="corner-square radius" role="button" aria-label="radius upgrade zone">
+                    <span class="square-label">radius</span>
                 </div>
             </div>
         </div>
@@ -61,8 +65,7 @@
             <a href="https://ko-fi.com/othertab" class="footer-link">support</a>
         </div>
         <div class="footer-right">
-            <p id="ore-display" class="score-display">ore: 0</p>
-            <p id="score-display" class="score-display">points: 0</p>
+            <span id="share-score" class="share-score hidden" aria-live="polite"></span>
             <button id="share-button" class="share-button hidden" type="button">share</button>
         </div>
     </footer>
