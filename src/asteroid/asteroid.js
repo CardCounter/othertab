@@ -13,26 +13,31 @@ const zoneElements = {
     strength: strengthUpgradeSquare,
     num: numUpgradeSquare,
 };
+const shareButton = document.getElementById('share-button');
+const ASTEROID_SHARE_URL = 'https://othertab.com/asteroid/';
+let shareButtonResetTimeout = null;
+let currentWinShareText = '';
 
 const SPAWN_INTERVAL = { min: 1000, max: 3000 };
 const ASTEROID_SPIN = { min: -2.2, max: 2.2 }; // radians per second
 const OUT_OF_BOUNDS_MARGIN = 160;
 const ASTEROID_LINE_WIDTH = 3;
 const POINTER_RING_RADIUS = 50;
-const LASER_SPEED = 700; // px per second
-const MINING_DAMAGE_PER_SECOND = 55; // health per second
+const LASER_SPEED = 1000; // px per second
+const MINING_DAMAGE_PER_SECOND = 100; // health per second
 const MINING_LASER_LINE_WIDTH = 2;
 const POINTER_RING_LINE_WIDTH = 1.5;
 const SPLIT_COUNT = 2;
+const SPLIT_DIRECTION_VARIANCE = Math.PI / 6;
 const POINTER_COLLECTION_PADDING = 6;
 const ORE_CONVERSION_RATE = 2; // ore per second converted to points
 const UPGRADE_HOLD_DURATION = 1; // seconds to stay in zone before purchase
-const STRENGTH_INCREMENT = 15;
+const STRENGTH_INCREMENT = 50;
 const RADIUS_INCREMENT = 10;
 const LASER_COUNT_BASE = 1;
 const ZONE_PULSE_CLASS = 'square-pulse';
 const UPGRADE_CONFIG = {
-    num: { cost: 1, increment: 1, maxValue: 5 },
+    num: { cost: 1, increment: 1 },
     strength: { cost: 1, increment: STRENGTH_INCREMENT },
     radius: { cost: 1, increment: RADIUS_INCREMENT },
 };
@@ -95,8 +100,10 @@ const state = {
         x: 0,
         y: 0,
         active: false,
+        locked: false,
     },
     frozen: false,
+    finishReason: null,
     nextSpawnAt: performance.now() + randRange(SPAWN_INTERVAL.min, SPAWN_INTERVAL.max),
     mining: {
         targets: new Map(),
@@ -303,6 +310,87 @@ function updateResourceDisplays() {
     }
 }
 
+function getWinShareText() {
+    const label = state.points === 1 ? 'point' : 'points';
+    return `ASTEROID\n${state.points} ${label}\n${ASTEROID_SHARE_URL}`;
+}
+
+function showWinShareButton() {
+    if (!shareButton) {
+        return;
+    }
+    currentWinShareText = getWinShareText();
+    if (shareButtonResetTimeout) {
+        clearTimeout(shareButtonResetTimeout);
+        shareButtonResetTimeout = null;
+    }
+    shareButton.textContent = 'share';
+    shareButton.classList.remove('hidden');
+}
+
+function hideWinShareButton() {
+    if (!shareButton) {
+        return;
+    }
+    if (shareButtonResetTimeout) {
+        clearTimeout(shareButtonResetTimeout);
+        shareButtonResetTimeout = null;
+    }
+    shareButton.textContent = 'share';
+    shareButton.classList.add('hidden');
+    currentWinShareText = '';
+}
+
+function handleShareButtonClick() {
+    if (!shareButton || !currentWinShareText) {
+        return;
+    }
+
+    const finalizeCopyFeedback = () => {
+        if (!shareButton) {
+            return;
+        }
+        shareButton.textContent = 'copied';
+        if (shareButtonResetTimeout) {
+            clearTimeout(shareButtonResetTimeout);
+        }
+        shareButtonResetTimeout = setTimeout(() => {
+            if (shareButton) {
+                shareButton.textContent = 'share';
+            }
+            shareButtonResetTimeout = null;
+        }, 1000);
+    };
+
+    const clipboard = navigator.clipboard;
+    if (clipboard && typeof clipboard.writeText === 'function') {
+        clipboard.writeText(currentWinShareText).then(finalizeCopyFeedback, finalizeCopyFeedback);
+    } else {
+        finalizeCopyFeedback();
+    }
+}
+
+function setMiningVisualsTransparent(hidden) {
+    const root = document.documentElement;
+    if (!root) return;
+
+    if (hidden) {
+        root.style.setProperty('--pointer-circle-color', 'transparent');
+        root.style.setProperty('--pointer-laser-color', 'transparent');
+        if (document.body) {
+            document.body.style.setProperty('--pointer-circle-color', 'transparent');
+            document.body.style.setProperty('--pointer-laser-color', 'transparent');
+        }
+    } else {
+        root.style.removeProperty('--pointer-circle-color');
+        root.style.removeProperty('--pointer-laser-color');
+        if (document.body) {
+            document.body.style.removeProperty('--pointer-circle-color');
+            document.body.style.removeProperty('--pointer-laser-color');
+        }
+    }
+}
+
 function resizeCanvas() {
     width = window.innerWidth;
     height = window.innerHeight;
@@ -436,13 +524,26 @@ function breakAsteroid(asteroid) {
     asteroid.destroyed = true;
     const nextTierIndex = asteroid.tierIndex - 1;
     if (nextTierIndex >= 0) {
+        const tier = ASTEROID_TIERS[nextTierIndex];
+        const parentSpeed = Math.hypot(asteroid.vx, asteroid.vy);
+        const parentHasMomentum = parentSpeed > 0;
+        const clampedParentSpeed = parentHasMomentum
+            ? clamp(parentSpeed, tier.speed.min, tier.speed.max)
+            : 0;
+        const baseHeading = parentHasMomentum
+            ? Math.atan2(asteroid.vy, asteroid.vx)
+            : Math.random() * Math.PI * 2;
+
         for (let i = 0; i < SPLIT_COUNT; i++) {
             const heading =
-                Math.atan2(asteroid.vy, asteroid.vx) + randRange(-Math.PI / 3, Math.PI / 3);
-            const speed = randRange(
-                ASTEROID_TIERS[nextTierIndex].speed.min,
-                ASTEROID_TIERS[nextTierIndex].speed.max
-            );
+                baseHeading + randRange(-SPLIT_DIRECTION_VARIANCE, SPLIT_DIRECTION_VARIANCE);
+            const speed = parentHasMomentum
+                ? clamp(
+                      clampedParentSpeed * randRange(0.9, 1.1),
+                      tier.speed.min,
+                      tier.speed.max
+                  )
+                : randRange(tier.speed.min, tier.speed.max);
             const offsetAngle = Math.random() * Math.PI * 2;
             const offsetDistance = randRange(0, asteroid.radius * 0.4);
             addAsteroidFromTier(nextTierIndex, {
@@ -640,15 +741,17 @@ function drawAsteroids() {
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
     const laserColor =
-        (bodyStyle.getPropertyValue('--laser-color') ||
+        (bodyStyle.getPropertyValue('--pointer-laser-color') ||
+            rootStyle.getPropertyValue('--pointer-laser-color') ||
+            bodyStyle.getPropertyValue('--laser-color') ||
             rootStyle.getPropertyValue('--laser-color') ||
             bodyStyle.getPropertyValue('--mining-circle-color') ||
             rootStyle.getPropertyValue('--mining-circle-color') ||
             '#f00')
             .trim();
     const pointerColor =
-        (bodyStyle.getPropertyValue('--mining-circle-color') ||
-            rootStyle.getPropertyValue('--mining-circle-color') ||
+        (bodyStyle.getPropertyValue('--pointer-circle-color') ||
+            rootStyle.getPropertyValue('--pointer-circle-color') ||
             laserColor)
             .trim();
     const collectibleColor =
@@ -752,21 +855,24 @@ function resetGame() {
     stopAllZoneInteractions();
     updateResourceDisplays();
     clearMiningState();
+    state.finishReason = null;
+    hideWinShareButton();
+    setMiningVisualsTransparent(false);
     collectibleIdCounter = 0;
 }
 
 function freezeField(reason) {
     if (state.frozen) return;
     state.frozen = true;
+    state.finishReason = reason || null;
+    const lossReason = reason === 'asteroid impact' || reason === 'cursor left window';
+    if (lossReason) {
+        showWinShareButton();
+        setMiningVisualsTransparent(true);
+    }
     clearMiningState();
     deactivateOreConverter();
     stopAllZoneInteractions();
-}
-
-function handlePointerMove(event) {
-    state.pointer.active = true;
-    state.pointer.x = clamp(event.clientX, 0, width);
-    state.pointer.y = clamp(event.clientY, 0, height);
 }
 
 function handleWindowLeave(event) {
@@ -784,6 +890,63 @@ function handleBlur() {
     if (!state.frozen) {
         freezeField('cursor left window');
     }
+}
+
+function updateVirtualPointerFromMouse(event) {
+    if (!canvas) return;
+    const locked = document.pointerLockElement === canvas;
+    let nextX = state.pointer.x;
+    let nextY = state.pointer.y;
+
+    if (locked && typeof event.movementX === 'number' && typeof event.movementY === 'number') {
+        nextX += event.movementX;
+        nextY += event.movementY;
+    } else {
+        const rect = canvas.getBoundingClientRect();
+        if (rect.width > 0 && rect.height > 0) {
+            const normalizedX = clamp((event.clientX - rect.left) / rect.width, 0, 1);
+            const normalizedY = clamp((event.clientY - rect.top) / rect.height, 0, 1);
+            nextX = normalizedX * width;
+            nextY = normalizedY * height;
+        } else {
+            nextX = clamp(event.clientX, 0, width);
+            nextY = clamp(event.clientY, 0, height);
+        }
+    }
+
+    state.pointer.x = clamp(nextX, 0, width);
+    state.pointer.y = clamp(nextY, 0, height);
+    state.pointer.active = true;
+    state.pointer.locked = locked;
+}
+
+function handlePointerMovement(event) {
+    updateVirtualPointerFromMouse(event);
+}
+
+function handlePointerLockChange() {
+    state.pointer.locked = document.pointerLockElement === canvas;
+}
+
+function requestPointerLock() {
+    if (canvas && canvas.requestPointerLock && document.pointerLockElement !== canvas) {
+        canvas.requestPointerLock();
+    }
+}
+
+function handleContextMenu(event) {
+    event.preventDefault();
+}
+
+function handleResetKeys(event) {
+    if (event.repeat) return;
+    const isResetKey =
+        event.code === 'Enter' ||
+        event.code === 'NumpadEnter' ||
+        event.code === 'KeyR';
+    if (!isResetKey) return;
+    event.preventDefault();
+    resetGame();
 }
 
 function loop(now) {
@@ -813,10 +976,19 @@ function loop(now) {
 
 resizeCanvas();
 window.addEventListener('resize', resizeCanvas);
-window.addEventListener('pointermove', handlePointerMove, { passive: true });
+window.addEventListener('mousemove', handlePointerMovement, { passive: true });
 document.addEventListener('mouseleave', handleWindowLeave, { passive: true });
 window.addEventListener('blur', handleBlur);
+document.addEventListener('pointerlockchange', handlePointerLockChange);
+if (canvas) {
+    canvas.addEventListener('pointerdown', requestPointerLock);
+}
+window.addEventListener('contextmenu', handleContextMenu);
+window.addEventListener('keydown', handleResetKeys);
 resetButton.addEventListener('click', resetGame);
+if (shareButton) {
+    shareButton.addEventListener('click', handleShareButtonClick);
+}
 if (oreConverter) {
     const activateConverter = () => {
         state.oreConversionActive = true;
