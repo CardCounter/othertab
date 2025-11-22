@@ -366,7 +366,7 @@ function updateShareScoreDisplay(visible) {
         return;
     }
     if (visible) {
-        shareScoreMessage.textContent = `${state.points} ${getPointsLabel()}`;
+        shareScoreMessage.textContent = `${getPointsLabel()}${state.points}`;
         shareScoreMessage.classList.remove('hidden');
     } else {
         shareScoreMessage.textContent = '';
@@ -376,7 +376,7 @@ function updateShareScoreDisplay(visible) {
 
 function getWinShareText() {
     const label = getPointsLabel();
-    return `ASTEROID\n${state.points} ${label}\n${ASTEROID_SHARE_URL}`;
+    return `ASTEROID\n${label}${state.points}\n${ASTEROID_SHARE_URL}`;
 }
 
 function showWinShareButton() {
