@@ -1,4 +1,4 @@
-const canvas = document.getElementById('asteroid-canvas');
+const canvas = document.getElementById('osiris-canvas');
 const ctx = canvas.getContext('2d');
 const resetButton = document.getElementById('reset-button');
 const scoreDisplay = document.getElementById('score-display');
@@ -7,6 +7,9 @@ const oreConverter = document.getElementById('ore-converter');
 const radiusUpgradeSquare = document.getElementById('radius-upgrade');
 const strengthUpgradeSquare = document.getElementById('strength-upgrade');
 const numUpgradeSquare = document.getElementById('num-upgrade');
+const headerStats = document.querySelector('.header-stats');
+const oreOverlay = document.querySelector('.ore-overlay');
+const footer = document.querySelector('footer');
 const zoneElements = {
     ore: oreConverter,
     radius: radiusUpgradeSquare,
@@ -15,14 +18,14 @@ const zoneElements = {
 };
 const shareButton = document.getElementById('share-button');
 const shareScoreMessage = document.getElementById('share-score');
-const ASTEROID_SHARE_URL = 'https://othertab.com/asteroid/';
+const OSIRIS_SHARE_URL = 'https://othertab.com/osiris/';
 let shareButtonResetTimeout = null;
 let currentWinShareText = '';
 
 const SPAWN_INTERVAL = { min: 3000, max: 6000 };
-const ASTEROID_SPIN = { min: -2.2, max: 2.2 };
+const OSIRIS_SPIN = { min: -2.2, max: 2.2 };
 const OUT_OF_BOUNDS_MARGIN = 160;
-const ASTEROID_LINE_WIDTH = 3;
+const OSIRIS_LINE_WIDTH = 3;
 const POINTER_RING_RADIUS = 50;
 const MINING_DAMAGE_PER_SECOND = 100;
 const MINING_LASER_LINE_WIDTH = 2;
@@ -45,7 +48,7 @@ const UPGRADE_CONFIG = {
 };
 const ZONE_PULSE_CLASS = 'square-pulse';
 
-const ASTEROID_TIERS = [
+const OSIRIS_TIERS = [
     {
         name: 'triangle',
         sides: 3,
@@ -90,15 +93,15 @@ const ASTEROID_TIERS = [
     },
 ];
 
-const TIER_SPAWN_WEIGHTS = ASTEROID_TIERS.map((_, idx) => Math.pow(idx + 1, 2));
+const TIER_SPAWN_WEIGHTS = OSIRIS_TIERS.map((_, idx) => Math.pow(idx + 1, 2));
 const TOTAL_TIER_WEIGHT = TIER_SPAWN_WEIGHTS.reduce((sum, weight) => sum + weight, 0);
-const MAX_TIER_INDEX = ASTEROID_TIERS.length - 1;
+const MAX_TIER_INDEX = OSIRIS_TIERS.length - 1;
 const INITIAL_TIER_INDICES = [0, 1, 2];
 const COLLECTIBLE_SPEED = { min: 80, max: 150 };
 const COLLECTIBLE_SIZE = { min: 6, max: 11 };
 
 const state = {
-    asteroids: [],
+    osirisField: [],
     collectibles: [],
     pointer: {
         x: 0,
@@ -136,14 +139,14 @@ const state = {
         strength: { hovered: false, progress: 0 },
         num: { hovered: false, progress: 0 },
     },
-    hasSpawnedInitialAsteroid: false,
+    hasSpawnedInitialOsiris: false,
 };
 
 let width = window.innerWidth;
 let height = window.innerHeight;
 let dpr = window.devicePixelRatio || 1;
 let lastFrame = performance.now();
-let asteroidIdCounter = 0;
+let osirisIdCounter = 0;
 let collectibleIdCounter = 0;
 
 function randRange(min, max) {
@@ -202,23 +205,23 @@ function wrapEntity(entity, radius) {
     }
 }
 
-function getAsteroidRadiusInDirection(asteroid, dirX, dirY) {
+function getOsirisRadiusInDirection(osiris, dirX, dirY) {
     const dirLength = Math.hypot(dirX, dirY);
     if (dirLength === 0) {
-        return asteroid.radius;
+        return osiris.radius;
     }
     const nx = dirX / dirLength;
     const ny = dirY / dirLength;
-    const step = (Math.PI * 2) / asteroid.sides;
+    const step = (Math.PI * 2) / osiris.sides;
     let closest = Infinity;
-    for (let i = 0; i < asteroid.sides; i++) {
-        const nextIndex = (i + 1) % asteroid.sides;
-        const angCurrent = asteroid.rotation + i * step;
-        const angNext = asteroid.rotation + nextIndex * step;
-        const ax = Math.cos(angCurrent) * asteroid.radius;
-        const ay = Math.sin(angCurrent) * asteroid.radius;
-        const bx = Math.cos(angNext) * asteroid.radius;
-        const by = Math.sin(angNext) * asteroid.radius;
+    for (let i = 0; i < osiris.sides; i++) {
+        const nextIndex = (i + 1) % osiris.sides;
+        const angCurrent = osiris.rotation + i * step;
+        const angNext = osiris.rotation + nextIndex * step;
+        const ax = Math.cos(angCurrent) * osiris.radius;
+        const ay = Math.sin(angCurrent) * osiris.radius;
+        const bx = Math.cos(angNext) * osiris.radius;
+        const by = Math.sin(angNext) * osiris.radius;
         const ex = bx - ax;
         const ey = by - ay;
         const denom = nx * ey - ny * ex;
@@ -232,13 +235,13 @@ function getAsteroidRadiusInDirection(asteroid, dirX, dirY) {
         }
     }
     if (!isFinite(closest) || closest <= 0) {
-        return asteroid.radius;
+        return osiris.radius;
     }
     return closest;
 }
 
 function applyLineWidth(widthValue) {
-    document.documentElement.style.setProperty('--asteroid-line-width', widthValue);
+    document.documentElement.style.setProperty('--osiris-line-width', widthValue);
 }
 
 function clearMiningState() {
@@ -260,6 +263,39 @@ function triggerZonePulse(zoneKey) {
     // Force reflow so the animation can restart consistently.
     void element.offsetWidth;
     element.classList.add(ZONE_PULSE_CLASS);
+}
+
+function alignTopUpgradeSquares() {
+    if (!headerStats || !oreOverlay || !strengthUpgradeSquare || !numUpgradeSquare) {
+        return;
+    }
+    const overlayRect = oreOverlay.getBoundingClientRect();
+    const statsRect = headerStats.getBoundingClientRect();
+    const targetTop = statsRect.top - overlayRect.top;
+    strengthUpgradeSquare.style.top = `${targetTop}px`;
+    numUpgradeSquare.style.top = `${targetTop}px`;
+}
+
+function alignBottomUpgradeSquares() {
+    if (!footer || !oreOverlay) {
+        return;
+    }
+    const overlayRect = oreOverlay.getBoundingClientRect();
+    const footerRect = footer.getBoundingClientRect();
+    const targetBottom = overlayRect.bottom - footerRect.top;
+    if (radiusUpgradeSquare) {
+        radiusUpgradeSquare.style.top = 'auto';
+        radiusUpgradeSquare.style.bottom = `${targetBottom}px`;
+    }
+    if (oreConverter) {
+        oreConverter.style.top = 'auto';
+        oreConverter.style.bottom = `${targetBottom}px`;
+    }
+}
+
+function alignUpgradeSquares() {
+    alignTopUpgradeSquares();
+    alignBottomUpgradeSquares();
 }
 
 function attachPulseReset(element) {
@@ -364,8 +400,8 @@ function handleUpgradeZones(delta) {
 function purgeInvalidMiningTargets() {
     const ids = Array.from(state.mining.targets.keys());
     for (const id of ids) {
-        const stillExists = state.asteroids.some(
-            (asteroid) => !asteroid.destroyed && asteroid.id === id
+        const stillExists = state.osirisField.some(
+            (osiris) => !osiris.destroyed && osiris.id === id
         );
         if (!stillExists) {
             state.mining.targets.delete(id);
@@ -375,36 +411,37 @@ function purgeInvalidMiningTargets() {
 
 function updateResourceDisplays() {
     if (scoreDisplay) {
-        scoreDisplay.textContent = `§${state.points}`;
+        scoreDisplay.textContent = `${state.points}${getPointsLabel()}`;
     }
     if (oreDisplay) {
-        oreDisplay.textContent = `ore: ${state.ore}`;
+        oreDisplay.textContent = `${state.ore}⛰`;
     }
     
-    // Update upgrade zones
+    // update upgrade zones
     if (strengthUpgradeSquare) {
         const cost = getUpgradeCost('strength');
         const val = MINING_DAMAGE_PER_SECOND + state.upgrades.strength;
-        strengthUpgradeSquare.innerHTML = `<span class="square-label">strength: ${val}<br>§${cost}</span>`;
+        strengthUpgradeSquare.innerHTML = `<span class="square-label">strength: ${val}<br>${cost}${getPointsLabel()}</span>`;
     }
     if (radiusUpgradeSquare) {
         const cost = getUpgradeCost('radius');
         const val = POINTER_RING_RADIUS + state.upgrades.radius;
-        radiusUpgradeSquare.innerHTML = `<span class="square-label">radius: ${val}<br>§${cost}</span>`;
+        radiusUpgradeSquare.innerHTML = `<span class="square-label">range: ${val}<br>${cost}${getPointsLabel()}</span>`;
     }
     if (numUpgradeSquare) {
         const cost = getUpgradeCost('num');
         const val = state.upgrades.num;
-        numUpgradeSquare.innerHTML = `<span class="square-label">lasers: ${val}<br>§${cost}</span>`;
+        numUpgradeSquare.innerHTML = `<span class="square-label">lasers: ${val}<br>${cost}${getPointsLabel()}</span>`;
     }
-    // Update ore converter with ratio
+    // update ore converter with ratio
     if (oreConverter) {
-        oreConverter.innerHTML = `<span class="square-label">ore<br>1 : ${getPointsLabel()}${state.oreRatio}</span>`;
+        oreConverter.innerHTML = `<span class="square-label">research<br>1⛰ : ${state.oreRatio}${getPointsLabel()}</span>`;
     }
+    alignUpgradeSquares();
 }
 
 function getPointsLabel() {
-    return '§';
+    return '⌬';
 }
 
 function updateShareScoreDisplay(visible) {
@@ -412,7 +449,7 @@ function updateShareScoreDisplay(visible) {
         return;
     }
     if (visible) {
-        shareScoreMessage.textContent = `${getPointsLabel()}${state.points}`;
+        shareScoreMessage.textContent = `${state.points}${getPointsLabel()}`;
         shareScoreMessage.classList.remove('hidden');
     } else {
         shareScoreMessage.textContent = '';
@@ -422,7 +459,7 @@ function updateShareScoreDisplay(visible) {
 
 function getWinShareText() {
     const label = getPointsLabel();
-    return `ASTEROID\n${label}${state.points}\n${ASTEROID_SHARE_URL}`;
+    return `OSIRIS\n${state.points}${label}\n${OSIRIS_SHARE_URL}`;
 }
 
 function showWinShareButton() {
@@ -546,8 +583,8 @@ function computeEdgeSpawn(radius) {
     return { x, y, angle };
 }
 
-function createAsteroidFromTier(tierIndex, options = {}) {
-    const tier = ASTEROID_TIERS[tierIndex] || ASTEROID_TIERS[MAX_TIER_INDEX];
+function createOsirisFromTier(tierIndex, options = {}) {
+    const tier = OSIRIS_TIERS[tierIndex] || OSIRIS_TIERS[MAX_TIER_INDEX];
     const parentRadius = options.parentRadius;
     let radius = options.radius ?? randRange(tier.size.min, tier.size.max);
     if (parentRadius) {
@@ -590,7 +627,7 @@ function createAsteroidFromTier(tierIndex, options = {}) {
     const health = options.health ?? randRange(healthMin, healthMax);
 
     return {
-        id: asteroidIdCounter++,
+        id: osirisIdCounter++,
         tierIndex,
         tierName: tier.name,
         sides: tier.sides,
@@ -598,7 +635,7 @@ function createAsteroidFromTier(tierIndex, options = {}) {
         y: spawnData.y,
         radius,
         rotation: Math.random() * Math.PI * 2,
-        spin: randRange(ASTEROID_SPIN.min, ASTEROID_SPIN.max),
+        spin: randRange(OSIRIS_SPIN.min, OSIRIS_SPIN.max),
         vx,
         vy,
         health,
@@ -607,22 +644,22 @@ function createAsteroidFromTier(tierIndex, options = {}) {
     };
 }
 
-function addAsteroidFromTier(tierIndex, options = {}) {
-    const asteroid = createAsteroidFromTier(tierIndex, options);
-    state.asteroids.push(asteroid);
-    return asteroid;
+function addOsirisFromTier(tierIndex, options = {}) {
+    const osiris = createOsirisFromTier(tierIndex, options);
+    state.osirisField.push(osiris);
+    return osiris;
 }
 
-function spawnAsteroid(now = performance.now()) {
-    const tierIndex = state.hasSpawnedInitialAsteroid
+function spawnOsiris(now = performance.now()) {
+    const tierIndex = state.hasSpawnedInitialOsiris
         ? chooseSpawnTierIndex()
         : chooseInitialTierIndex();
-    addAsteroidFromTier(tierIndex);
-    state.hasSpawnedInitialAsteroid = true;
+    addOsirisFromTier(tierIndex);
+    state.hasSpawnedInitialOsiris = true;
     state.nextSpawnAt = now + randRange(SPAWN_INTERVAL.min, SPAWN_INTERVAL.max);
 }
 
-function spawnCollectibles(asteroid) {
+function spawnCollectibles(osiris) {
     const count = Math.max(2, Math.round(randRange(2, 4)));
     for (let i = 0; i < count; i++) {
         const radius = randRange(COLLECTIBLE_SIZE.min, COLLECTIBLE_SIZE.max);
@@ -630,8 +667,8 @@ function spawnCollectibles(asteroid) {
         const angle = Math.random() * Math.PI * 2;
         state.collectibles.push({
             id: collectibleIdCounter++,
-            x: asteroid.x,
-            y: asteroid.y,
+            x: osiris.x,
+            y: osiris.y,
             radius,
             vx: Math.cos(angle) * speed,
             vy: Math.sin(angle) * speed,
@@ -640,23 +677,23 @@ function spawnCollectibles(asteroid) {
     }
 }
 
-function breakAsteroid(asteroid) {
-    if (asteroid.destroyed) return;
-    asteroid.destroyed = true;
-    const nextTierIndex = asteroid.tierIndex - 1;
+function breakOsiris(osiris) {
+    if (osiris.destroyed) return;
+    osiris.destroyed = true;
+    const nextTierIndex = osiris.tierIndex - 1;
     if (nextTierIndex >= 0) {
         const difficultyMultiplier = 1 + ((performance.now() - state.gameStartTime) / 60000) * DIFFICULTY_RAMP_PER_MINUTE;
-        const tier = ASTEROID_TIERS[nextTierIndex];
+        const tier = OSIRIS_TIERS[nextTierIndex];
         const speedMin = tier.speed.min * difficultyMultiplier;
         const speedMax = tier.speed.max * difficultyMultiplier;
 
-        const parentSpeed = Math.hypot(asteroid.vx, asteroid.vy);
+        const parentSpeed = Math.hypot(osiris.vx, osiris.vy);
         const parentHasMomentum = parentSpeed > 0;
         const clampedParentSpeed = parentHasMomentum
             ? clamp(parentSpeed, speedMin, speedMax)
             : 0;
         const baseHeading = parentHasMomentum
-            ? Math.atan2(asteroid.vy, asteroid.vx)
+            ? Math.atan2(osiris.vy, osiris.vx)
             : Math.random() * Math.PI * 2;
 
         for (let i = 0; i < SPLIT_COUNT; i++) {
@@ -670,36 +707,36 @@ function breakAsteroid(asteroid) {
                   )
                 : randRange(speedMin, speedMax);
             const offsetAngle = Math.random() * Math.PI * 2;
-            const offsetDistance = randRange(0, asteroid.radius * 0.4);
-            addAsteroidFromTier(nextTierIndex, {
+            const offsetDistance = randRange(0, osiris.radius * 0.4);
+            addOsirisFromTier(nextTierIndex, {
                 position: {
-                    x: asteroid.x + Math.cos(offsetAngle) * offsetDistance,
-                    y: asteroid.y + Math.sin(offsetAngle) * offsetDistance,
+                    x: osiris.x + Math.cos(offsetAngle) * offsetDistance,
+                    y: osiris.y + Math.sin(offsetAngle) * offsetDistance,
                 },
                 velocity: {
                     vx: Math.cos(heading) * speed,
                     vy: Math.sin(heading) * speed,
                 },
-                parentRadius: asteroid.radius,
+                parentRadius: osiris.radius,
             });
         }
     } else {
-        spawnCollectibles(asteroid);
+        spawnCollectibles(osiris);
     }
-    if (state.mining.targets.has(asteroid.id)) {
-        state.mining.targets.delete(asteroid.id);
+    if (state.mining.targets.has(osiris.id)) {
+        state.mining.targets.delete(osiris.id);
     }
 }
 
-function updateAsteroids(delta) {
-    for (const asteroid of state.asteroids) {
-        if (asteroid.destroyed) {
+function updateOsiriss(delta) {
+    for (const osiris of state.osirisField) {
+        if (osiris.destroyed) {
             continue;
         }
-        asteroid.x += asteroid.vx * delta;
-        asteroid.y += asteroid.vy * delta;
-        asteroid.rotation += asteroid.spin * delta;
-        wrapEntity(asteroid, asteroid.radius);
+        osiris.x += osiris.vx * delta;
+        osiris.y += osiris.vy * delta;
+        osiris.rotation += osiris.spin * delta;
+        wrapEntity(osiris, osiris.radius);
     }
     purgeInvalidMiningTargets();
 }
@@ -715,13 +752,13 @@ function updateCollectibles(delta) {
 
 function detectCollisions() {
     if (!state.pointer.active || state.frozen) return;
-    for (const asteroid of state.asteroids) {
-        if (asteroid.destroyed) continue;
-        const dx = state.pointer.x - asteroid.x;
-        const dy = state.pointer.y - asteroid.y;
+    for (const osiris of state.osirisField) {
+        if (osiris.destroyed) continue;
+        const dx = state.pointer.x - osiris.x;
+        const dy = state.pointer.y - osiris.y;
         const distance = Math.hypot(dx, dy);
-        if (distance <= asteroid.radius) {
-            freezeField('asteroid impact');
+        if (distance <= osiris.radius) {
+            freezeField('osiris impact');
             return;
         }
     }
@@ -807,15 +844,15 @@ function handleMining(delta) {
     const pointerRadius = getPointerRadius();
     const candidates = [];
 
-    for (const asteroid of state.asteroids) {
-        if (asteroid.destroyed) continue;
-        const dx = state.pointer.x - asteroid.x;
-        const dy = state.pointer.y - asteroid.y;
+    for (const osiris of state.osirisField) {
+        if (osiris.destroyed) continue;
+        const dx = state.pointer.x - osiris.x;
+        const dy = state.pointer.y - osiris.y;
         const distance = Math.hypot(dx, dy);
-        const maxDistance = asteroid.radius + pointerRadius;
+        const maxDistance = osiris.radius + pointerRadius;
         if (distance <= maxDistance) {
             const overlap = maxDistance - distance;
-            candidates.push({ asteroid, overlap });
+            candidates.push({ osiris, overlap });
         }
     }
 
@@ -830,7 +867,7 @@ function handleMining(delta) {
     const updatedTargets = new Map();
 
     for (const entry of selected) {
-        const target = entry.asteroid;
+        const target = entry.osiris;
         let record = state.mining.targets.get(target.id);
         if (!record) {
             record = { beamLength: 0 };
@@ -841,7 +878,7 @@ function handleMining(delta) {
         const distanceToCenter = Math.hypot(dx, dy);
         const centerToPointerX = state.pointer.x - target.x;
         const centerToPointerY = state.pointer.y - target.y;
-        const directionRadius = getAsteroidRadiusInDirection(
+        const directionRadius = getOsirisRadiusInDirection(
             target,
             centerToPointerX,
             centerToPointerY
@@ -861,7 +898,7 @@ function handleMining(delta) {
         ) {
             target.health -= getMiningDamage() * delta;
             if (target.health <= 0) {
-                breakAsteroid(target);
+                breakOsiris(target);
                 continue;
             }
         }
@@ -872,26 +909,26 @@ function handleMining(delta) {
     state.mining.targets = updatedTargets;
 }
 
-function removeDestroyedAsteroids() {
-    if (!state.asteroids.length) return;
-    const hasDestroyed = state.asteroids.some((asteroid) => asteroid.destroyed);
+function removeDestroyedOsiriss() {
+    if (!state.osirisField.length) return;
+    const hasDestroyed = state.osirisField.some((osiris) => osiris.destroyed);
     if (!hasDestroyed) return;
-    state.asteroids = state.asteroids.filter((asteroid) => !asteroid.destroyed);
+    state.osirisField = state.osirisField.filter((osiris) => !osiris.destroyed);
     purgeInvalidMiningTargets();
 }
 
-function drawAsteroids() {
+function drawOsiriss() {
     ctx.clearRect(0, 0, width, height);
     const bodyStyle = getComputedStyle(document.body);
     const rootStyle = getComputedStyle(document.documentElement);
     ctx.lineWidth =
-        parseFloat(bodyStyle.getPropertyValue('--asteroid-line-width')) ||
-        parseFloat(rootStyle.getPropertyValue('--asteroid-line-width')) ||
-        ASTEROID_LINE_WIDTH;
+        parseFloat(bodyStyle.getPropertyValue('--osiris-line-width')) ||
+        parseFloat(rootStyle.getPropertyValue('--osiris-line-width')) ||
+        OSIRIS_LINE_WIDTH;
     const strokeColor =
-        (bodyStyle.getPropertyValue('--asteroid-stroke') ||
-            rootStyle.getPropertyValue('--asteroid-stroke') ||
-            rootStyle.getPropertyValue('--asteroid-accent') ||
+        (bodyStyle.getPropertyValue('--osiris-stroke') ||
+            rootStyle.getPropertyValue('--osiris-stroke') ||
+            rootStyle.getPropertyValue('--osiris-accent') ||
             '#000')
             .trim();
     ctx.strokeStyle = strokeColor;
@@ -912,20 +949,20 @@ function drawAsteroids() {
             laserColor)
             .trim();
     const collectibleColor =
-        (bodyStyle.getPropertyValue('--asteroid-text') ||
-            rootStyle.getPropertyValue('--asteroid-text') ||
+        (bodyStyle.getPropertyValue('--osiris-text') ||
+            rootStyle.getPropertyValue('--osiris-text') ||
             strokeColor)
             .trim();
 
-    for (const asteroid of state.asteroids) {
-        if (asteroid.destroyed) continue;
-        const step = (Math.PI * 2) / asteroid.sides;
+    for (const osiris of state.osirisField) {
+        if (osiris.destroyed) continue;
+        const step = (Math.PI * 2) / osiris.sides;
         const points = [];
 
-        for (let i = 0; i < asteroid.sides; i++) {
-            const ang = asteroid.rotation + i * step;
-            const px = asteroid.x + Math.cos(ang) * asteroid.radius;
-            const py = asteroid.y + Math.sin(ang) * asteroid.radius;
+        for (let i = 0; i < osiris.sides; i++) {
+            const ang = osiris.rotation + i * step;
+            const px = osiris.x + Math.cos(ang) * osiris.radius;
+            const py = osiris.y + Math.sin(ang) * osiris.radius;
             points.push([px, py]);
         }
 
@@ -964,7 +1001,7 @@ function drawMiningLaser(color) {
     ctx.lineWidth = MINING_LASER_LINE_WIDTH;
     for (const [targetId, targetState] of state.mining.targets.entries()) {
         if (!targetState || targetState.beamLength <= 0) continue;
-        const target = state.asteroids.find((asteroid) => asteroid.id === targetId);
+        const target = state.osirisField.find((osiris) => osiris.id === targetId);
         if (!target || target.destroyed) continue;
         const dx = target.x - state.pointer.x;
         const dy = target.y - state.pointer.y;
@@ -999,7 +1036,7 @@ function drawPointerCircle(color) {
 
 function resetGame() {
     const nowTime = performance.now();
-    state.asteroids = [];
+    state.osirisField = [];
     state.collectibles = [];
     state.frozen = false;
     state.nextSpawnAt = nowTime;
@@ -1026,7 +1063,7 @@ function resetGame() {
     hideWinShareButton();
     setMiningVisualsTransparent(false);
     collectibleIdCounter = 0;
-    state.hasSpawnedInitialAsteroid = false;
+    state.hasSpawnedInitialOsiris = false;
 }
 
 function freezeField(reason) {
@@ -1034,7 +1071,7 @@ function freezeField(reason) {
     state.frozen = true;
     state.nextOreRatioUpdate = 0;
     state.finishReason = reason || null;
-    const lossReason = reason === 'asteroid impact' || reason === 'cursor left window';
+    const lossReason = reason === 'osiris impact' || reason === 'cursor left window';
     if (lossReason) {
         showWinShareButton();
         setMiningVisualsTransparent(true);
@@ -1123,15 +1160,15 @@ function loop(now) {
     lastFrame = now;
 
     if (!state.frozen) {
-        updateAsteroids(delta);
+        updateOsiriss(delta);
         updateCollectibles(delta);
         handleMining(delta);
         detectCollisions();
         handleCollectiblePickup();
-        removeDestroyedAsteroids();
+        removeDestroyedOsiriss();
 
         if (now >= state.nextSpawnAt) {
-            spawnAsteroid(now);
+            spawnOsiris(now);
         }
     } else {
         clearMiningState();
@@ -1140,12 +1177,13 @@ function loop(now) {
     handleUpgradeZones(delta);
     updateOreRatio(now);
     handleOreConversion(delta);
-    drawAsteroids();
+    drawOsiriss();
     requestAnimationFrame(loop);
 }
 
 resizeCanvas();
 window.addEventListener('resize', resizeCanvas);
+window.addEventListener('resize', alignUpgradeSquares);
 window.addEventListener('mousemove', handlePointerMovement, { passive: true });
 document.addEventListener('mouseleave', handleWindowLeave, { passive: true });
 window.addEventListener('blur', handleBlur);
@@ -1183,7 +1221,7 @@ for (const element of Object.values(zoneElements)) {
     attachPulseReset(element);
 }
 
-applyLineWidth(ASTEROID_LINE_WIDTH);
+applyLineWidth(OSIRIS_LINE_WIDTH);
 updateResourceDisplays();
 
 requestAnimationFrame(loop);

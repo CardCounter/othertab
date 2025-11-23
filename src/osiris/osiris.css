@@ -1,8 +1,8 @@
 :root {
-    --asteroid-bg: white;
-    --asteroid-accent: blue;
-    --asteroid-text: black;
-    --asteroid-stroke: blue;
+    --osiris-bg: white;
+    --osiris-accent: blue;
+    --osiris-text: black;
+    --osiris-stroke: blue;
     --mining-circle-color: black;
     --laser-color: black;
     --corner-square-border-color: var(--mining-circle-color);
@@ -15,10 +15,10 @@
 }
 
 body.dark-mode {
-    --asteroid-bg: black;
-    --asteroid-accent: red;
-    --asteroid-text: white;
-    --asteroid-stroke: red;
+    --osiris-bg: black;
+    --osiris-accent: red;
+    --osiris-text: white;
+    --osiris-stroke: red;
     --mining-circle-color: white;
     --laser-color: white;
     --corner-square-border-color: var(--mining-circle-color);
@@ -42,8 +42,8 @@ body {
     min-height: 100vh;
     display: flex;
     flex-direction: column;
-    background-color: var(--asteroid-bg);
-    color: var(--asteroid-text);
+    background-color: var(--osiris-bg);
+    color: var(--osiris-text);
     overflow: hidden;
     margin: 0;
 }
@@ -64,9 +64,10 @@ main {
 .play-surface {
     position: absolute;
     inset: 0;
+    padding: 0;
 }
 
-.asteroid-field {
+.osiris-field {
     position: fixed;
     inset: 0;
     background: transparent;
@@ -82,14 +83,13 @@ main {
     align-items: flex-end;
     justify-content: flex-end;
     padding: 0 1.25rem 1.25rem;
-    z-index: 6;
 }
 
 .ore-overlay > .corner-square {
     pointer-events: auto;
 }
 
-#asteroid-canvas {
+#osiris-canvas {
     width: 100%;
     height: 100%;
     display: block;
@@ -99,7 +99,7 @@ main {
 .reset-button {
     border: none;
     background: transparent;
-    color: var(--asteroid-text);
+    color: var(--osiris-text);
     font-style: italic;
     font-size: 1rem;
     padding: 0;
@@ -116,7 +116,7 @@ main {
     margin: 0;
     font-size: 1rem;
     text-transform: lowercase;
-    color: var(--asteroid-text);
+    color: var(--osiris-text);
     text-align: right;
     display: inline-block;
 }
@@ -135,13 +135,13 @@ main {
 .share-button:hover {
     background-color: grey;
     margin: 0;
-    color: var(--asteroid-text);
+    color: var(--osiris-text);
 }
 
 .share-score {
     font-size: 1rem;
     text-transform: lowercase;
-    color: var(--asteroid-text);
+    color: var(--osiris-text);
     margin: 0;
 }
 
@@ -159,8 +159,8 @@ footer .footer-right {
 
 .corner-square {
     position: absolute;
-    width: 8rem;
-    height: 8rem;
+    width: 10rem;
+    height: 10rem;
     border: 2px solid var(--corner-square-border-color, var(--mining-circle-color));
     border-radius: 0;
     background-color: var(--corner-square-bg, transparent);
@@ -170,12 +170,12 @@ footer .footer-right {
     align-items: center;
     justify-content: center;
     text-transform: lowercase;
-    font-size: 1rem;
-    color: var(--asteroid-text);
+    font-size: 1.35rem;
+    color: var(--osiris-text);
     pointer-events: auto;
     overflow: hidden;
     text-align: center;
-    line-height: 1.4;
+    line-height: 1.25;
 }
 
 .corner-square .square-label {
