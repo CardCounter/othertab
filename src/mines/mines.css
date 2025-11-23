@@ -1,6 +1,7 @@
 :root {
     --bg-color: white;
     --text-color: black;
+    --share-button-bg: blue;
 
     --cell-bg: lightgrey;
     --cell-revealed-bg: white;
@@ -20,6 +21,7 @@
 .dark-mode {
     --bg-color: black;
     --text-color: white;
+    --share-button-bg: red;
 
     --cell-bg: #2e2e2e;
     --cell-revealed-bg: black;
@@ -219,8 +221,19 @@ button:hover {
 }
 
 .copy-button {
-    padding: 0;
+    background-color: var(--share-button-bg);
+    color: var(--bg-color);
+    font-size: 1rem;
+    text-transform: lowercase;
+    border: none;
     margin: 0;
+    padding: 0;
+    cursor: pointer;
+}
+
+.copy-button:hover {
+    background-color: grey;
+    color: var(--text-color);
 }
 
 /* #load-panel {

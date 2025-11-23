@@ -1,6 +1,7 @@
 :root {
     --bg-color: white;
     --color: black;
+    --share-button-bg: blue;
     --num-font-size: 16px;
     --clue-font-size: 16px;
     --clue-header-size: 1.75rem;
@@ -12,6 +13,7 @@
 .dark-mode {
     --bg-color: black;
     --color: white;
+    --share-button-bg: red;
 }
 
 body {
@@ -450,6 +452,22 @@ button {
 
 button:hover {
     background-color: grey;
+}
+
+.copy-button {
+    background-color: var(--share-button-bg);
+    color: var(--bg-color);
+    font-size: 1rem;
+    text-transform: lowercase;
+    border: none;
+    margin: 0;
+    padding: 0;
+    cursor: pointer;
+}
+
+.copy-button:hover {
+    background-color: grey;
+    color: var(--color);
 }
 
 .win-paste {

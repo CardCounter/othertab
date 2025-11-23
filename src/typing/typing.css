@@ -1,12 +1,21 @@
 :root {
     font-size: 16px;
     --typing-font-size: 2.5rem;
+    --bg-color: white;
+    --text-color: black;
+    --share-button-bg: blue;
+}
+
+.dark-mode {
+    --bg-color: black;
+    --text-color: white;
+    --share-button-bg: red;
 }
 
 body {
     margin: 0;
-    background-color: white;
-    color: black;
+    background-color: var(--bg-color);
+    color: var(--text-color);
     text-align: center;
     display: grid;
     grid-template-rows: auto 1fr auto;
@@ -151,13 +160,19 @@ button:focus {
 }
 
 .copy-button{
-    cursor: pointer;
+    background-color: var(--share-button-bg);
+    color: var(--bg-color);
+    font-size: 1rem;
+    text-transform: lowercase;
+    border: none;
     margin: 0;
-    padding: 0; /* change this for vertical bars on mode buttons */
-    font-size: 16px;
-    background-color: var(--bg-color); /* call --bg from global */
+    padding: 0;
+    cursor: pointer;
+}
+
+.copy-button:hover {
+    background-color: grey;
     color: var(--text-color);
-    border: none; 
 }
 
 .punctuation-dropdown {
