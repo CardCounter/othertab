@@ -20,23 +20,22 @@ let shareButtonResetTimeout = null;
 let currentWinShareText = '';
 
 const SPAWN_INTERVAL = { min: 3000, max: 6000 };
-const ASTEROID_SPIN = { min: -2.2, max: 2.2 }; // radians per second
+const ASTEROID_SPIN = { min: -2.2, max: 2.2 };
 const OUT_OF_BOUNDS_MARGIN = 160;
 const ASTEROID_LINE_WIDTH = 3;
 const POINTER_RING_RADIUS = 50;
-const LASER_SPEED = 1000; // px per second
-const MINING_DAMAGE_PER_SECOND = 100; // health per second
+const MINING_DAMAGE_PER_SECOND = 100;
 const MINING_LASER_LINE_WIDTH = 2;
 const POINTER_RING_LINE_WIDTH = 1.5;
 const SPLIT_COUNT = 2;
 const SPLIT_DIRECTION_VARIANCE = Math.PI / 6;
 const POINTER_COLLECTION_PADDING = 6;
-const ORE_CONVERSION_RATE = 1; // ore per second converted to points
-const UPGRADE_HOLD_DURATION = 1; // seconds to stay in zone before purchase
+const ORE_CONVERSION_RATE = 1;
+const UPGRADE_HOLD_DURATION = 1;
 const STRENGTH_INCREMENT = 50;
 const RADIUS_INCREMENT = 10;
 const LASER_COUNT_BASE = 1;
-const ORE_RATIO_UPDATE_INTERVAL = 10000;
+const ORE_RATIO_UPDATE_INTERVAL = { min: 5000, max: 10000 };
 const DIFFICULTY_RAMP_PER_MINUTE = 0.25;
 
 const UPGRADE_CONFIG = {
@@ -117,6 +116,7 @@ const state = {
     ore: 0,
     oreRatio: 1,
     lastOreRatioUpdate: 0,
+    nextOreRatioUpdate: 0,
     gameStartTime: performance.now(),
     oreConversionActive: false,
     oreConversionProgress: 0,
@@ -148,6 +148,10 @@ let collectibleIdCounter = 0;
 
 function randRange(min, max) {
     return Math.random() * (max - min) + min;
+}
+
+function getRandomOreRatioIntervalMs() {
+    return randRange(ORE_RATIO_UPDATE_INTERVAL.min, ORE_RATIO_UPDATE_INTERVAL.max);
 }
 
 function clamp(value, min, max) {
@@ -196,6 +200,41 @@ function wrapEntity(entity, radius) {
     } else if (entity.y > height + radius) {
         entity.y = -radius;
     }
+}
+
+function getAsteroidRadiusInDirection(asteroid, dirX, dirY) {
+    const dirLength = Math.hypot(dirX, dirY);
+    if (dirLength === 0) {
+        return asteroid.radius;
+    }
+    const nx = dirX / dirLength;
+    const ny = dirY / dirLength;
+    const step = (Math.PI * 2) / asteroid.sides;
+    let closest = Infinity;
+    for (let i = 0; i < asteroid.sides; i++) {
+        const nextIndex = (i + 1) % asteroid.sides;
+        const angCurrent = asteroid.rotation + i * step;
+        const angNext = asteroid.rotation + nextIndex * step;
+        const ax = Math.cos(angCurrent) * asteroid.radius;
+        const ay = Math.sin(angCurrent) * asteroid.radius;
+        const bx = Math.cos(angNext) * asteroid.radius;
+        const by = Math.sin(angNext) * asteroid.radius;
+        const ex = bx - ax;
+        const ey = by - ay;
+        const denom = nx * ey - ny * ex;
+        if (Math.abs(denom) < 1e-6) {
+            continue;
+        }
+        const t = (ax * ey - ay * ex) / denom;
+        const u = (ax * ny - ay * nx) / denom;
+        if (t >= 0 && u >= 0 && u <= 1) {
+            closest = Math.min(closest, t);
+        }
+    }
+    if (!isFinite(closest) || closest <= 0) {
+        return asteroid.radius;
+    }
+    return closest;
 }
 
 function applyLineWidth(widthValue) {
@@ -732,9 +771,18 @@ function handleOreConversion(delta) {
 }
 
 function updateOreRatio(now) {
-    if (now - state.lastOreRatioUpdate > ORE_RATIO_UPDATE_INTERVAL) {
-        state.oreRatio = Math.floor(Math.random() * 6) + 1; // 1 to 6
+    if (state.frozen) {
+        return;
+    }
+
+    if (!state.nextOreRatioUpdate) {
+        state.nextOreRatioUpdate = now + getRandomOreRatioIntervalMs();
+    }
+
+    if (now >= state.nextOreRatioUpdate) {
+        state.oreRatio = Math.floor(Math.random() * 5) + 1; // values range from one to ten
         state.lastOreRatioUpdate = now;
+        state.nextOreRatioUpdate = now + getRandomOreRatioIntervalMs();
         updateResourceDisplays();
     }
 }
@@ -791,21 +839,21 @@ function handleMining(delta) {
         const dx = target.x - state.pointer.x;
         const dy = target.y - state.pointer.y;
         const distanceToCenter = Math.hypot(dx, dy);
+        const centerToPointerX = state.pointer.x - target.x;
+        const centerToPointerY = state.pointer.y - target.y;
+        const directionRadius = getAsteroidRadiusInDirection(
+            target,
+            centerToPointerX,
+            centerToPointerY
+        );
         let distanceToSurface = 0;
-        if (distanceToCenter > 0) {
-            if (distanceToCenter >= target.radius) {
-                distanceToSurface = distanceToCenter - target.radius;
-            } else {
-                distanceToSurface = target.radius - distanceToCenter;
-            }
+        if (distanceToCenter >= directionRadius) {
+            distanceToSurface = distanceToCenter - directionRadius;
         } else {
-            distanceToSurface = target.radius;
+            distanceToSurface = directionRadius - distanceToCenter;
         }
 
-        record.beamLength = Math.min(
-            distanceToSurface,
-            record.beamLength + LASER_SPEED * delta
-        );
+        record.beamLength = distanceToSurface;
 
         if (
             distanceToSurface <= 0.5 ||
@@ -950,16 +998,18 @@ function drawPointerCircle(color) {
 }
 
 function resetGame() {
+    const nowTime = performance.now();
     state.asteroids = [];
     state.collectibles = [];
     state.frozen = false;
-    state.nextSpawnAt = performance.now();
-    lastFrame = performance.now();
+    state.nextSpawnAt = nowTime;
+    lastFrame = nowTime;
     state.points = 0;
     state.ore = 0;
     state.oreRatio = 1;
-    state.gameStartTime = performance.now();
-    state.lastOreRatioUpdate = performance.now();
+    state.gameStartTime = nowTime;
+    state.lastOreRatioUpdate = nowTime;
+    state.nextOreRatioUpdate = nowTime + getRandomOreRatioIntervalMs();
     state.oreConversionProgress = 0;
     state.upgrades.num = LASER_COUNT_BASE;
     state.upgrades.strength = 0;
@@ -982,6 +1032,7 @@ function resetGame() {
 function freezeField(reason) {
     if (state.frozen) return;
     state.frozen = true;
+    state.nextOreRatioUpdate = 0;
     state.finishReason = reason || null;
     const lossReason = reason === 'asteroid impact' || reason === 'cursor left window';
     if (lossReason) {
