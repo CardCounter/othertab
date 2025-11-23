@@ -52,48 +52,49 @@ const ASTEROID_TIERS = [
         sides: 3,
         size: { min: 14, max: 24 },
         speed: { min: 220, max: 360 },
-        health: { min: 100, max: 250 },
+        health: { min: 100, max: 200 },
     },
     {
         name: 'square',
         sides: 4,
         size: { min: 20, max: 34 },
         speed: { min: 180, max: 320 },
-        health: { min: 150, max: 300 },
+        health: { min: 150, max: 250 },
     },
     {
         name: 'pentagon',
         sides: 5,
         size: { min: 26, max: 44 },
         speed: { min: 150, max: 280 },
-        health: { min: 250, max: 400 },
+        health: { min: 200, max: 300 },
     },
     {
         name: 'hexagon',
         sides: 6,
         size: { min: 30, max: 56 },
         speed: { min: 130, max: 240 },
-        health: { min: 350, max: 500 },
+        health: { min: 250, max: 350 },
     },
     {
         name: 'heptagon',
         sides: 7,
         size: { min: 34, max: 72 },
         speed: { min: 110, max: 210 },
-        health: { min: 350, max: 500 },
+        health: { min: 300, max: 400 },
     },
     {
         name: 'octagon',
         sides: 8,
         size: { min: 40, max: 90 },
         speed: { min: 90, max: 180 },
-        health: { min: 400, max: 600 },
+        health: { min: 350, max: 450 },
     },
 ];
 
 const TIER_SPAWN_WEIGHTS = ASTEROID_TIERS.map((_, idx) => Math.pow(idx + 1, 2));
 const TOTAL_TIER_WEIGHT = TIER_SPAWN_WEIGHTS.reduce((sum, weight) => sum + weight, 0);
 const MAX_TIER_INDEX = ASTEROID_TIERS.length - 1;
+const INITIAL_TIER_INDICES = [0, 1, 2];
 const COLLECTIBLE_SPEED = { min: 80, max: 150 };
 const COLLECTIBLE_SIZE = { min: 6, max: 11 };
 
@@ -108,7 +109,7 @@ const state = {
     },
     frozen: false,
     finishReason: null,
-    nextSpawnAt: performance.now() + randRange(SPAWN_INTERVAL.min, SPAWN_INTERVAL.max),
+    nextSpawnAt: performance.now(),
     mining: {
         targets: new Map(),
     },
@@ -135,6 +136,7 @@ const state = {
         strength: { hovered: false, progress: 0 },
         num: { hovered: false, progress: 0 },
     },
+    hasSpawnedInitialAsteroid: false,
 };
 
 let width = window.innerWidth;
@@ -175,6 +177,11 @@ function chooseSpawnTierIndex() {
         }
     }
     return MAX_TIER_INDEX;
+}
+
+function chooseInitialTierIndex() {
+    const idx = Math.floor(Math.random() * INITIAL_TIER_INDICES.length);
+    return INITIAL_TIER_INDICES[idx];
 }
 
 function wrapEntity(entity, radius) {
@@ -353,7 +360,7 @@ function updateResourceDisplays() {
     }
     // Update ore converter with ratio
     if (oreConverter) {
-        oreConverter.innerHTML = `<span class="square-label">ore<br>1 : ${state.oreRatio}</span>`;
+        oreConverter.innerHTML = `<span class="square-label">ore<br>1 : ${getPointsLabel()}${state.oreRatio}</span>`;
     }
 }
 
@@ -568,8 +575,11 @@ function addAsteroidFromTier(tierIndex, options = {}) {
 }
 
 function spawnAsteroid(now = performance.now()) {
-    const tierIndex = chooseSpawnTierIndex();
+    const tierIndex = state.hasSpawnedInitialAsteroid
+        ? chooseSpawnTierIndex()
+        : chooseInitialTierIndex();
     addAsteroidFromTier(tierIndex);
+    state.hasSpawnedInitialAsteroid = true;
     state.nextSpawnAt = now + randRange(SPAWN_INTERVAL.min, SPAWN_INTERVAL.max);
 }
 
@@ -943,7 +953,7 @@ function resetGame() {
     state.asteroids = [];
     state.collectibles = [];
     state.frozen = false;
-    state.nextSpawnAt = performance.now() + randRange(SPAWN_INTERVAL.min, SPAWN_INTERVAL.max);
+    state.nextSpawnAt = performance.now();
     lastFrame = performance.now();
     state.points = 0;
     state.ore = 0;
@@ -966,6 +976,7 @@ function resetGame() {
     hideWinShareButton();
     setMiningVisualsTransparent(false);
     collectibleIdCounter = 0;
+    state.hasSpawnedInitialAsteroid = false;
 }
 
 function freezeField(reason) {
