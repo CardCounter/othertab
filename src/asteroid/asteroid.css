@@ -6,6 +6,7 @@
     --mining-circle-color: black;
     --laser-color: black;
     --corner-square-border-color: var(--mining-circle-color);
+    --corner-square-bg: transparent;
     --pointer-circle-color: var(--mining-circle-color);
     --pointer-laser-color: var(--laser-color);
     --ore-converter-active-bg: rgba(0, 0, 0, 0.05);
@@ -162,7 +163,7 @@ footer .footer-right {
     height: 8rem;
     border: 2px solid var(--corner-square-border-color, var(--mining-circle-color));
     border-radius: 0;
-    background-color: transparent;
+    background-color: var(--corner-square-bg, transparent);
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
@@ -183,7 +184,7 @@ footer .footer-right {
 }
 
 .corner-square.square-pulse {
-    animation: square-pulse 0.6s ease;
+    animation: square-pulse 0.5s ease;
 }
 
 .corner-square.ore {
@@ -221,13 +222,11 @@ footer .footer-right {
 }
 
 @keyframes square-pulse {
-    0% {
-        background-color: rgba(100, 100, 100, 0.4);
-    }
-    60% {
-        background-color: rgba(100, 100, 100, 0.24);
-    }
+    0%,
     100% {
-        background-color: transparent;
+        background-color: var(--corner-square-bg, transparent);
+    }
+    50% {
+        background-color: grey;
     }
 }
