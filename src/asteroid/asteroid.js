@@ -19,7 +19,7 @@ const ASTEROID_SHARE_URL = 'https://othertab.com/asteroid/';
 let shareButtonResetTimeout = null;
 let currentWinShareText = '';
 
-const SPAWN_INTERVAL = { min: 1500, max: 4500 };
+const SPAWN_INTERVAL = { min: 3000, max: 6000 };
 const ASTEROID_SPIN = { min: -2.2, max: 2.2 }; // radians per second
 const OUT_OF_BOUNDS_MARGIN = 160;
 const ASTEROID_LINE_WIDTH = 3;
