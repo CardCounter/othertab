@@ -7,9 +7,12 @@ const oreConverter = document.getElementById('ore-converter');
 const radiusUpgradeSquare = document.getElementById('radius-upgrade');
 const strengthUpgradeSquare = document.getElementById('strength-upgrade');
 const numUpgradeSquare = document.getElementById('num-upgrade');
-const headerStats = document.querySelector('.header-stats');
-const oreOverlay = document.querySelector('.ore-overlay');
-const footer = document.querySelector('footer');
+const playSurface = document.querySelector('.play-surface');
+const resetOverlay = document.getElementById('reset-overlay');
+const osirisWrapper = document.querySelector('.osiris-wrapper');
+const pointerDot = document.getElementById('pointer-dot');
+const CURSOR_VISIBLE_CLASS = 'cursor-visible';
+let pointerInsideWrapper = false;
 const zoneElements = {
     ore: oreConverter,
     radius: radiusUpgradeSquare,
@@ -24,12 +27,11 @@ let currentWinShareText = '';
 
 const SPAWN_INTERVAL = { min: 3000, max: 6000 };
 const OSIRIS_SPIN = { min: -2.2, max: 2.2 };
-const OUT_OF_BOUNDS_MARGIN = 160;
 const OSIRIS_LINE_WIDTH = 3;
 const POINTER_RING_RADIUS = 50;
 const MINING_DAMAGE_PER_SECOND = 100;
 const MINING_LASER_LINE_WIDTH = 2;
-const POINTER_RING_LINE_WIDTH = 1.5;
+const POINTER_RING_LINE_WIDTH = 2;
 const SPLIT_COUNT = 2;
 const SPLIT_DIRECTION_VARIANCE = Math.PI / 6;
 const POINTER_COLLECTION_PADDING = 6;
@@ -266,39 +268,6 @@ function triggerZonePulse(zoneKey) {
     element.classList.add(ZONE_PULSE_CLASS);
 }
 
-function alignTopUpgradeSquares() {
-    if (!headerStats || !oreOverlay || !strengthUpgradeSquare || !numUpgradeSquare) {
-        return;
-    }
-    const overlayRect = oreOverlay.getBoundingClientRect();
-    const statsRect = headerStats.getBoundingClientRect();
-    const targetTop = statsRect.top - overlayRect.top;
-    strengthUpgradeSquare.style.top = `${targetTop}px`;
-    numUpgradeSquare.style.top = `${targetTop}px`;
-}
-
-function alignBottomUpgradeSquares() {
-    if (!footer || !oreOverlay) {
-        return;
-    }
-    const overlayRect = oreOverlay.getBoundingClientRect();
-    const footerRect = footer.getBoundingClientRect();
-    const targetBottom = overlayRect.bottom - footerRect.top;
-    if (radiusUpgradeSquare) {
-        radiusUpgradeSquare.style.top = 'auto';
-        radiusUpgradeSquare.style.bottom = `${targetBottom}px`;
-    }
-    if (oreConverter) {
-        oreConverter.style.top = 'auto';
-        oreConverter.style.bottom = `${targetBottom}px`;
-    }
-}
-
-function alignUpgradeSquares() {
-    alignTopUpgradeSquares();
-    alignBottomUpgradeSquares();
-}
-
 function attachPulseReset(element) {
     if (!element) return;
     element.addEventListener('animationend', (event) => {
@@ -306,6 +275,33 @@ function attachPulseReset(element) {
             element.classList.remove(ZONE_PULSE_CLASS);
         }
     });
+}
+
+function setPlaySurfaceFrozen(frozen) {
+    if (!playSurface) return;
+    playSurface.classList.toggle('is-frozen', frozen);
+}
+
+function showCursor() {
+    if (!osirisWrapper) return;
+    osirisWrapper.classList.add(CURSOR_VISIBLE_CLASS);
+}
+
+function hideCursor() {
+    if (!osirisWrapper) return;
+    osirisWrapper.classList.remove(CURSOR_VISIBLE_CLASS);
+}
+
+function showResetOverlay() {
+    if (!resetOverlay) return;
+    resetOverlay.setAttribute('aria-hidden', 'false');
+    resetOverlay.classList.add('visible');
+}
+
+function hideResetOverlay() {
+    if (!resetOverlay) return;
+    resetOverlay.setAttribute('aria-hidden', 'true');
+    resetOverlay.classList.remove('visible');
 }
 
 function setZoneHover(zoneKey, hovered) {
@@ -438,7 +434,6 @@ function updateResourceDisplays() {
     if (oreConverter) {
         oreConverter.innerHTML = `<span class="square-label">research<br>1⛰ : ${state.oreRatio}${getPointsLabel()}</span>`;
     }
-    alignUpgradeSquares();
 }
 
 function getPointsLabel() {
@@ -520,6 +515,12 @@ function handleShareButtonClick() {
     }
 }
 
+function releasePointerLock() {
+    if (document.pointerLockElement === canvas && typeof document.exitPointerLock === 'function') {
+        document.exitPointerLock();
+    }
+}
+
 function setMiningVisualsTransparent(hidden) {
     const root = document.documentElement;
     if (!root) return;
@@ -542,14 +543,21 @@ function setMiningVisualsTransparent(hidden) {
 }
 
 function resizeCanvas() {
-    width = window.innerWidth;
-    height = window.innerHeight;
+    const rect = playSurface ? playSurface.getBoundingClientRect() : null;
+    const rootFontSize =
+        parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+    width = rect && rect.width ? rect.width : 30 * rootFontSize;
+    height = rect && rect.height ? rect.height : 20 * rootFontSize;
     dpr = window.devicePixelRatio || 1;
     canvas.width = width * dpr;
     canvas.height = height * dpr;
-    canvas.style.width = '100vw';
-    canvas.style.height = '100vh';
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    if (!state.pointer.active) {
+        state.pointer.x = width / 2;
+        state.pointer.y = height / 2;
+    }
 }
 
 function computeEdgeSpawn(radius) {
@@ -559,25 +567,25 @@ function computeEdgeSpawn(radius) {
     let angle;
 
     switch (side) {
-        case 0: // top
-            x = randRange(-OUT_OF_BOUNDS_MARGIN, width + OUT_OF_BOUNDS_MARGIN);
-            y = -radius - 10;
-            angle = randRange(Math.PI / 4, (3 * Math.PI) / 4);
+        case 0:
+            x = randRange(radius, Math.max(radius, width - radius));
+            y = -radius;
+            angle = randRange(Math.PI / 6, (5 * Math.PI) / 6);
             break;
-        case 1: // right
-            x = width + radius + 10;
-            y = randRange(-OUT_OF_BOUNDS_MARGIN, height + OUT_OF_BOUNDS_MARGIN);
-            angle = randRange((3 * Math.PI) / 4, (5 * Math.PI) / 4);
+        case 1:
+            x = width + radius;
+            y = randRange(radius, Math.max(radius, height - radius));
+            angle = randRange((2 * Math.PI) / 3, (4 * Math.PI) / 3);
             break;
-        case 2: // bottom
-            x = randRange(-OUT_OF_BOUNDS_MARGIN, width + OUT_OF_BOUNDS_MARGIN);
-            y = height + radius + 10;
-            angle = randRange((5 * Math.PI) / 4, (7 * Math.PI) / 4);
+        case 2:
+            x = randRange(radius, Math.max(radius, width - radius));
+            y = height + radius;
+            angle = randRange((7 * Math.PI) / 6, (11 * Math.PI) / 6);
             break;
-        default: // left
-            x = -radius - 10;
-            y = randRange(-OUT_OF_BOUNDS_MARGIN, height + OUT_OF_BOUNDS_MARGIN);
-            angle = randRange(-Math.PI / 4, Math.PI / 4);
+        default:
+            x = -radius;
+            y = randRange(radius, Math.max(radius, height - radius));
+            angle = randRange(-Math.PI / 6, Math.PI / 6);
             break;
     }
 
@@ -1026,8 +1034,21 @@ function drawMiningLaser(color) {
     ctx.restore();
 }
 
+function shouldDisplayPointer() {
+    if (state.frozen) {
+        return false;
+    }
+    if (!state.pointer.active) {
+        return true;
+    }
+    return pointerInsideWrapper;
+}
+
 function drawPointerCircle(color) {
-    if (!state.pointer.active) return;
+    if (!shouldDisplayPointer()) {
+        syncPointerDot();
+        return;
+    }
     ctx.save();
     ctx.strokeStyle = color || '#f00';
     ctx.lineWidth = POINTER_RING_LINE_WIDTH;
@@ -1035,6 +1056,15 @@ function drawPointerCircle(color) {
     ctx.arc(state.pointer.x, state.pointer.y, getPointerRadius(), 0, Math.PI * 2);
     ctx.stroke();
     ctx.restore();
+    syncPointerDot();
+}
+
+function syncPointerDot() {
+    if (!pointerDot) return;
+    pointerDot.style.left = `${state.pointer.x}px`;
+    pointerDot.style.top = `${state.pointer.y}px`;
+    const shouldShow = shouldDisplayPointer();
+    pointerDot.classList.toggle('visible', shouldShow);
 }
 
 function resetGame() {
@@ -1042,6 +1072,8 @@ function resetGame() {
     state.osirisField = [];
     state.collectibles = [];
     state.frozen = false;
+    setPlaySurfaceFrozen(false);
+    hideCursor();
     state.nextSpawnAt = nowTime;
     lastFrame = nowTime;
     state.points = 0;
@@ -1068,26 +1100,54 @@ function resetGame() {
     setMiningVisualsTransparent(false);
     collectibleIdCounter = 0;
     state.hasSpawnedInitialOsiris = false;
+    pointerInsideWrapper = false;
+    syncPointerDot();
+    hideResetOverlay();
 }
 
 function freezeField(reason) {
     if (state.frozen) return;
+    releasePointerLock();
     state.frozen = true;
+    setPlaySurfaceFrozen(true);
+    showCursor();
     state.nextOreRatioUpdate = 0;
     state.finishReason = reason || null;
-    const lossReason = reason === 'osiris impact' || reason === 'cursor left window';
-    if (lossReason) {
-        showWinShareButton();
-        setMiningVisualsTransparent(true);
-    }
+    showWinShareButton();
+    setMiningVisualsTransparent(true);
     clearMiningState();
     deactivateOreConverter();
     stopAllZoneInteractions();
+    showResetOverlay();
+    syncPointerDot();
+}
+
+function handleWrapperPointerEnter() {
+    pointerInsideWrapper = true;
+    syncPointerDot();
+}
+
+function handleWrapperPointerLeave(event) {
+    if (!osirisWrapper || state.frozen) {
+        return;
+    }
+    if (document.pointerLockElement === canvas) {
+        return;
+    }
+    const nextTarget = event.relatedTarget;
+    if (nextTarget && osirisWrapper.contains(nextTarget)) {
+        return;
+    }
+    pointerInsideWrapper = false;
+    syncPointerDot();
+    freezeField('cursor left osiris wrapper');
 }
 
 function handleWindowLeave(event) {
     deactivateOreConverter();
     stopAllZoneInteractions();
+    pointerInsideWrapper = false;
+    syncPointerDot();
     if (state.frozen) return;
     if (!event.relatedTarget && !event.toElement) {
         freezeField('cursor left window');
@@ -1097,6 +1157,8 @@ function handleWindowLeave(event) {
 function handleBlur() {
     deactivateOreConverter();
     stopAllZoneInteractions();
+    pointerInsideWrapper = false;
+    syncPointerDot();
     if (!state.frozen) {
         freezeField('cursor left window');
     }
@@ -1130,12 +1192,54 @@ function updateVirtualPointerFromMouse(event) {
     state.pointer.locked = locked;
 }
 
+function isPointerWithinWrapper(clientX, clientY) {
+    if (!osirisWrapper || typeof clientX !== 'number' || typeof clientY !== 'number') {
+        return true;
+    }
+    const rect = osirisWrapper.getBoundingClientRect();
+    if (!rect) {
+        return true;
+    }
+    return (
+        clientX >= rect.left &&
+        clientX <= rect.right &&
+        clientY >= rect.top &&
+        clientY <= rect.bottom
+    );
+}
+
 function handlePointerMovement(event) {
+    const locked = document.pointerLockElement === canvas;
+    if (!locked && osirisWrapper) {
+        const inside = isPointerWithinWrapper(event.clientX, event.clientY);
+        if (!inside) {
+            pointerInsideWrapper = false;
+            syncPointerDot();
+            if (!state.frozen) {
+                freezeField('cursor left osiris wrapper');
+            }
+            return;
+        }
+        pointerInsideWrapper = true;
+    } else if (locked) {
+        pointerInsideWrapper = true;
+    }
     updateVirtualPointerFromMouse(event);
 }
 
 function handlePointerLockChange() {
-    state.pointer.locked = document.pointerLockElement === canvas;
+    const locked = document.pointerLockElement === canvas;
+    state.pointer.locked = locked;
+    if (locked) {
+        pointerInsideWrapper = true;
+        syncPointerDot();
+        return;
+    }
+    if (!state.frozen) {
+        pointerInsideWrapper = false;
+        syncPointerDot();
+        freezeField('cursor left osiris wrapper');
+    }
 }
 
 function requestPointerLock() {
@@ -1187,7 +1291,10 @@ function loop(now) {
 
 resizeCanvas();
 window.addEventListener('resize', resizeCanvas);
-window.addEventListener('resize', alignUpgradeSquares);
+if (osirisWrapper) {
+    osirisWrapper.addEventListener('pointerenter', handleWrapperPointerEnter, { passive: true });
+    osirisWrapper.addEventListener('pointerleave', handleWrapperPointerLeave, { passive: true });
+}
 window.addEventListener('mousemove', handlePointerMovement, { passive: true });
 document.addEventListener('mouseleave', handleWindowLeave, { passive: true });
 window.addEventListener('blur', handleBlur);
@@ -1224,6 +1331,12 @@ for (const [zoneKey, element] of Object.entries(upgradeSquares)) {
 for (const element of Object.values(zoneElements)) {
     attachPulseReset(element);
 }
+
+hideResetOverlay();
+if (osirisWrapper && typeof osirisWrapper.matches === 'function') {
+    pointerInsideWrapper = osirisWrapper.matches(':hover');
+}
+syncPointerDot();
 
 applyLineWidth(OSIRIS_LINE_WIDTH);
 updateResourceDisplays();
