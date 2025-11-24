@@ -46,6 +46,7 @@ const STRENGTH_INCREMENT = 50;
 const RADIUS_INCREMENT = 10;
 const LASER_COUNT_BASE = 1;
 const ORE_RATIO_UPDATE_INTERVAL = { min: 5000, max: 10000 };
+const ORE_RATIO_VALUE_RANGE = { min: 1, max: 5 };
 const DIFFICULTY_RAMP_PER_MINUTE = 0.25;
 
 const UPGRADE_CONFIG = {
@@ -126,7 +127,7 @@ const state = {
     points: 0,
     totalScience: 0,
     ore: 0,
-    oreRatio: 1,
+    oreRatio: getRandomOreRatioValue(),
     lastOreRatioUpdate: 0,
     nextOreRatioUpdate: 0,
     gameStartTime: performance.now(),
@@ -164,6 +165,12 @@ function randRange(min, max) {
 
 function getRandomOreRatioIntervalMs() {
     return randRange(ORE_RATIO_UPDATE_INTERVAL.min, ORE_RATIO_UPDATE_INTERVAL.max);
+}
+
+function getRandomOreRatioValue() {
+    const { min, max } = ORE_RATIO_VALUE_RANGE;
+    const range = max - min + 1;
+    return Math.floor(Math.random() * range) + min;
 }
 
 function clamp(value, min, max) {
@@ -905,7 +912,7 @@ function updateOreRatio(now) {
     }
 
     if (now >= state.nextOreRatioUpdate) {
-        state.oreRatio = Math.floor(Math.random() * 5) + 1; // values range from one to ten
+        state.oreRatio = getRandomOreRatioValue();
         state.lastOreRatioUpdate = now;
         state.nextOreRatioUpdate = now + getRandomOreRatioIntervalMs();
         updateResourceDisplays();
@@ -1165,7 +1172,7 @@ function resetGame() {
     state.points = 0;
     state.totalScience = 0;
     state.ore = 0;
-    state.oreRatio = 1;
+    state.oreRatio = getRandomOreRatioValue();
     state.gameStartTime = nowTime;
     state.lastOreRatioUpdate = nowTime;
     state.nextOreRatioUpdate = nowTime + getRandomOreRatioIntervalMs();
