@@ -12,6 +12,7 @@
     --ore-converter-active-bg: rgba(0, 0, 0, 0.05);
     --share-button-bg: blue;
     --share-button-text: white;
+    --button-hover-bg: grey;
 }
 
 body.dark-mode {
@@ -27,6 +28,7 @@ body.dark-mode {
     --ore-converter-active-bg: rgba(255, 255, 255, 0.12);
     --share-button-bg: red;
     --share-button-text: black;
+    --button-hover-bg: grey;
 }
 
 html,
@@ -58,20 +60,48 @@ footer {
 main {
     flex: 1;
     position: relative;
-    padding: 0;
+    padding: 1.5rem 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.osiris-wrapper {
+    width: 80rem;
+    height: 35rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--osiris-bg);
+    box-sizing: border-box;
+    cursor: auto;
+}
+
+.osiris-wrapper.cursor-hidden {
+    cursor: none;
 }
 
 .play-surface {
-    position: absolute;
-    inset: 0;
+    position: relative;
+    width: 100%;
+    height: 100%;
     padding: 0;
+    box-sizing: border-box;
+    background-color: var(--osiris-bg);
+    overflow: hidden;
+    border: 3px solid var(--osiris-stroke);
+}
+
+.play-surface.is-frozen,
+.play-surface.is-awaiting-start {
+    border-style: dashed;
 }
 
 .osiris-field {
-    position: fixed;
+    position: absolute;
     inset: 0;
     background: transparent;
-    z-index: 5;
+    z-index: 2;
     pointer-events: none;
 }
 
@@ -79,10 +109,7 @@ main {
     position: absolute;
     inset: 0;
     pointer-events: none;
-    display: flex;
-    align-items: flex-end;
-    justify-content: flex-end;
-    padding: 0 1.25rem 1.25rem;
+    z-index: 3;
 }
 
 .ore-overlay > .corner-square {
@@ -94,6 +121,22 @@ main {
     height: 100%;
     display: block;
     pointer-events: none;
+}
+
+.reset-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    opacity: 0;
+    z-index: 100;
+}
+
+.reset-overlay.visible {
+    pointer-events: auto;
+    opacity: 1;
 }
 
 .reset-button {
@@ -110,6 +153,44 @@ main {
 .reset-button:hover {
     background-color: grey;
     margin: 0;
+}
+
+.reset-button.reset-button-overlay {
+    font-style: italic;
+    padding: 0;
+    background-color: var(--osiris-bg);
+    color: var(--osiris-text);
+    text-transform: lowercase;
+    font-size: 2rem;
+}
+
+.reset-button.reset-button-overlay:hover {
+    background-color: var(--button-hover-bg);
+    color: var(--osiris-text);
+}
+
+.pointer-dot {
+    position: absolute;
+    width: 0.5rem;
+    height: 0.5rem;
+    top: 0;
+    left: 0;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.1s ease;
+    z-index: 150;
+    color: var(--pointer-circle-color, var(--mining-circle-color));
+}
+
+.pointer-dot svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+.pointer-dot.visible {
+    opacity: 1;
 }
 
 .score-display {
@@ -159,8 +240,8 @@ footer .footer-right {
 
 .corner-square {
     position: absolute;
-    width: 10rem;
-    height: 10rem;
+    width: 7rem;
+    height: 7rem;
     border: 2px solid var(--corner-square-border-color, var(--mining-circle-color));
     border-radius: 0;
     background-color: var(--corner-square-bg, transparent);
@@ -170,17 +251,19 @@ footer .footer-right {
     align-items: center;
     justify-content: center;
     text-transform: lowercase;
-    font-size: 1.35rem;
+    font-size: 1rem;
     color: var(--osiris-text);
     pointer-events: auto;
     overflow: hidden;
     text-align: center;
-    line-height: 1.25;
+    line-height: 1;
+    padding: 0.25rem;
+    z-index: 100;
 }
 
 .corner-square .square-label {
     pointer-events: none;
-    z-index: -1;
+    z-index: 100;
 }
 
 .corner-square.square-pulse {
@@ -188,37 +271,42 @@ footer .footer-right {
 }
 
 .corner-square.ore {
-    bottom: 1.25rem;
-    right: 1.25rem;
+    bottom: 0.5rem;
+    right: 0.5rem;
 }
 
 .corner-square.radius {
-    bottom: 1.25rem;
-    left: 1.25rem;
+    bottom: 0.5rem; 
+    left: 0.5rem;
 }
 
 .corner-square.strength {
-    top: 1.25rem;
-    right: 1.25rem;
+    top: 0.5rem;
+    right: 0.5rem;
 }
 
 .corner-square.num {
-    top: 1.25rem;
-    left: 1.25rem;
+    top: 0.5rem;
+    left: 0.5rem;
 }
 .header-stats {
+    position: absolute;
+    top: 1rem;
+    left: 50%;
+    transform: translateX(-50%);
     display: flex;
     justify-content: center;
     gap: 1rem;
-    padding: 0;
     font-weight: 1000;
-    margin: 0 auto;
-    width: fit-content;
+    margin: 0;
+    width: auto;
+    background-color: transparent;
+    z-index: 4;
 }
 
 .header-stats .score-display {
     margin: 0;
-    font-size: 1.5rem;
+    font-size: 2rem;
 }
 
 @keyframes square-pulse {

@@ -11,8 +11,11 @@ const playSurface = document.querySelector('.play-surface');
 const resetOverlay = document.getElementById('reset-overlay');
 const osirisWrapper = document.querySelector('.osiris-wrapper');
 const pointerDot = document.getElementById('pointer-dot');
-const CURSOR_VISIBLE_CLASS = 'cursor-visible';
+const startOverlay = document.getElementById('start-overlay');
+const startButton = document.getElementById('start-button');
+const CURSOR_HIDDEN_CLASS = 'cursor-hidden';
 let pointerInsideWrapper = false;
+let pointerCircleApplied = false;
 const zoneElements = {
     ore: oreConverter,
     radius: radiusUpgradeSquare,
@@ -32,6 +35,8 @@ const POINTER_RING_RADIUS = 50;
 const MINING_DAMAGE_PER_SECOND = 100;
 const MINING_LASER_LINE_WIDTH = 2;
 const POINTER_RING_LINE_WIDTH = 2;
+const CURSOR_COLLISION_RADIUS = 4;
+const POINTER_DOT_COLLISION_RADIUS = CURSOR_COLLISION_RADIUS;
 const SPLIT_COUNT = 2;
 const SPLIT_DIRECTION_VARIANCE = Math.PI / 6;
 const POINTER_COLLECTION_PADDING = 6;
@@ -112,6 +117,7 @@ const state = {
         locked: false,
     },
     frozen: false,
+    awaitingStart: false,
     finishReason: null,
     nextSpawnAt: performance.now(),
     mining: {
@@ -282,14 +288,76 @@ function setPlaySurfaceFrozen(frozen) {
     playSurface.classList.toggle('is-frozen', frozen);
 }
 
-function showCursor() {
-    if (!osirisWrapper) return;
-    osirisWrapper.classList.add(CURSOR_VISIBLE_CLASS);
+function setPlaySurfaceAwaitingStart(waiting) {
+    if (!playSurface) return;
+    playSurface.classList.toggle('is-awaiting-start', waiting);
 }
 
-function hideCursor() {
+function showStartOverlay() {
+    if (!startOverlay) return;
+    startOverlay.setAttribute('aria-hidden', 'false');
+    startOverlay.classList.add('visible');
+}
+
+function hideStartOverlay() {
+    if (!startOverlay) return;
+    startOverlay.setAttribute('aria-hidden', 'true');
+    startOverlay.classList.remove('visible');
+}
+
+function isCursorHoveringWrapper() {
+    return Boolean(
+        osirisWrapper &&
+        typeof osirisWrapper.matches === 'function' &&
+        osirisWrapper.matches(':hover')
+    );
+}
+
+function enterAwaitingStartState() {
+    if (state.awaitingStart) return;
+    state.awaitingStart = true;
+    setPlaySurfaceAwaitingStart(true);
+    showStartOverlay();
+    resetPointerCircleState();
+}
+
+function exitAwaitingStartState() {
+    if (!state.awaitingStart) return;
+    state.awaitingStart = false;
+    setPlaySurfaceAwaitingStart(false);
+    hideStartOverlay();
+}
+
+function forceCursorReflow() {
     if (!osirisWrapper) return;
-    osirisWrapper.classList.remove(CURSOR_VISIBLE_CLASS);
+    void osirisWrapper.offsetWidth;
+}
+
+function showBrowserCursor() {
+    if (!osirisWrapper) return;
+    osirisWrapper.classList.remove(CURSOR_HIDDEN_CLASS);
+    forceCursorReflow();
+}
+
+function hideBrowserCursor() {
+    if (!osirisWrapper) return;
+    osirisWrapper.classList.add(CURSOR_HIDDEN_CLASS);
+    forceCursorReflow();
+}
+
+function applyPointerCircle() {
+    if (pointerCircleApplied) return;
+    pointerCircleApplied = true;
+    hideBrowserCursor();
+    syncPointerDot();
+}
+
+function resetPointerCircleState() {
+    pointerCircleApplied = false;
+    showBrowserCursor();
+    if (pointerDot) {
+        pointerDot.classList.remove('visible');
+    }
 }
 
 function showResetOverlay() {
@@ -367,6 +435,9 @@ function applyUpgrade(zoneKey) {
 }
 
 function handleUpgradeZones(delta) {
+    if (state.awaitingStart) {
+        return;
+    }
     for (const [zoneKey, zoneState] of Object.entries(state.zoneInteractions)) {
         if (!zoneState.hovered || state.frozen) {
             zoneState.progress = 0;
@@ -555,8 +626,7 @@ function resizeCanvas() {
     canvas.style.height = `${height}px`;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     if (!state.pointer.active) {
-        state.pointer.x = width / 2;
-        state.pointer.y = height / 2;
+        resetPointerToCenter();
     }
 }
 
@@ -761,12 +831,15 @@ function updateCollectibles(delta) {
 
 function detectCollisions() {
     if (!state.pointer.active || state.frozen) return;
+    const pointerCollisionRadius = pointerCircleApplied
+        ? POINTER_DOT_COLLISION_RADIUS
+        : CURSOR_COLLISION_RADIUS;
     for (const osiris of state.osirisField) {
         if (osiris.destroyed) continue;
         const dx = state.pointer.x - osiris.x;
         const dy = state.pointer.y - osiris.y;
         const distance = Math.hypot(dx, dy);
-        if (distance <= osiris.radius) {
+        if (distance <= osiris.radius + pointerCollisionRadius) {
             freezeField('osiris impact');
             return;
         }
@@ -775,7 +848,7 @@ function detectCollisions() {
 
 function handleCollectiblePickup() {
     if (!state.pointer.active || state.frozen || !state.collectibles.length) return;
-    const pointerRadius = getPointerRadius();
+    const pointerRadius = pointerCircleApplied ? getPointerRadius() : CURSOR_COLLISION_RADIUS;
     const collectedIds = new Set();
 
     for (const collectible of state.collectibles) {
@@ -798,6 +871,10 @@ function handleCollectiblePickup() {
 }
 
 function handleOreConversion(delta) {
+    if (state.awaitingStart) {
+        state.oreConversionProgress = 0;
+        return;
+    }
     if (!state.oreConversionActive || state.ore <= 0) {
         state.oreConversionProgress = 0;
         return;
@@ -819,7 +896,7 @@ function handleOreConversion(delta) {
 }
 
 function updateOreRatio(now) {
-    if (state.frozen) {
+    if (state.frozen || state.awaitingStart) {
         return;
     }
 
@@ -852,7 +929,7 @@ function handleMining(delta) {
         return;
     }
 
-    const pointerRadius = getPointerRadius();
+    const pointerRadius = pointerCircleApplied ? getPointerRadius() : CURSOR_COLLISION_RADIUS;
     const candidates = [];
 
     for (const osiris of state.osirisField) {
@@ -1035,7 +1112,7 @@ function drawMiningLaser(color) {
 }
 
 function shouldDisplayPointer() {
-    if (state.frozen) {
+    if (state.frozen || state.awaitingStart || !pointerCircleApplied) {
         return false;
     }
     if (!state.pointer.active) {
@@ -1061,10 +1138,19 @@ function drawPointerCircle(color) {
 
 function syncPointerDot() {
     if (!pointerDot) return;
-    pointerDot.style.left = `${state.pointer.x}px`;
-    pointerDot.style.top = `${state.pointer.y}px`;
     const shouldShow = shouldDisplayPointer();
+    if (shouldShow) {
+        pointerDot.style.left = `${state.pointer.x}px`;
+        pointerDot.style.top = `${state.pointer.y}px`;
+    }
     pointerDot.classList.toggle('visible', shouldShow);
+}
+
+function resetPointerToCenter() {
+    state.pointer.x = width / 2;
+    state.pointer.y = height / 2;
+    state.pointer.active = false;
+    state.pointer.locked = false;
 }
 
 function resetGame() {
@@ -1073,7 +1159,7 @@ function resetGame() {
     state.collectibles = [];
     state.frozen = false;
     setPlaySurfaceFrozen(false);
-    hideCursor();
+    resetPointerCircleState();
     state.nextSpawnAt = nowTime;
     lastFrame = nowTime;
     state.points = 0;
@@ -1100,9 +1186,15 @@ function resetGame() {
     setMiningVisualsTransparent(false);
     collectibleIdCounter = 0;
     state.hasSpawnedInitialOsiris = false;
-    pointerInsideWrapper = false;
+    pointerInsideWrapper = isCursorHoveringWrapper();
     syncPointerDot();
     hideResetOverlay();
+    const cursorInside = pointerInsideWrapper;
+    if (!cursorInside) {
+        enterAwaitingStartState();
+        return;
+    }
+    exitAwaitingStartState();
 }
 
 function freezeField(reason) {
@@ -1110,7 +1202,7 @@ function freezeField(reason) {
     releasePointerLock();
     state.frozen = true;
     setPlaySurfaceFrozen(true);
-    showCursor();
+    showBrowserCursor();
     state.nextOreRatioUpdate = 0;
     state.finishReason = reason || null;
     showWinShareButton();
@@ -1128,7 +1220,7 @@ function handleWrapperPointerEnter() {
 }
 
 function handleWrapperPointerLeave(event) {
-    if (!osirisWrapper || state.frozen) {
+    if (!osirisWrapper || state.frozen || state.awaitingStart) {
         return;
     }
     if (document.pointerLockElement === canvas) {
@@ -1148,7 +1240,7 @@ function handleWindowLeave(event) {
     stopAllZoneInteractions();
     pointerInsideWrapper = false;
     syncPointerDot();
-    if (state.frozen) return;
+    if (state.frozen || state.awaitingStart) return;
     if (!event.relatedTarget && !event.toElement) {
         freezeField('cursor left window');
     }
@@ -1159,7 +1251,7 @@ function handleBlur() {
     stopAllZoneInteractions();
     pointerInsideWrapper = false;
     syncPointerDot();
-    if (!state.frozen) {
+    if (!state.frozen && !state.awaitingStart) {
         freezeField('cursor left window');
     }
 }
@@ -1215,7 +1307,7 @@ function handlePointerMovement(event) {
         if (!inside) {
             pointerInsideWrapper = false;
             syncPointerDot();
-            if (!state.frozen) {
+            if (!state.frozen && !state.awaitingStart) {
                 freezeField('cursor left osiris wrapper');
             }
             return;
@@ -1225,6 +1317,9 @@ function handlePointerMovement(event) {
         pointerInsideWrapper = true;
     }
     updateVirtualPointerFromMouse(event);
+    if (!pointerCircleApplied && pointerInsideWrapper && !state.awaitingStart) {
+        applyPointerCircle();
+    }
 }
 
 function handlePointerLockChange() {
@@ -1235,7 +1330,7 @@ function handlePointerLockChange() {
         syncPointerDot();
         return;
     }
-    if (!state.frozen) {
+    if (!state.frozen && !state.awaitingStart) {
         pointerInsideWrapper = false;
         syncPointerDot();
         freezeField('cursor left osiris wrapper');
@@ -1250,6 +1345,14 @@ function requestPointerLock() {
 
 function handleContextMenu(event) {
     event.preventDefault();
+}
+
+function handleStartButtonClick(event) {
+    event.preventDefault();
+    if (!isCursorHoveringWrapper()) {
+        return;
+    }
+    resetGame();
 }
 
 function handleResetKeys(event) {
@@ -1267,7 +1370,7 @@ function loop(now) {
     const delta = Math.min(0.05, (now - lastFrame) / 1000);
     lastFrame = now;
 
-    if (!state.frozen) {
+    if (!state.frozen && !state.awaitingStart) {
         updateOsiriss(delta);
         updateCollectibles(delta);
         handleMining(delta);
@@ -1282,9 +1385,11 @@ function loop(now) {
         clearMiningState();
     }
 
-    handleUpgradeZones(delta);
-    updateOreRatio(now);
-    handleOreConversion(delta);
+    if (!state.awaitingStart) {
+        handleUpgradeZones(delta);
+        updateOreRatio(now);
+        handleOreConversion(delta);
+    }
     drawOsiriss();
     requestAnimationFrame(loop);
 }
@@ -1305,6 +1410,9 @@ if (canvas) {
 window.addEventListener('contextmenu', handleContextMenu);
 window.addEventListener('keydown', handleResetKeys);
 resetButton.addEventListener('click', resetGame);
+if (startButton) {
+    startButton.addEventListener('click', handleStartButtonClick);
+}
 if (shareButton) {
     shareButton.addEventListener('click', handleShareButtonClick);
 }
@@ -1333,6 +1441,7 @@ for (const element of Object.values(zoneElements)) {
 }
 
 hideResetOverlay();
+hideStartOverlay();
 if (osirisWrapper && typeof osirisWrapper.matches === 'function') {
     pointerInsideWrapper = osirisWrapper.matches(':hover');
 }
@@ -1341,4 +1450,5 @@ syncPointerDot();
 applyLineWidth(OSIRIS_LINE_WIDTH);
 updateResourceDisplays();
 
+resetGame();
 requestAnimationFrame(loop);
