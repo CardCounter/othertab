@@ -116,6 +116,7 @@ const state = {
         targets: new Map(),
     },
     points: 0,
+    totalScience: 0,
     ore: 0,
     oreRatio: 1,
     lastOreRatioUpdate: 0,
@@ -449,7 +450,7 @@ function updateShareScoreDisplay(visible) {
         return;
     }
     if (visible) {
-        shareScoreMessage.textContent = `${state.points}${getPointsLabel()}`;
+        shareScoreMessage.textContent = `${state.totalScience}${getPointsLabel()}`;
         shareScoreMessage.classList.remove('hidden');
     } else {
         shareScoreMessage.textContent = '';
@@ -459,7 +460,7 @@ function updateShareScoreDisplay(visible) {
 
 function getWinShareText() {
     const label = getPointsLabel();
-    return `OSIRIS\n${state.points}${label}\n${OSIRIS_SHARE_URL}`;
+    return `OSIRIS\n${state.totalScience}${label}\n${OSIRIS_SHARE_URL}`;
 }
 
 function showWinShareButton() {
@@ -800,7 +801,9 @@ function handleOreConversion(delta) {
     );
     if (wholeUnits > 0) {
         state.ore -= wholeUnits;
-        state.points += wholeUnits * state.oreRatio;
+        const scienceGained = wholeUnits * state.oreRatio;
+        state.points += scienceGained;
+        state.totalScience += scienceGained;
         state.oreConversionProgress -= wholeUnits;
         updateResourceDisplays();
         triggerZonePulse('ore');
@@ -1042,6 +1045,7 @@ function resetGame() {
     state.nextSpawnAt = nowTime;
     lastFrame = nowTime;
     state.points = 0;
+    state.totalScience = 0;
     state.ore = 0;
     state.oreRatio = 1;
     state.gameStartTime = nowTime;
