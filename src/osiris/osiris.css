@@ -67,11 +67,9 @@ main {
 }
 
 .osiris-wrapper {
-    width: 80rem;
-    height: 35rem;
     display: flex;
-    align-items: center;
     justify-content: center;
+    align-items: center;
     background-color: var(--osiris-bg);
     box-sizing: border-box;
     cursor: auto;
@@ -83,8 +81,8 @@ main {
 
 .play-surface {
     position: relative;
-    width: 100%;
-    height: 100%;
+    width: 850px;
+    height: 600px;
     padding: 0;
     box-sizing: border-box;
     background-color: var(--osiris-bg);
@@ -116,27 +114,27 @@ main {
     pointer-events: auto;
 }
 
+.corner-square .square-label {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+    line-height: 1.1;
+}
+
+.corner-square .square-title {
+    font-size: 1.25rem;
+}
+
+.corner-square .square-cost {
+    font-size: 1.25rem;
+}
+
 #osiris-canvas {
     width: 100%;
     height: 100%;
     display: block;
     pointer-events: none;
-}
-
-.reset-overlay {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    pointer-events: none;
-    opacity: 0;
-    z-index: 100;
-}
-
-.reset-overlay.visible {
-    pointer-events: auto;
-    opacity: 1;
 }
 
 .reset-button {
@@ -153,20 +151,6 @@ main {
 .reset-button:hover {
     background-color: grey;
     margin: 0;
-}
-
-.reset-button.reset-button-overlay {
-    font-style: italic;
-    padding: 0;
-    background-color: var(--osiris-bg);
-    color: var(--osiris-text);
-    text-transform: lowercase;
-    font-size: 2rem;
-}
-
-.reset-button.reset-button-overlay:hover {
-    background-color: var(--button-hover-bg);
-    color: var(--osiris-text);
 }
 
 .pointer-dot {
@@ -193,13 +177,38 @@ main {
     opacity: 1;
 }
 
-.score-display {
-    margin: 0;
-    font-size: 1rem;
-    text-transform: lowercase;
-    color: var(--osiris-text);
-    text-align: right;
-    display: inline-block;
+.osiris-timer {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 100px;
+    font-weight: 600;
+    color: grey;
+    z-index: 1;
+    pointer-events: none;
+    opacity: 0.4;
+}
+
+.osiris-timer-stats {
+    position: absolute;
+    top: 60%;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: center;
+    gap: 1.25rem;
+    font-size: 3rem;
+    letter-spacing: 0.1rem;
+    color: grey;
+    opacity: 0.4;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.timer-stat {
+    font-weight: 500;
 }
 
 .share-button {
@@ -240,9 +249,9 @@ footer .footer-right {
 
 .corner-square {
     position: absolute;
-    width: 7rem;
-    height: 7rem;
-    border: 2px solid var(--corner-square-border-color, var(--mining-circle-color));
+    width: 110px;
+    height: 110px;
+    border: 3px dashed var(--corner-square-border-color, var(--mining-circle-color));
     border-radius: 0;
     background-color: var(--corner-square-bg, transparent);
     box-sizing: border-box;
@@ -250,7 +259,6 @@ footer .footer-right {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    text-transform: lowercase;
     font-size: 1rem;
     color: var(--osiris-text);
     pointer-events: auto;
@@ -259,6 +267,10 @@ footer .footer-right {
     line-height: 1;
     padding: 0.25rem;
     z-index: 100;
+}
+
+.corner-square.zone-hovered {
+    border-style: solid;
 }
 
 .corner-square .square-label {
@@ -289,24 +301,38 @@ footer .footer-right {
     top: 0.5rem;
     left: 0.5rem;
 }
-.header-stats {
+
+.corner-upgrade-stat {
     position: absolute;
-    top: 1rem;
-    left: 50%;
-    transform: translateX(-50%);
-    display: flex;
-    justify-content: center;
-    gap: 1rem;
-    font-weight: 1000;
-    margin: 0;
-    width: auto;
-    background-color: transparent;
-    z-index: 4;
+    min-width: 110px;
+    display: inline-block;
+    text-align: center;
+    font-size: 1.5rem;
+    letter-spacing: 0.05em;
+    color: grey;
+    opacity: 0.4;
+    pointer-events: none;
+    text-transform: lowercase;
+    font-weight: 600;
+    white-space: nowrap;
 }
 
-.header-stats .score-display {
-    margin: 0;
-    font-size: 2rem;
+.corner-upgrade-stat--strength {
+    top: calc(0.5rem + 110px + 0.35rem);
+    right: 0.5rem;
+    text-align: right;
+}
+
+.corner-upgrade-stat--num {
+    top: calc(0.5rem + 110px + 0.35rem);
+    left: 0.5rem;
+    text-align: left;
+}
+
+.corner-upgrade-stat--radius {
+    bottom: calc(0.5rem + 110px + 0.35rem);
+    left: 0.5rem;
+    text-align: left;
 }
 
 @keyframes square-pulse {

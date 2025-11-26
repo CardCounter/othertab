@@ -31,32 +31,48 @@
     <main>
         <div class="osiris-wrapper">
             <div class="play-surface" role="presentation">
-                <div class="header-stats" aria-live="polite">
-                    <p id="ore-display" class="score-display">0⛰</p>
-                    <p id="score-display" class="score-display">0⌬</p>
-                </div>
                 <div class="osiris-field" role="presentation">
                     <canvas id="osiris-canvas" aria-hidden="true"></canvas>
                 </div>
                 <div class="ore-overlay">
                     <div id="ore-converter" class="ore-converter corner-square ore" aria-label="research zone">
-                        <span class="square-label">research</span>
+                        <span class="square-label">
+                            <span class="square-title">research</span>
+                            <span class="square-cost">1⛰</span>
+                        </span>
                     </div>
                     <div id="strength-upgrade" class="corner-square strength" role="button" aria-label="strength upgrade zone">
-                        <span class="square-label">strength</span>
+                        <span class="square-label">
+                            <span class="square-title">+5 kW</span>
+                        <span class="square-cost">$1</span>
+                        </span>
                     </div>
                     <div id="num-upgrade" class="corner-square num" role="button" aria-label="laser count upgrade zone">
-                        <span class="square-label">lasers</span>
+                        <span class="square-label">
+                            <span class="square-title">+1 laser</span>
+                            <span class="square-cost">$1</span>
+                        </span>
                     </div>
                     <div id="radius-upgrade" class="corner-square radius" role="button" aria-label="range upgrade zone">
-                        <span class="square-label">range</span>
+                        <span class="square-label">
+                            <span class="square-title">+1 m</span>
+                            <span class="square-cost">$1</span>
+                        </span>
                     </div>
                 </div>
-                <div id="reset-overlay" class="reset-overlay" aria-hidden="true">
-                    <button id="reset-button" class="reset-button reset-button-overlay" type="button">reset</button>
+                <div id="strength-upgrade-stat" class="corner-upgrade-stat corner-upgrade-stat--strength" aria-live="polite">
+                    power: 0
                 </div>
-                <div id="start-overlay" class="reset-overlay start-overlay" aria-hidden="true">
-                    <button id="start-button" class="reset-button reset-button-overlay" type="button">launch</button>
+                <div id="num-upgrade-stat" class="corner-upgrade-stat corner-upgrade-stat--num" aria-live="polite">
+                    lasers: 0
+                </div>
+                <div id="radius-upgrade-stat" class="corner-upgrade-stat corner-upgrade-stat--radius" aria-live="polite">
+                    range: 0
+                </div>
+                <div id="osiris-timer" class="osiris-timer" aria-hidden="true">0:00</div>
+                <div id="osiris-timer-stats" class="osiris-timer-stats" aria-live="polite">
+                    <span id="timer-ore-display" class="timer-stat">0⛰</span>
+                        <span id="timer-score-display" class="timer-stat">$0</span>
                 </div>
                 <div id="pointer-dot" class="pointer-dot" aria-hidden="true">
                     <svg viewBox="0 0 10 10" role="presentation">
@@ -68,7 +84,9 @@
     </main>
 
     <footer>
-        <div class="footer-left"></div>
+        <div class="footer-left">
+            <button id="reset-button" class="reset-button" type="button">reset</button>
+        </div>
         <div class="footer-center">
             <p class="footer-brand">o_o</p>
             <a href="./tutorial/" class="footer-link">tutorial</a>

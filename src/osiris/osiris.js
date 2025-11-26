@@ -47,7 +47,7 @@ const SPLIT_DIRECTION_VARIANCE = Math.PI / 6;
 const POINTER_COLLECTION_PADDING = 6;
 const ORE_CONVERSION_RATE = 1;
 const UPGRADE_HOLD_DURATION = 1;
-const STRENGTH_INCREMENT = 5;
+const STRENGTH_INCREMENT = 10;
 const RADIUS_INCREMENT = 2;
 const LASER_COUNT_BASE = 1;
 const ORE_RATIO_UPDATE_INTERVAL = { min: 5000, max: 10000 };
@@ -79,35 +79,35 @@ const OSIRIS_TIERS = [
         sides: 4,
         size: { min: 20, max: 35 },
         speed: { min: 120, max: 240 },
-        health: { min: 15, max: 25 },
+        health: { min: 20, max: 30 },
     },
     {
         name: 'pentagon',
         sides: 5,
         size: { min: 25, max: 45 },
         speed: { min: 100, max: 200 },
-        health: { min: 20, max: 30 },
+        health: { min: 30, max: 40 },
     },
     {
         name: 'hexagon',
         sides: 6,
         size: { min: 30, max: 55 },
         speed: { min: 90, max: 180 },
-        health: { min: 25, max: 35 },
+        health: { min: 40, max: 50 },
     },
     {
         name: 'heptagon',
         sides: 7,
         size: { min: 35, max: 75 },
         speed: { min: 70, max: 140 },
-        health: { min: 30, max: 40 },
+        health: { min: 50, max: 60 },
     },
     {
         name: 'octagon',
         sides: 8,
         size: { min: 40, max: 95 },
         speed: { min: 60, max: 120 },
-        health: { min: 35, max: 45 },
+        health: { min: 60, max: 70 },
     },
 ];
 
@@ -512,7 +512,7 @@ function updateResourceDisplays() {
     if (strengthUpgradeSquare) {
         const cost = getUpgradeCost('strength');
         strengthUpgradeSquare.innerHTML = createCornerSquareLabel(
-            '+5 kW',
+            '+1 power',
             `${getPointsLabel()}${cost}`
         );
     }
@@ -566,8 +566,7 @@ function formatRangeStatValue() {
 }
 
 function formatPowerStatValue() {
-    const basePower = MINING_DAMAGE_PER_SECOND || 1;
-    const normalizedPower = getMiningDamage() / basePower;
+    const normalizedPower = getMiningDamage() / 10;
     if (Number.isInteger(normalizedPower)) {
         return `${normalizedPower}`;
     }
@@ -908,8 +907,10 @@ function handleStarterDestroyed() {
     updateTimerDisplay(now);
 }
 
-function spawnCollectibles(osiris) {
-    const count = Math.max(2, Math.round(randRange(2, 4)));
+function spawnCollectibles(osiris, overrideCount) {
+    const count = typeof overrideCount === 'number'
+        ? overrideCount
+        : Math.max(2, Math.round(randRange(2, 4)));
     for (let i = 0; i < count; i++) {
         const radius = randRange(COLLECTIBLE_SIZE.min, COLLECTIBLE_SIZE.max);
         const speed = randRange(COLLECTIBLE_SPEED.min, COLLECTIBLE_SPEED.max);
@@ -930,7 +931,7 @@ function breakOsiris(osiris) {
     if (osiris.destroyed) return;
     osiris.destroyed = true;
     if (osiris.isStarter) {
-        spawnCollectibles(osiris);
+        spawnCollectibles(osiris, 1);
         if (state.mining.targets.has(osiris.id)) {
             state.mining.targets.delete(osiris.id);
         }
