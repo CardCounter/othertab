@@ -14,9 +14,6 @@ const startOverlay = document.getElementById('start-overlay');
 const startButton = document.getElementById('start-button');
 const timerOreDisplay = document.getElementById('timer-ore-display');
 const timerScoreDisplay = document.getElementById('timer-score-display');
-const strengthStatDisplay = document.getElementById('strength-upgrade-stat');
-const radiusStatDisplay = document.getElementById('radius-upgrade-stat');
-const numStatDisplay = document.getElementById('num-upgrade-stat');
 const CURSOR_HIDDEN_CLASS = 'cursor-hidden';
 let pointerInsideWrapper = false;
 let pointerCircleApplied = false;
@@ -32,7 +29,7 @@ const OSIRIS_SHARE_URL = 'https://othertab.com/osiris/';
 let shareButtonResetTimeout = null;
 let currentWinShareText = '';
 
-const SPAWN_INTERVAL = { min: 3000, max: 6000 };
+const SPAWN_INTERVAL = { min: 3000, max: 5000 };
 const OSIRIS_SPIN = { min: -2.2, max: 2.2 };
 const OSIRIS_LINE_WIDTH = 3;
 const POINTER_RING_RADIUS = 5;
@@ -52,10 +49,10 @@ const RADIUS_INCREMENT = 2;
 const LASER_COUNT_BASE = 1;
 const ORE_RATIO_UPDATE_INTERVAL = { min: 5000, max: 10000 };
 const ORE_RATIO_VALUE_RANGE = { min: 1, max: 5 };
-const DIFFICULTY_RAMP_PER_MINUTE = 0.25;
+const DIFFICULTY_RAMP = 0.25;
 const START_TRIANGLE_TIER_INDEX = 0;
 const START_TRIANGLE_HEALTH = 1;
-const START_TRIANGLE_ABOVE_TIMER_OFFSET = 40;
+const START_TRIANGLE_ABOVE_TIMER_OFFSET = 90;
 const START_TRIANGLE_FALLBACK_OFFSET = 120;
 
 const UPGRADE_CONFIG = {
@@ -111,7 +108,7 @@ const OSIRIS_TIERS = [
     },
 ];
 
-const TIER_SPAWN_WEIGHTS = OSIRIS_TIERS.map((_, idx) => Math.pow(idx + 1, 2));
+const TIER_SPAWN_WEIGHTS = OSIRIS_TIERS.map(() => 1);
 const TOTAL_TIER_WEIGHT = TIER_SPAWN_WEIGHTS.reduce((sum, weight) => sum + weight, 0);
 const MAX_TIER_INDEX = OSIRIS_TIERS.length - 1;
 const INITIAL_TIER_INDICES = [0, 1, 2];
@@ -537,7 +534,6 @@ function updateResourceDisplays() {
             `1⛰ : ${getPointsLabel()}${state.oreRatio}`
         );
     }
-    updateUpgradeStatDisplays();
 }
 
 function createCornerSquareLabel(title, value) {
@@ -546,31 +542,6 @@ function createCornerSquareLabel(title, value) {
 
 function getPointsLabel() {
     return '$';
-}
-
-function updateUpgradeStatDisplays() {
-    if (strengthStatDisplay) {
-        strengthStatDisplay.textContent = `power: ${formatPowerStatValue()}`;
-    }
-    if (radiusStatDisplay) {
-        radiusStatDisplay.textContent = `range: ${formatRangeStatValue()}`;
-    }
-    if (numStatDisplay) {
-        numStatDisplay.textContent = `lasers: ${getLaserCount()}`;
-    }
-}
-
-function formatRangeStatValue() {
-    const rangeLevel = state.upgradeLevels.radius || 1;
-    return `${rangeLevel}`;
-}
-
-function formatPowerStatValue() {
-    const normalizedPower = getMiningDamage() / 10;
-    if (Number.isInteger(normalizedPower)) {
-        return `${normalizedPower}`;
-    }
-    return normalizedPower.toFixed(2).replace(/\.?0+$/, '');
 }
 
 function formatElapsedTime(ms) {
@@ -763,6 +734,10 @@ function computeEdgeSpawn(radius) {
     return { x, y, angle };
 }
 
+function getDifficultyMultiplier(now = performance.now()) {
+    return 1 + ((now - state.gameStartTime) / 30000) * DIFFICULTY_RAMP;
+}
+
 function createOsirisFromTier(tierIndex, options = {}) {
     const tier = OSIRIS_TIERS[tierIndex] || OSIRIS_TIERS[MAX_TIER_INDEX];
     const parentRadius = options.parentRadius;
@@ -783,7 +758,7 @@ function createOsirisFromTier(tierIndex, options = {}) {
         spawnData = computeEdgeSpawn(radius);
     }
 
-    const difficultyMultiplier = 1 + ((performance.now() - state.gameStartTime) / 60000) * DIFFICULTY_RAMP_PER_MINUTE;
+    const difficultyMultiplier = getDifficultyMultiplier();
 
     let vx;
     let vy;
@@ -846,7 +821,8 @@ function spawnOsiris(now = performance.now()) {
         : chooseInitialTierIndex();
     addOsirisFromTier(tierIndex);
     state.hasSpawnedInitialOsiris = true;
-    state.nextSpawnAt = now + randRange(SPAWN_INTERVAL.min, SPAWN_INTERVAL.max);
+    const spawnInterval = randRange(SPAWN_INTERVAL.min, SPAWN_INTERVAL.max) / getDifficultyMultiplier(now);
+    state.nextSpawnAt = now + spawnInterval;
 }
 
 function getStartTrianglePosition(radius) {
@@ -940,7 +916,7 @@ function breakOsiris(osiris) {
     }
     const nextTierIndex = osiris.tierIndex - 1;
     if (nextTierIndex >= 0) {
-        const difficultyMultiplier = 1 + ((performance.now() - state.gameStartTime) / 60000) * DIFFICULTY_RAMP_PER_MINUTE;
+        const difficultyMultiplier = getDifficultyMultiplier();
         const tier = OSIRIS_TIERS[nextTierIndex];
         const speedMin = tier.speed.min * difficultyMultiplier;
         const speedMax = tier.speed.max * difficultyMultiplier;
@@ -1201,6 +1177,15 @@ function drawOsiriss() {
     ctx.strokeStyle = strokeColor;
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
+    const rawInnerStrokeOpacity =
+        (bodyStyle.getPropertyValue('--osiris-inner-stroke-opacity') ||
+            rootStyle.getPropertyValue('--osiris-inner-stroke-opacity') ||
+            '1')
+            .trim();
+    const parsedInnerStrokeOpacity = parseFloat(rawInnerStrokeOpacity);
+    const innerStrokeOpacity = Number.isFinite(parsedInnerStrokeOpacity)
+        ? clamp(parsedInnerStrokeOpacity, 0, 1)
+        : 1;
     const laserColor =
         (bodyStyle.getPropertyValue('--pointer-laser-color') ||
             rootStyle.getPropertyValue('--pointer-laser-color') ||
@@ -1239,6 +1224,11 @@ function drawOsiriss() {
             ctx.lineTo(points[i][0], points[i][1]);
         }
         ctx.closePath();
+        const prevGlobalAlpha = ctx.globalAlpha;
+        ctx.fillStyle = strokeColor;
+        ctx.globalAlpha = innerStrokeOpacity;
+        ctx.fill();
+        ctx.globalAlpha = prevGlobalAlpha;
         ctx.stroke();
     }
     drawCollectibles(collectibleColor);
