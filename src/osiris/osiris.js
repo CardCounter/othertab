@@ -1,8 +1,6 @@
 const canvas = document.getElementById('osiris-canvas');
 const ctx = canvas.getContext('2d');
 const resetButton = document.getElementById('reset-button');
-const scoreDisplay = document.getElementById('score-display');
-const oreDisplay = document.getElementById('ore-display');
 const oreConverter = document.getElementById('ore-converter');
 const radiusUpgradeSquare = document.getElementById('radius-upgrade');
 const strengthUpgradeSquare = document.getElementById('strength-upgrade');
@@ -11,8 +9,14 @@ const playSurface = document.querySelector('.play-surface');
 const resetOverlay = document.getElementById('reset-overlay');
 const osirisWrapper = document.querySelector('.osiris-wrapper');
 const pointerDot = document.getElementById('pointer-dot');
+const timerDisplay = document.getElementById('osiris-timer');
 const startOverlay = document.getElementById('start-overlay');
 const startButton = document.getElementById('start-button');
+const timerOreDisplay = document.getElementById('timer-ore-display');
+const timerScoreDisplay = document.getElementById('timer-score-display');
+const strengthStatDisplay = document.getElementById('strength-upgrade-stat');
+const radiusStatDisplay = document.getElementById('radius-upgrade-stat');
+const numStatDisplay = document.getElementById('num-upgrade-stat');
 const CURSOR_HIDDEN_CLASS = 'cursor-hidden';
 let pointerInsideWrapper = false;
 let pointerCircleApplied = false;
@@ -31,23 +35,28 @@ let currentWinShareText = '';
 const SPAWN_INTERVAL = { min: 3000, max: 6000 };
 const OSIRIS_SPIN = { min: -2.2, max: 2.2 };
 const OSIRIS_LINE_WIDTH = 3;
-const POINTER_RING_RADIUS = 50;
-const MINING_DAMAGE_PER_SECOND = 100;
+const POINTER_RING_RADIUS = 5;
+const MINING_DAMAGE_PER_SECOND = 10;
 const MINING_LASER_LINE_WIDTH = 2;
 const POINTER_RING_LINE_WIDTH = 2;
-const CURSOR_COLLISION_RADIUS = 4;
+const POINTER_RING_DASH = [6, 6];
+const CURSOR_COLLISION_RADIUS = 1;
 const POINTER_DOT_COLLISION_RADIUS = CURSOR_COLLISION_RADIUS;
 const SPLIT_COUNT = 2;
 const SPLIT_DIRECTION_VARIANCE = Math.PI / 6;
 const POINTER_COLLECTION_PADDING = 6;
 const ORE_CONVERSION_RATE = 1;
 const UPGRADE_HOLD_DURATION = 1;
-const STRENGTH_INCREMENT = 50;
-const RADIUS_INCREMENT = 10;
+const STRENGTH_INCREMENT = 5;
+const RADIUS_INCREMENT = 2;
 const LASER_COUNT_BASE = 1;
 const ORE_RATIO_UPDATE_INTERVAL = { min: 5000, max: 10000 };
 const ORE_RATIO_VALUE_RANGE = { min: 1, max: 5 };
 const DIFFICULTY_RAMP_PER_MINUTE = 0.25;
+const START_TRIANGLE_TIER_INDEX = 0;
+const START_TRIANGLE_HEALTH = 1;
+const START_TRIANGLE_ABOVE_TIMER_OFFSET = 40;
+const START_TRIANGLE_FALLBACK_OFFSET = 120;
 
 const UPGRADE_CONFIG = {
     num: { increment: 1 },
@@ -55,49 +64,50 @@ const UPGRADE_CONFIG = {
     radius: { increment: RADIUS_INCREMENT },
 };
 const ZONE_PULSE_CLASS = 'square-pulse';
+const ZONE_HOVER_CLASS = 'zone-hovered';
 
 const OSIRIS_TIERS = [
     {
         name: 'triangle',
         sides: 3,
-        size: { min: 14, max: 24 },
-        speed: { min: 220, max: 360 },
-        health: { min: 100, max: 200 },
+        size: { min: 15, max: 25 },
+        speed: { min: 150, max: 300 },
+        health: { min: 10, max: 20 },
     },
     {
         name: 'square',
         sides: 4,
-        size: { min: 20, max: 34 },
-        speed: { min: 180, max: 320 },
-        health: { min: 150, max: 250 },
+        size: { min: 20, max: 35 },
+        speed: { min: 120, max: 240 },
+        health: { min: 15, max: 25 },
     },
     {
         name: 'pentagon',
         sides: 5,
-        size: { min: 26, max: 44 },
-        speed: { min: 150, max: 280 },
-        health: { min: 200, max: 300 },
+        size: { min: 25, max: 45 },
+        speed: { min: 100, max: 200 },
+        health: { min: 20, max: 30 },
     },
     {
         name: 'hexagon',
         sides: 6,
-        size: { min: 30, max: 56 },
-        speed: { min: 130, max: 240 },
-        health: { min: 250, max: 350 },
+        size: { min: 30, max: 55 },
+        speed: { min: 90, max: 180 },
+        health: { min: 25, max: 35 },
     },
     {
         name: 'heptagon',
         sides: 7,
-        size: { min: 34, max: 72 },
-        speed: { min: 110, max: 210 },
-        health: { min: 300, max: 400 },
+        size: { min: 35, max: 75 },
+        speed: { min: 70, max: 140 },
+        health: { min: 30, max: 40 },
     },
     {
         name: 'octagon',
         sides: 8,
-        size: { min: 40, max: 90 },
-        speed: { min: 90, max: 180 },
-        health: { min: 350, max: 450 },
+        size: { min: 40, max: 95 },
+        speed: { min: 60, max: 120 },
+        health: { min: 35, max: 45 },
     },
 ];
 
@@ -131,6 +141,7 @@ const state = {
     lastOreRatioUpdate: 0,
     nextOreRatioUpdate: 0,
     gameStartTime: performance.now(),
+    frozenAt: null,
     oreConversionActive: false,
     oreConversionProgress: 0,
     upgrades: {
@@ -150,6 +161,7 @@ const state = {
         num: { hovered: false, progress: 0 },
     },
     hasSpawnedInitialOsiris: false,
+    starterActive: false,
 };
 
 let width = window.innerWidth;
@@ -188,7 +200,7 @@ function getMiningDamage() {
 }
 
 function getPointerRadius() {
-    return POINTER_RING_RADIUS + state.upgrades.radius;
+    return POINTER_RING_RADIUS * 10 + state.upgrades.radius;
 }
 
 function chooseSpawnTierIndex() {
@@ -386,6 +398,10 @@ function setZoneHover(zoneKey, hovered) {
     if (!hovered) {
         zoneState.progress = 0;
     }
+    const element = zoneElements[zoneKey];
+    if (element) {
+        element.classList.toggle(ZONE_HOVER_CLASS, hovered);
+    }
 }
 
 function stopAllZoneInteractions() {
@@ -485,37 +501,108 @@ function purgeInvalidMiningTargets() {
 }
 
 function updateResourceDisplays() {
-    if (scoreDisplay) {
-        scoreDisplay.textContent = `${state.points}${getPointsLabel()}`;
+    if (timerScoreDisplay) {
+        timerScoreDisplay.textContent = `$${state.points}`;
     }
-    if (oreDisplay) {
-        oreDisplay.textContent = `${state.ore}⛰`;
+    if (timerOreDisplay) {
+        timerOreDisplay.textContent = `${state.ore}⛰`;
     }
     
     // update upgrade zones
     if (strengthUpgradeSquare) {
         const cost = getUpgradeCost('strength');
-        const val = MINING_DAMAGE_PER_SECOND + state.upgrades.strength;
-        strengthUpgradeSquare.innerHTML = `<span class="square-label">strength: ${val}<br>${cost}${getPointsLabel()}</span>`;
+        strengthUpgradeSquare.innerHTML = createCornerSquareLabel(
+            '+5 kW',
+            `${getPointsLabel()}${cost}`
+        );
     }
     if (radiusUpgradeSquare) {
         const cost = getUpgradeCost('radius');
-        const val = POINTER_RING_RADIUS + state.upgrades.radius;
-        radiusUpgradeSquare.innerHTML = `<span class="square-label">range: ${val}<br>${cost}${getPointsLabel()}</span>`;
+        radiusUpgradeSquare.innerHTML = createCornerSquareLabel(
+            '+1 range',
+            `${getPointsLabel()}${cost}`
+        );
     }
     if (numUpgradeSquare) {
         const cost = getUpgradeCost('num');
-        const val = state.upgrades.num;
-        numUpgradeSquare.innerHTML = `<span class="square-label">lasers: ${val}<br>${cost}${getPointsLabel()}</span>`;
+        numUpgradeSquare.innerHTML = createCornerSquareLabel(
+            '+1 laser',
+            `${getPointsLabel()}${cost}`
+        );
     }
     // update ore converter with ratio
     if (oreConverter) {
-        oreConverter.innerHTML = `<span class="square-label">research<br>1⛰ : ${state.oreRatio}${getPointsLabel()}</span>`;
+        oreConverter.innerHTML = createCornerSquareLabel(
+            'trade',
+            `1⛰ : ${getPointsLabel()}${state.oreRatio}`
+        );
     }
+    updateUpgradeStatDisplays();
+}
+
+function createCornerSquareLabel(title, value) {
+    return `<span class="square-label"><span class="square-title">${title}</span><span class="square-cost">${value}</span></span>`;
 }
 
 function getPointsLabel() {
-    return '⌬';
+    return '$';
+}
+
+function updateUpgradeStatDisplays() {
+    if (strengthStatDisplay) {
+        strengthStatDisplay.textContent = `power: ${formatPowerStatValue()}`;
+    }
+    if (radiusStatDisplay) {
+        radiusStatDisplay.textContent = `range: ${formatRangeStatValue()}`;
+    }
+    if (numStatDisplay) {
+        numStatDisplay.textContent = `lasers: ${getLaserCount()}`;
+    }
+}
+
+function formatRangeStatValue() {
+    const rangeLevel = state.upgradeLevels.radius || 1;
+    return `${rangeLevel}`;
+}
+
+function formatPowerStatValue() {
+    const basePower = MINING_DAMAGE_PER_SECOND || 1;
+    const normalizedPower = getMiningDamage() / basePower;
+    if (Number.isInteger(normalizedPower)) {
+        return `${normalizedPower}`;
+    }
+    return normalizedPower.toFixed(2).replace(/\.?0+$/, '');
+}
+
+function formatElapsedTime(ms) {
+    const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+    const hours = Math.floor(totalSeconds / 3600);
+    const remainder = totalSeconds % 3600;
+    const minutes = Math.floor(remainder / 60);
+    const seconds = remainder % 60;
+    if (hours > 0) {
+        return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    }
+    return `${minutes}:${String(seconds).padStart(2, '0')}`;
+}
+
+function getElapsedTimeMs(now) {
+    if (state.awaitingStart) {
+        return 0;
+    }
+    if (state.frozen && state.frozenAt) {
+        return state.frozenAt - state.gameStartTime;
+    }
+    const referenceTime = typeof now === 'number' ? now : performance.now();
+    return referenceTime - state.gameStartTime;
+}
+
+function updateTimerDisplay(now) {
+    if (!timerDisplay) {
+        return;
+    }
+    const elapsed = getElapsedTimeMs(now);
+    timerDisplay.textContent = formatElapsedTime(elapsed);
 }
 
 function updateShareScoreDisplay(visible) {
@@ -523,7 +610,7 @@ function updateShareScoreDisplay(visible) {
         return;
     }
     if (visible) {
-        shareScoreMessage.textContent = `${state.totalScience}${getPointsLabel()}`;
+        shareScoreMessage.textContent = formatElapsedTime(getElapsedTimeMs());
         shareScoreMessage.classList.remove('hidden');
     } else {
         shareScoreMessage.textContent = '';
@@ -532,8 +619,8 @@ function updateShareScoreDisplay(visible) {
 }
 
 function getWinShareText() {
-    const label = getPointsLabel();
-    return `OSIRIS\n${state.totalScience}${label}\n${OSIRIS_SHARE_URL}`;
+    const elapsedLabel = formatElapsedTime(getElapsedTimeMs());
+    return `OSIRIS\n${elapsedLabel}\n${OSIRIS_SHARE_URL}`;
 }
 
 function showWinShareButton() {
@@ -635,6 +722,14 @@ function resizeCanvas() {
     if (!state.pointer.active) {
         resetPointerToCenter();
     }
+    if (state.starterActive && state.awaitingStart) {
+        const starter = state.osirisField.find((osiris) => osiris.isStarter && !osiris.destroyed);
+        if (starter) {
+            const nextPosition = getStartTrianglePosition(starter.radius);
+            starter.x = nextPosition.x;
+            starter.y = nextPosition.y;
+        }
+    }
 }
 
 function computeEdgeSpawn(radius) {
@@ -712,6 +807,15 @@ function createOsirisFromTier(tierIndex, options = {}) {
     const healthMax = tier.health.max * difficultyMultiplier;
     const health = options.health ?? randRange(healthMin, healthMax);
 
+    const rotation =
+        typeof options.rotation === 'number'
+            ? options.rotation
+            : Math.random() * Math.PI * 2;
+    const spin =
+        typeof options.spin === 'number'
+            ? options.spin
+            : randRange(OSIRIS_SPIN.min, OSIRIS_SPIN.max);
+
     return {
         id: osirisIdCounter++,
         tierIndex,
@@ -720,13 +824,14 @@ function createOsirisFromTier(tierIndex, options = {}) {
         x: spawnData.x,
         y: spawnData.y,
         radius,
-        rotation: Math.random() * Math.PI * 2,
-        spin: randRange(OSIRIS_SPIN.min, OSIRIS_SPIN.max),
+        rotation,
+        spin,
         vx,
         vy,
         health,
         maxHealth: health,
         destroyed: false,
+        isStarter: Boolean(options.isStarter),
     };
 }
 
@@ -743,6 +848,64 @@ function spawnOsiris(now = performance.now()) {
     addOsirisFromTier(tierIndex);
     state.hasSpawnedInitialOsiris = true;
     state.nextSpawnAt = now + randRange(SPAWN_INTERVAL.min, SPAWN_INTERVAL.max);
+}
+
+function getStartTrianglePosition(radius) {
+    const tier = OSIRIS_TIERS[START_TRIANGLE_TIER_INDEX] || OSIRIS_TIERS[0];
+    const clampedRadius = typeof radius === 'number' ? clamp(radius, tier.size.min, tier.size.max) : tier.size.min;
+    const fallback = {
+        x: width / 2,
+        y: Math.max(clampedRadius, height / 2 - START_TRIANGLE_FALLBACK_OFFSET),
+    };
+    if (!canvas || !timerDisplay) {
+        return fallback;
+    }
+    const timerRect = timerDisplay.getBoundingClientRect();
+    const canvasRect = canvas.getBoundingClientRect();
+    if (!timerRect || !canvasRect || !timerRect.width || !canvasRect.height) {
+        return fallback;
+    }
+    const centerX = timerRect.left + timerRect.width / 2 - canvasRect.left;
+    const centerY = timerRect.top + timerRect.height / 2 - canvasRect.top;
+    const targetY = centerY - START_TRIANGLE_ABOVE_TIMER_OFFSET;
+    const minX = clampedRadius;
+    const maxX = Math.max(minX, width - clampedRadius);
+    const minY = clampedRadius;
+    const maxY = Math.max(minY, height - clampedRadius);
+    return {
+        x: clamp(centerX, minX, maxX),
+        y: clamp(targetY, minY, maxY),
+    };
+}
+
+function spawnStarterTriangle() {
+    const tier = OSIRIS_TIERS[START_TRIANGLE_TIER_INDEX] || OSIRIS_TIERS[MAX_TIER_INDEX];
+    const radius = randRange(tier.size.min, tier.size.max);
+    const position = getStartTrianglePosition(radius);
+    addOsirisFromTier(START_TRIANGLE_TIER_INDEX, {
+        position,
+        velocity: { vx: 0, vy: 0 },
+        radius,
+        health: START_TRIANGLE_HEALTH,
+        rotation: Math.random() * Math.PI * 2,
+        spin: randRange(OSIRIS_SPIN.min, OSIRIS_SPIN.max),
+        isStarter: true,
+    });
+    state.starterActive = true;
+}
+
+function handleStarterDestroyed() {
+    if (!state.awaitingStart || !state.starterActive) {
+        return;
+    }
+    state.starterActive = false;
+    exitAwaitingStartState();
+    const now = performance.now();
+    state.gameStartTime = now;
+    state.lastOreRatioUpdate = now;
+    state.nextOreRatioUpdate = now + getRandomOreRatioIntervalMs();
+    spawnOsiris(now);
+    updateTimerDisplay(now);
 }
 
 function spawnCollectibles(osiris) {
@@ -766,6 +929,14 @@ function spawnCollectibles(osiris) {
 function breakOsiris(osiris) {
     if (osiris.destroyed) return;
     osiris.destroyed = true;
+    if (osiris.isStarter) {
+        spawnCollectibles(osiris);
+        if (state.mining.targets.has(osiris.id)) {
+            state.mining.targets.delete(osiris.id);
+        }
+        handleStarterDestroyed();
+        return;
+    }
     const nextTierIndex = osiris.tierIndex - 1;
     if (nextTierIndex >= 0) {
         const difficultyMultiplier = 1 + ((performance.now() - state.gameStartTime) / 60000) * DIFFICULTY_RAMP_PER_MINUTE;
@@ -1119,7 +1290,8 @@ function drawMiningLaser(color) {
 }
 
 function shouldDisplayPointer() {
-    if (state.frozen || state.awaitingStart || !pointerCircleApplied) {
+    const waitingForStarter = state.awaitingStart && state.starterActive;
+    if (state.frozen || (!waitingForStarter && state.awaitingStart) || !pointerCircleApplied) {
         return false;
     }
     if (!state.pointer.active) {
@@ -1136,6 +1308,7 @@ function drawPointerCircle(color) {
     ctx.save();
     ctx.strokeStyle = color || '#f00';
     ctx.lineWidth = POINTER_RING_LINE_WIDTH;
+    ctx.setLineDash(POINTER_RING_DASH);
     ctx.beginPath();
     ctx.arc(state.pointer.x, state.pointer.y, getPointerRadius(), 0, Math.PI * 2);
     ctx.stroke();
@@ -1165,6 +1338,7 @@ function resetGame() {
     state.osirisField = [];
     state.collectibles = [];
     state.frozen = false;
+    state.frozenAt = null;
     setPlaySurfaceFrozen(false);
     resetPointerCircleState();
     state.nextSpawnAt = nowTime;
@@ -1193,21 +1367,20 @@ function resetGame() {
     setMiningVisualsTransparent(false);
     collectibleIdCounter = 0;
     state.hasSpawnedInitialOsiris = false;
+    state.starterActive = false;
     pointerInsideWrapper = isCursorHoveringWrapper();
     syncPointerDot();
     hideResetOverlay();
-    const cursorInside = pointerInsideWrapper;
-    if (!cursorInside) {
-        enterAwaitingStartState();
-        return;
-    }
-    exitAwaitingStartState();
+    spawnStarterTriangle();
+    enterAwaitingStartState();
+    updateTimerDisplay(nowTime);
 }
 
 function freezeField(reason) {
     if (state.frozen) return;
     releasePointerLock();
     state.frozen = true;
+    state.frozenAt = performance.now();
     setPlaySurfaceFrozen(true);
     showBrowserCursor();
     state.nextOreRatioUpdate = 0;
@@ -1219,6 +1392,7 @@ function freezeField(reason) {
     stopAllZoneInteractions();
     showResetOverlay();
     syncPointerDot();
+    updateTimerDisplay(state.frozenAt);
 }
 
 function handleWrapperPointerEnter() {
@@ -1324,7 +1498,8 @@ function handlePointerMovement(event) {
         pointerInsideWrapper = true;
     }
     updateVirtualPointerFromMouse(event);
-    if (!pointerCircleApplied && pointerInsideWrapper && !state.awaitingStart) {
+    const awaitingStarter = state.awaitingStart && state.starterActive;
+    if (!pointerCircleApplied && pointerInsideWrapper && (!state.awaitingStart || awaitingStarter)) {
         applyPointerCircle();
     }
 }
@@ -1376,9 +1551,14 @@ function handleResetKeys(event) {
 function loop(now) {
     const delta = Math.min(0.05, (now - lastFrame) / 1000);
     lastFrame = now;
+    const canPlay = !state.frozen && !state.awaitingStart;
+    const awaitingStarter = !state.frozen && state.awaitingStart && state.starterActive;
 
-    if (!state.frozen && !state.awaitingStart) {
+    if (canPlay || awaitingStarter) {
         updateOsiriss(delta);
+    }
+
+    if (canPlay) {
         updateCollectibles(delta);
         handleMining(delta);
         detectCollisions();
@@ -1388,16 +1568,19 @@ function loop(now) {
         if (now >= state.nextSpawnAt) {
             spawnOsiris(now);
         }
+    } else if (awaitingStarter) {
+        handleMining(delta);
     } else {
         clearMiningState();
     }
 
-    if (!state.awaitingStart) {
+    if (canPlay) {
         handleUpgradeZones(delta);
         updateOreRatio(now);
         handleOreConversion(delta);
     }
     drawOsiriss();
+    updateTimerDisplay(now);
     requestAnimationFrame(loop);
 }
 
