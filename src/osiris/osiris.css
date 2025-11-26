@@ -14,7 +14,7 @@
     --share-button-bg: blue;
     --share-button-text: white;
     --button-hover-bg: grey;
-    --square-pulse-color-50: transparent`;
+    --square-pulse-color-50: transparent;
 }
 
 body.dark-mode {
