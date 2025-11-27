@@ -13,10 +13,12 @@ body {
 .card-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    width: 100%;
     max-width: 800px;
     gap: 1.5rem;
-    margin: auto;
-    /* padding: 1rem; */
+    margin: 0 auto;
+    padding: 0 1rem;
+    box-sizing: border-box;
     justify-content: center;
     justify-items: center;
 }
@@ -24,6 +26,30 @@ body {
 @media (min-width: 768px) {
     .card-grid {
         grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (min-width: 768px) {
+    .card-grid > .card:nth-child(-n + 3) {
+        padding-top: 0;
+    }
+}
+
+@media (max-width: 768px) {
+    .card-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 480px) {
+    .card-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (min-width: 481px) {
+    .card-grid > .card:nth-child(-n + 2) {
+        padding-top: 0;
     }
 }
 
@@ -42,18 +68,6 @@ body {
 
 .card-grid > .card:first-child {
     padding-top: 0;
-}
-
-@media (min-width: 450px) {
-    .card-grid > .card:nth-child(-n + 2) {
-        padding-top: 0;
-    }
-}
-
-@media (min-width: 650px) {
-    .card-grid > .card:nth-child(-n + 3) {
-        padding-top: 0;
-    }
 }
 
 .dark-mode .card {
