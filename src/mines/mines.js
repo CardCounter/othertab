@@ -1,25 +1,3 @@
-// dark mode toggle
-const darkToggleButton = document.getElementById('dark-toggle');
-
-darkToggleButton.addEventListener('click', () => {
-    document.body.classList.toggle('dark-mode');
-    const isDark = document.body.classList.contains('dark-mode');
-    darkToggleButton.textContent = isDark ? 'l_m' : 'd_m';
-    
-    // store dark mode in local storage        
-    localStorage.setItem('darkMode', isDark ? 'true' : 'false');
-});
-
-// check for dark mode settings on load
-document.addEventListener('DOMContentLoaded', () => {
-    const savedDarkMode = localStorage.getItem('darkMode');
-    
-    if (savedDarkMode === 'true') {
-        document.body.classList.add('dark-mode');
-        darkToggleButton.textContent = 'l_m';
-    }
-});
-
 class Minesweeper {
     constructor() {
         this.difficultyStorageKey = 'MINES-last-difficulty';

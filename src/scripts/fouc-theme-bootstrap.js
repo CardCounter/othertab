@@ -13,34 +13,31 @@
     const LIGHT = '#ffffff';
     const STORAGE_STATUS_ATTR = 'data-fouc-storage-status';
 
+    const APPEARANCE_KEY = 'othertab-appearance';
+    const LEGACY_KEYS = ['darkMode', 'dark-mode', 'dark-mode-mobile', 'theme'];
+
     const detectFromStoredPreference = () => {
         try {
-            const stored = window.localStorage.getItem('darkMode');
-            if (stored === 'true' || stored === 'dark') {
-                return { mode: 'dark', status: 'hit-dark' };
+            const stored = window.localStorage.getItem(APPEARANCE_KEY);
+            if (stored === 'dark' || stored === 'light') {
+                return { mode: stored, status: `hit-${stored}` };
             }
-            if (stored === 'false' || stored === 'light') {
-                return { mode: 'light', status: 'hit-light' };
+            if (stored === 'auto') {
+                const system = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+                return { mode: system, status: 'hit-auto' };
+            }
+            for (const key of LEGACY_KEYS) {
+                const legacy = window.localStorage.getItem(key);
+                if (legacy === 'true') return { mode: 'dark', status: `legacy-${key}` };
+                if (legacy === 'false') return { mode: 'light', status: `legacy-${key}` };
+                if (legacy === 'dark' || legacy === 'light') {
+                    return { mode: legacy, status: `legacy-${key}` };
+                }
             }
             return { mode: null, status: 'miss' };
         } catch (_) {
             return { mode: null, status: 'error' };
         }
-    };
-
-    const interpretToggleLabel = (label) => {
-        if (!label) return null;
-        const normalized = label.trim().toLowerCase();
-        if (!normalized) return null;
-        if (normalized.includes('light')) return 'dark';
-        if (normalized.includes('dark')) return 'light';
-        return null;
-    };
-
-    const detectFromToggle = () => {
-        const toggle = document.getElementById('dark-toggle');
-        if (!toggle) return null;
-        return interpretToggleLabel(toggle.textContent || toggle.getAttribute('aria-label') || '');
     };
 
     const detectPreferredTheme = () => {
@@ -52,9 +49,10 @@
             return stored.mode;
         }
 
-        // If the user has never toggled, prefer a stable light-first paint regardless of system scheme
-        // No stored preference yet: hard-default to light to avoid dark-first FOUC on Firefox
-        root.setAttribute(STORAGE_STATUS_ATTR, 'default-light');
+        root.setAttribute(STORAGE_STATUS_ATTR, 'system-default');
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            return 'dark';
+        }
         return 'light';
     };
 

@@ -25,15 +25,8 @@
         <p> ↵ or r to reset </p>
         <a href="javascript:history.back()">go back</a>
     </main>
+    <script type="module" src="../../scripts/darkmode.js"></script>
+    <script type="module" src="../../scripts/fouc.js"></script>
     <script data-goatcounter="https://othertab.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 </body>
-<script>
-    document.addEventListener('DOMContentLoaded', () => {
-        const savedDarkMode = localStorage.getItem('darkMode');
-        if (savedDarkMode === 'true') {
-            document.body.classList.add('dark-mode');
-        }
-        document.documentElement.classList.remove('js-loading');
-    });
-</script>
 </html>

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en" class="js-loading">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="tune how other tab looks" />
+    <link rel="icon" href="../images/o_t-40px.png" type="image/png" media="(prefers-color-scheme: light)">
+    <link rel="icon" href="../images/o_t-40px-dark.png" type="image/png" media="(prefers-color-scheme: dark)">
+    <title>settings</title>
+    <style>
+        html.js-loading {
+          visibility: hidden;
+          opacity: 0;
+        }
+    </style>
+    <script>document.documentElement.classList.add('js-loading');</script>
+    <script>
+        window.OTHERTAB_MOBILE_HEADER = 'SETTINGS';
+        window.OTHERTAB_MOBILE_MESSAGE = 'settings feel better on desktop, sorry';
+    </script>
+    <link rel="stylesheet" href="../css/global.css">
+    <link rel="stylesheet" href="../css/header-footer.css">
+    <link rel="stylesheet" href="../css/link.css">
+    <link rel="stylesheet" href="./settings.css">
+</head>
+<body>
+    <h1>SETTINGS</h1>
+    <p class="appearance-line">
+        appearance:
+        <button type="button" class="appearance-option" data-appearance-option="light" aria-pressed="false">light</button>,
+        <button type="button" class="appearance-option" data-appearance-option="dark" aria-pressed="false">dark</button>,
+        <button type="button" class="appearance-option" data-appearance-option="auto" aria-pressed="false">system</button>
+    </p>
+    <a class="back-link" href="javascript:history.back()">go back</a>
+    <script type="module" src="../scripts/mobile-block.js"></script>
+    <script type="module" src="../scripts/darkmode.js"></script>
+    <script type="module" src="../scripts/fouc.js"></script>
+    <script type="module" src="./settings.js"></script>
+    <script data-goatcounter="https://othertab.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+</body>
+</html>

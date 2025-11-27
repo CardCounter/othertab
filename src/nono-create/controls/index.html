@@ -22,19 +22,9 @@
     <p>↵ to reset</p>
     <p>click seed to get seed</p>
     <a href="javascript:history.back()">go back</a>
+    <script type="module" src="../../scripts/darkmode.js"></script>
+    <script type="module" src="../../scripts/fouc.js"></script>
     <script data-goatcounter="https://othertab.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 </body>
-<script>
-    // Check for saved preference when page loads
-    document.addEventListener('DOMContentLoaded', () => {
-        const savedDarkMode = localStorage.getItem('darkMode');
-        
-        if (savedDarkMode === 'true') {
-            document.body.classList.add('dark-mode');
-        }
-
-        // prevents fouc, hide style as loading html
-        document.documentElement.classList.remove('js-loading');
-    });
-</script>
+</html>
 </html>

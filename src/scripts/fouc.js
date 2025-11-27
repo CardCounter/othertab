@@ -13,38 +13,42 @@
     const UA = typeof navigator === 'undefined' ? '' : navigator.userAgent || '';
     const IS_FIREFOX = /\b(firefox|iceweasel|icecat|waterfox|seamonkey|palemoon)\b/i.test(UA);
 
-    const interpretToggleLabel = (label) => {
-        if (!label) return null;
-        const normalized = label.trim().toLowerCase();
-        if (!normalized) return null;
-        if (normalized.includes('light')) return 'dark';
-        if (normalized.includes('dark')) return 'light';
-        return null;
-    };
-
-    const detectThemeFromToggle = () => {
-        const toggle = document.getElementById('dark-toggle');
-        if (!toggle) return null;
-        return interpretToggleLabel(toggle.textContent || toggle.getAttribute('aria-label') || '');
-    };
+    const APPEARANCE_KEY = 'othertab-appearance';
+    const LEGACY_KEYS = ['darkMode', 'dark-mode', 'dark-mode-mobile', 'theme'];
 
     const detectTheme = () => {
-        let stored = null;
+        let storedAppearance = null;
         try {
-            stored = window.localStorage.getItem('darkMode');
+            storedAppearance = window.localStorage.getItem(APPEARANCE_KEY);
         } catch (_) {
-            stored = null;
+            storedAppearance = null;
         }
 
-        if (stored === 'true') return 'dark';
-        if (stored === 'false') return 'light';
+        if (storedAppearance === 'dark' || storedAppearance === 'light') {
+            return storedAppearance;
+        }
+
+        if (storedAppearance === 'auto') {
+            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                return 'dark';
+            }
+            return 'light';
+        }
+
+        for (const key of LEGACY_KEYS) {
+            try {
+                const legacy = window.localStorage.getItem(key);
+                if (legacy === 'true') return 'dark';
+                if (legacy === 'false') return 'light';
+                if (legacy === 'dark' || legacy === 'light') return legacy;
+            } catch (_) {
+                continue;
+            }
+        }
 
         if (document.body && document.body.classList.contains('dark-mode')) {
             return 'dark';
         }
-
-        const toggleTheme = detectThemeFromToggle();
-        if (toggleTheme) return toggleTheme;
 
         if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
             return 'dark';
