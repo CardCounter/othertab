@@ -568,9 +568,11 @@ class Typing {
 
         const wrapperRect = wrapper.getBoundingClientRect();
         const targetRect = target.getBoundingClientRect();
+        const offsetLeft = targetRect.left - wrapperRect.left;
+        const offsetTop = targetRect.top - wrapperRect.top;
 
-        caret.style.left = (targetRect.left - wrapperRect.left) + 'px';
-        caret.style.top = (targetRect.top - wrapperRect.top) + 'px';
+        caret.style.setProperty('--caret-left', `${offsetLeft}px`);
+        caret.style.setProperty('--caret-top', `${offsetTop}px`);
 
         if (index < this.masterArrayLength - 1){
             caret.classList.remove('hidden');

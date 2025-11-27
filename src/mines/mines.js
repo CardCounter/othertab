@@ -146,8 +146,9 @@ class Minesweeper {
                 }
             }
                 
-            // reset game with r
-            if (e.code === 'KeyR') {
+            // reset game with r or Enter
+            const isEnterReset = e.code === 'Enter' || e.code === 'NumpadEnter';
+            if (e.code === 'KeyR' || isEnterReset) {
                 e.preventDefault();
                 this.resetGame();
             }
@@ -814,7 +815,7 @@ class Minesweeper {
                 localStorage.setItem(this.firstGameStorageKey, 'true');
                 return;
             }
-            this.resetHintElement.textContent = 'press r or click the reset button to reset.';
+            this.resetHintElement.textContent = 'press r, ↵, or click the reset button to reset.';
             this.resetHintElement.classList.remove('hidden');
             localStorage.setItem(this.firstGameStorageKey, 'true');
         }
