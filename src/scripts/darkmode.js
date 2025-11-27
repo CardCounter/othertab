@@ -27,6 +27,14 @@ const safeRemove = (key) => {
     }
 };
 
+const readStoredAppearance = () => {
+    const stored = safeGet(APPEARANCE_KEY);
+    if (VALID_APPEARANCES.has(stored)) {
+        return stored;
+    }
+    return null;
+};
+
 const migrateLegacyPreference = () => {
     for (const key of LEGACY_KEYS) {
         const value = safeGet(key);
@@ -44,8 +52,8 @@ const migrateLegacyPreference = () => {
 };
 
 const resolveStoredAppearance = () => {
-    const stored = safeGet(APPEARANCE_KEY);
-    if (VALID_APPEARANCES.has(stored)) {
+    const stored = readStoredAppearance();
+    if (stored) {
         return stored;
     }
     const migrated = migrateLegacyPreference();
@@ -157,5 +165,23 @@ if (systemMedia) {
         systemMedia.addListener(handleSystemChange);
     }
 }
+
+const syncAppearanceFromStorage = () => {
+    const stored = readStoredAppearance();
+    const nextAppearance = stored || 'auto';
+    if (nextAppearance !== currentAppearance) {
+        currentAppearance = nextAppearance;
+        applyTheme();
+        return;
+    }
+    const nextTheme = resolveTheme(nextAppearance);
+    if (nextTheme !== currentTheme) {
+        applyTheme();
+    }
+};
+
+window.addEventListener('pageshow', () => {
+    syncAppearanceFromStorage();
+});
 
 export { themeController };
