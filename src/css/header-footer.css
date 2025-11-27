@@ -9,11 +9,6 @@ header {
     box-sizing: border-box;
 }
 
-header > a {
-    justify-self: start;
-    text-decoration: none;
-}
-
 header > * {
     align-self: center;
 }
@@ -47,6 +42,17 @@ header.header-mr > :nth-child(2) {
     align-self: center;
 }
 
+header.header-m {
+    grid-template-columns: auto;
+    justify-items: center;
+}
+
+header.header-m > :first-child {
+    grid-column: 1;
+    justify-self: center;
+    align-self: center;
+}
+
 header .title {
     margin: 0;
     justify-self: center;
@@ -71,10 +77,6 @@ header .title {
 
 .page-button:hover {
     background-color: grey;
-}
-
-#home-button {
-    margin: 0;
 }
 
 /* footer */
