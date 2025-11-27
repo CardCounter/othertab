@@ -69,6 +69,7 @@ html.js-loading[data-fouc-theme="light"] body {
 body {
     background-color: var(--page-background-color);
     color: inherit;
+    margin: 0;
 }
 
 button {
@@ -79,6 +80,40 @@ button {
     font-size: 1rem;
     font-weight: 700;
     margin: 0;
+}
+
+.page-heading {
+    text-align: center;
+    margin: 1rem 0;
+}
+
+.heading-home-link {
+    cursor: pointer;
+}
+
+.heading-home-link:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 2px;
+}
+
+.page-content {
+    padding: 0 0.5rem 1rem;
+}
+
+.page-content .first-paragraph {
+    margin-top: 0;
+}
+
+.header-title,
+.page-heading,
+.heading-home-link,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    user-select: none;
 }
 
 body::-webkit-scrollbar {

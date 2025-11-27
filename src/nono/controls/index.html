@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="js-loading">
+<html lang="en" class="js-loading" data-home-url="../../">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -18,7 +18,11 @@
     <link rel="stylesheet" href="../../css/link.css">
 </head>
 <body>
-    <a href="https://en.wikipedia.org/wiki/Nonogram">https://en.wikipedia.org/wiki/Nonogram</a>
+    <header class="header-m">
+        <h2 class="title page-heading">CONTROLS</h2>
+    </header>
+    <main class="page-content">
+    <a class="first-paragraph" href="https://en.wikipedia.org/wiki/Nonogram">https://en.wikipedia.org/wiki/Nonogram</a>
     <p>W/LMB to fill</p>
     <p>E/MMB to mark</p>
     <p>R/RMB to grey</p>
@@ -27,9 +31,10 @@
     <p>grey and mark are helpers tools; only filled cells count toward board completion</p>
     <p>once a row/col is completed, click its edge label to automatically fill the remaining cells with greys</p>
     <a href="javascript:history.back()">go back</a>
+    </main>
+    <script type="module" src="../../scripts/header-home-link.js"></script>
     <script type="module" src="../../scripts/darkmode.js"></script>
     <script type="module" src="../../scripts/fouc.js"></script>
     <script data-goatcounter="https://othertab.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 </body>
-</html>
 </html>

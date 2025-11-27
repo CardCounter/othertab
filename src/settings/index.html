@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="js-loading">
+<html lang="en" class="js-loading" data-home-url="../">
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -24,14 +24,19 @@
     <link rel="stylesheet" href="./settings.css">
 </head>
 <body>
-    <h1>SETTINGS</h1>
-    <p class="appearance-line">
+    <header class="header-m">
+        <h2 class="title page-heading">SETTINGS</h2>
+    </header>
+    <main class="page-content">
+    <p class="appearance-line first-paragraph">
         appearance:
         <button type="button" class="appearance-option" data-appearance-option="light" aria-pressed="false">light</button>,
         <button type="button" class="appearance-option" data-appearance-option="dark" aria-pressed="false">dark</button>,
         <button type="button" class="appearance-option" data-appearance-option="auto" aria-pressed="false">system</button>
     </p>
     <a class="back-link" href="javascript:history.back()">go back</a>
+    </main>
+    <script type="module" src="../scripts/header-home-link.js"></script>
     <script type="module" src="../scripts/mobile-block.js"></script>
     <script type="module" src="../scripts/darkmode.js"></script>
     <script type="module" src="../scripts/fouc.js"></script>
