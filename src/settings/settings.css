@@ -1,0 +1,30 @@
+.root {
+    font-family: 'Times New Roman', Times, serif;
+}
+
+.appearance-line {
+    font-size: 1rem;
+}
+
+.appearance-option {
+    border: none;
+    background-color: transparent;
+    cursor: pointer;
+    padding: 0;
+    color: inherit;
+    font-size: 1rem;
+}
+
+.appearance-option:hover {
+    background-color: grey;
+}
+
+.appearance-option.active {
+    background-color: blue;
+    color: white;
+}
+
+.dark-mode .appearance-option.active {
+    background-color: red;
+    color: black;
+}

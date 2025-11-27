@@ -88,81 +88,75 @@
         heading.style.margin = '4px auto';
         heading.style.lineHeight = '1';
 
-        const darkToggle = document.createElement('button');
-        darkToggle.id = 'dark-toggle';
-        darkToggle.textContent = 'd_m';
-        darkToggle.setAttribute('aria-label', 'Toggle dark mode');
-        darkToggle.style.position = 'absolute';
-        darkToggle.style.right = 'calc(env(safe-area-inset-right, 0px) + 12px)';
-        darkToggle.style.top = '50%';
-        darkToggle.style.transform = 'translateY(-50%)';
-        darkToggle.style.lineHeight = '1';
-        darkToggle.style.paddingTop = '4px';
-        darkToggle.style.paddingBottom = '4px';
-        darkToggle.style.background = 'transparent';
-        darkToggle.style.fontFamily = "'Times New Roman', Times, serif";
-        darkToggle.style.fontSize = '16px';
-        darkToggle.style.cursor = 'pointer';
-        darkToggle.style.border = 'none';
-        darkToggle.style.outline = 'none';
-
-        // --- Dark mode wiring (self-contained, compatible with darkmode.js / darkmode-check.js) ---
-        function getCurrentMode() {
-            const t = localStorage.getItem('theme');
-            if (t === 'dark' || t === 'light') return t;
-            const dmMobile = localStorage.getItem('dark-mode-mobile');
-            if (dmMobile === 'true' || dmMobile === 'false') return dmMobile === 'true' ? 'dark' : 'light';
-            const legacyDm = localStorage.getItem('dark-mode');
-            if (legacyDm === 'true' || legacyDm === 'false') {
-                localStorage.setItem('dark-mode-mobile', legacyDm);
-                localStorage.removeItem('dark-mode');
-                return legacyDm === 'true' ? 'dark' : 'light';
+        const APPEARANCE_KEY = 'othertab-appearance';
+        const LEGACY_KEYS = ['darkMode', 'dark-mode', 'dark-mode-mobile', 'theme'];
+        const safeGet = (key) => {
+            try {
+                return window.localStorage.getItem(key);
+            } catch (_) {
+                return null;
+            }
+        };
+        const detectAppearance = () => {
+            const value = safeGet(APPEARANCE_KEY);
+            if (value === 'light' || value === 'dark' || value === 'auto') {
+                return value;
+            }
+            for (const key of LEGACY_KEYS) {
+                const legacy = safeGet(key);
+                if (legacy === 'true') return 'dark';
+                if (legacy === 'false') return 'light';
+                if (legacy === 'dark' || legacy === 'light') return legacy;
+            }
+            return 'auto';
+        };
+        const resolveTheme = () => {
+            const appearance = detectAppearance();
+            if (appearance === 'light' || appearance === 'dark') {
+                return appearance;
             }
             return (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
-        }
-
-        function setThemeColor(color) {
+        };
+        const ensureThemeColorMeta = (theme) => {
             let meta = document.querySelector('meta[name="theme-color"]');
             if (!meta) {
                 meta = document.createElement('meta');
-                meta.setAttribute('name', 'theme-color');
-                document.head.appendChild(meta);
+                meta.name = 'theme-color';
+                document.head && document.head.appendChild(meta);
             }
-            meta.setAttribute('content', color);
-        }
+            meta.setAttribute('content', theme === 'dark' ? '#000000' : '#ffffff');
+        };
+        const applyOverlayTheme = (theme) => {
+            overlay.style.backgroundColor = theme === 'dark' ? '#000000' : '#ffffff';
+            overlay.style.color = theme === 'dark' ? '#ffffff' : '#000000';
+            ensureThemeColorMeta(theme);
+        };
 
-        function applyOverlayTheme(mode) {
-            overlay.style.backgroundColor = mode === 'dark' ? '#000000' : '#ffffff';
-            overlay.style.color = mode === 'dark' ? '#ffffff' : '#000000';
-            setThemeColor(mode === 'dark' ? '#000000' : '#ffffff');
-            darkToggle.style.color = mode === 'dark' ? '#ffffff' : '#000000';
-            darkToggle.textContent = mode === 'dark' ? 'l_m' : 'd_m';
-        }
-        function applyMode(mode) {
-            document.documentElement.setAttribute('data-theme', mode);
-            if (mode === 'dark') {
-                document.documentElement.classList.add('dark');
-            } else {
-                document.documentElement.classList.remove('dark');
+        let currentTheme = resolveTheme();
+        applyOverlayTheme(currentTheme);
+
+        const handleThemeChange = (event) => {
+            if (event && event.detail && event.detail.theme) {
+                currentTheme = event.detail.theme;
+                applyOverlayTheme(currentTheme);
             }
-            localStorage.setItem('theme', mode);
-            localStorage.setItem('dark-mode-mobile', mode === 'dark' ? 'true' : 'false');
-            localStorage.removeItem('dark-mode');
-            applyOverlayTheme(mode);
-            // If darkmode.js exposes a hook, call it safely
-            if (typeof window.updateDarkMode === 'function') {
-                try { window.updateDarkMode(mode); } catch (_) {}
+        };
+        document.addEventListener('darkmodechange', handleThemeChange);
+
+        if (window.matchMedia) {
+            const media = window.matchMedia('(prefers-color-scheme: dark)');
+            const handleMedia = () => {
+                if (detectAppearance() === 'auto') {
+                    currentTheme = media.matches ? 'dark' : 'light';
+                    applyOverlayTheme(currentTheme);
+                }
+            };
+            if (typeof media.addEventListener === 'function') {
+                media.addEventListener('change', handleMedia);
+            } else if (typeof media.addListener === 'function') {
+                media.addListener(handleMedia);
             }
         }
-        // Initialize current mode and set UI state
-        let __initialMode = getCurrentMode();
-        applyMode(__initialMode);
-        // Toggle on click
-        darkToggle.addEventListener('click', function () {
-            const isDark = document.documentElement.classList.contains('dark') || document.documentElement.getAttribute('data-theme') === 'dark';
-            applyMode(isDark ? 'light' : 'dark');
-        });
-        // --- end dark mode wiring ---
 
 
         const message = document.createElement('p');
@@ -172,7 +166,6 @@
         message.style.lineHeight = '1.6';
 
         header.appendChild(heading);
-        header.appendChild(darkToggle);
         content.appendChild(header);
         content.appendChild(message);
         overlay.appendChild(content);
@@ -185,9 +178,8 @@
         (async function ensureScripts() {
             try {
                 await Promise.all([
-                    import('../scripts/darkmode-check.js'),
-                    import('../scripts/darkmode.js'),
-                    import('../scripts/fouc.js')
+                    import('./darkmode.js'),
+                    import('./fouc.js')
                 ]);
             } catch (error) {
                 console.warn('mobile-block: failed to load helper scripts', error);
