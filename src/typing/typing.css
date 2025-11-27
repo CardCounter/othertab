@@ -299,16 +299,19 @@ button:focus {
 }
 
 .caret{
-    /* display: inline-block; */
     position: absolute;
+    left: 0;
+    top: 0;
     width: 0.2rem;
     height: var(--typing-font-size);
     margin-left: 0;
     background: blue;
     vertical-align: text-top;
     animation: blink 1s step-end infinite;
-
-    transition: opacity 0s ease-out, left 0.09s ease-out, top 0.09s ease-out;
+    --caret-left: 0px;
+    --caret-top: 0px;
+    transform: translate(var(--caret-left), var(--caret-top));
+    transition: opacity 0s ease-out, transform 0.13s ease-out;
 }
 
 @keyframes blink {

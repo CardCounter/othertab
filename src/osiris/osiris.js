@@ -52,8 +52,6 @@ const ORE_RATIO_VALUE_RANGE = { min: 1, max: 5 };
 const DIFFICULTY_RAMP = 0.25;
 const START_TRIANGLE_TIER_INDEX = 0;
 const START_TRIANGLE_HEALTH = 1;
-const START_TRIANGLE_ABOVE_TIMER_OFFSET = 90;
-const START_TRIANGLE_FALLBACK_OFFSET = 120;
 
 const UPGRADE_CONFIG = {
     num: { increment: 1 },
@@ -828,28 +826,15 @@ function spawnOsiris(now = performance.now()) {
 function getStartTrianglePosition(radius) {
     const tier = OSIRIS_TIERS[START_TRIANGLE_TIER_INDEX] || OSIRIS_TIERS[0];
     const clampedRadius = typeof radius === 'number' ? clamp(radius, tier.size.min, tier.size.max) : tier.size.min;
-    const fallback = {
-        x: width / 2,
-        y: Math.max(clampedRadius, height / 2 - START_TRIANGLE_FALLBACK_OFFSET),
-    };
-    if (!canvas || !timerDisplay) {
-        return fallback;
-    }
-    const timerRect = timerDisplay.getBoundingClientRect();
-    const canvasRect = canvas.getBoundingClientRect();
-    if (!timerRect || !canvasRect || !timerRect.width || !canvasRect.height) {
-        return fallback;
-    }
-    const centerX = timerRect.left + timerRect.width / 2 - canvasRect.left;
-    const centerY = timerRect.top + timerRect.height / 2 - canvasRect.top;
-    const targetY = centerY - START_TRIANGLE_ABOVE_TIMER_OFFSET;
+    const centerX = width / 2;
+    const centerY = height / 2;
     const minX = clampedRadius;
     const maxX = Math.max(minX, width - clampedRadius);
     const minY = clampedRadius;
     const maxY = Math.max(minY, height - clampedRadius);
     return {
         x: clamp(centerX, minX, maxX),
-        y: clamp(targetY, minY, maxY),
+        y: clamp(centerY, minY, maxY),
     };
 }
 
