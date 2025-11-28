@@ -4,24 +4,45 @@ body.sudoku-page * {
     -webkit-user-select: none;
 }
 
+body.sudoku-page {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+body.sudoku-page > header,
+body.sudoku-page > footer {
+    width: 100%;
+}
+
+body.sudoku-page > main.sudoku-main {
+    flex: 1;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+}
+
 :root {
-    --sudoku-active-strong: #8fb7ff;
-    --sudoku-active-weak: rgba(143, 183, 255, 0.35);
-    --sudoku-filled-bg: #e4e4e4;
+    --sudoku-active-strong: rgb(100, 100, 245);
+    --sudoku-active-weak: rgba(84, 84, 253, 0.3);
+    --sudoku-filled-bg: #d8d8d8;
     --sudoku-filled-text: #000000;
+    --sudoku-cell-size: 60px;
 }
 
 body.dark-mode {
-    --sudoku-active-strong: #ff7f7f;
-    --sudoku-active-weak: rgba(255, 127, 127, 0.35);
-    --sudoku-filled-bg: #1d1d1d;
+    --sudoku-active-strong: red;
+    --sudoku-active-weak: rgba(255, 74, 74, 0.3);
+    --sudoku-filled-bg: #3b3b3b;
     --sudoku-filled-text: #ffffff;
 }
 
 .sudoku-main {
-    max-width: 960px;
+    padding: auto;
     margin: 0 auto;
-    padding: 1rem;
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
@@ -29,45 +50,56 @@ body.dark-mode {
 }
 
 .board-wrapper {
-    width: min(90vw, 640px);
+    width: var(--sudoku-cell-size) * 9;
 }
 
 .sudoku-board {
-    width: 100%;
-    aspect-ratio: 1 / 1;
     display: grid;
-    grid-template-columns: repeat(9, 1fr);
-    border: 3px solid currentColor;
+    grid-template-columns: repeat(9, var(--sudoku-cell-size));
+    grid-template-rows: repeat(9, var(--sudoku-cell-size));
+    width: calc(9 * var(--sudoku-cell-size));
+    height: calc(9 * var(--sudoku-cell-size));
+    border: 0;
     background-color: var(--page-background-color, #ffffff);
     box-sizing: border-box;
 }
 
 .sudoku-cell {
     position: relative;
-    border: 1px solid currentColor;
+    border: 0;
+    border-top: 1px solid currentColor;
+    border-left: 1px solid currentColor;
     background-color: var(--page-background-color, #ffffff);
     color: inherit;
     display: flex;
     align-items: stretch;
     justify-content: stretch;
-    font-size: clamp(0.6rem, 1.8vw, 1rem);
-    transition: background-color 120ms ease;
+    font-size: calc(var(--sudoku-cell-size) * 0.33);
+    box-sizing: border-box;
+}
+
+.sudoku-cell[data-row="0"] {
+    border-top: 3px solid currentColor;
+}
+
+.sudoku-cell[data-col="0"] {
+    border-left: 3px solid currentColor;
+}
+
+.sudoku-cell[data-row="8"] {
+    border-bottom: 3px solid currentColor;
+}
+
+.sudoku-cell[data-col="8"] {
+    border-right: 3px solid currentColor;
 }
 
 .sudoku-cell.border-top-bold {
     border-top-width: 3px;
 }
 
-.sudoku-cell.border-bottom-bold {
-    border-bottom-width: 3px;
-}
-
 .sudoku-cell.border-left-bold {
     border-left-width: 3px;
-}
-
-.sudoku-cell.border-right-bold {
-    border-right-width: 3px;
 }
 
 .sudoku-cell.filled {
@@ -81,10 +113,26 @@ body.dark-mode {
 
 .sudoku-cell.player.filled {
     cursor: pointer;
+    background-color: var(--page-background-color, #ffffff);
+    color: inherit;
+}
+
+.sudoku-cell.player.filled.active-cell,
+.sudoku-cell.player.filled.match-cell {
+    background-color: var(--sudoku-active-strong);
+    color: #000000;
+}
+
+body.dark-mode .sudoku-cell.player.filled.active-cell,
+body.dark-mode .sudoku-cell.player.filled.match-cell {
+    color: #ffffff;
 }
 
 .sudoku-cell.peer-cell {
-    background-color: var(--sudoku-active-weak, rgba(143, 183, 255, 0.35));
+    background-image: linear-gradient(
+        var(--sudoku-active-weak, rgba(143, 183, 255, 0.35)),
+        var(--sudoku-active-weak, rgba(143, 183, 255, 0.35))
+    );
 }
 
 .sudoku-cell.active-cell,
@@ -96,6 +144,27 @@ body.dark-mode {
 body.dark-mode .sudoku-cell.active-cell,
 body.dark-mode .sudoku-cell.match-cell {
     color: #ffffff;
+}
+
+.sudoku-cell.conflict-cell,
+.sudoku-cell.conflict-cell.active-cell,
+.sudoku-cell.conflict-cell.match-cell,
+.sudoku-cell.player.filled.conflict-cell,
+.sudoku-cell.player.filled.conflict-cell.active-cell,
+.sudoku-cell.player.filled.conflict-cell.match-cell {
+    background-color: red !important;
+    color: #000000 !important;
+    background-image: none !important;
+}
+
+body.dark-mode .sudoku-cell.conflict-cell,
+body.dark-mode .sudoku-cell.conflict-cell.active-cell,
+body.dark-mode .sudoku-cell.conflict-cell.match-cell,
+body.dark-mode .sudoku-cell.player.filled.conflict-cell,
+body.dark-mode .sudoku-cell.player.filled.conflict-cell.active-cell,
+body.dark-mode .sudoku-cell.player.filled.conflict-cell.match-cell {
+    background-color: blue !important;
+    color: white !important;
 }
 
 .candidates-grid {
@@ -110,7 +179,7 @@ body.dark-mode .sudoku-cell.match-cell {
     border: none;
     background: transparent;
     color: currentColor;
-    font-size: clamp(0.5rem, 1.3vw, 1rem);
+    font-size: calc(var(--sudoku-cell-size) * 0.25);
     font-weight: 500;
     font-style: normal;
     display: flex;
@@ -118,17 +187,18 @@ body.dark-mode .sudoku-cell.match-cell {
     justify-content: center;
     padding: 0;
     opacity: 0;
-    transition: opacity 120ms ease;
     cursor: default;
+    pointer-events: none;
 }
 
-.candidate.available {
+.sudoku-cell.active-cell .candidate {
+    pointer-events: auto;
     cursor: pointer;
 }
 
-.candidate.available:hover,
-.candidate.available:focus-visible {
-    opacity: 0.45;
+.sudoku-cell.active-cell .candidate:not(.penciled):hover,
+.sudoku-cell.active-cell .candidate:not(.penciled):focus-visible {
+    opacity: 0.6;
 }
 
 .candidate.penciled {
@@ -150,7 +220,7 @@ body.dark-mode .sudoku-cell.match-cell {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: clamp(1.4rem, 4vw, 2.6rem);
+    font-size: calc(var(--sudoku-cell-size) * 0.85);
     font-weight: 600;
     letter-spacing: 0.05em;
     pointer-events: none;
