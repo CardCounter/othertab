@@ -16,15 +16,30 @@ const cells = new Map();
 const highlightClasses = ['active-cell', 'peer-cell', 'match-cell'];
 const CONFLICT_CLASS = 'conflict-cell';
 const DEFAULT_CELL_SIZE = 70; //px
+const MAX_UNDO_STACK_SIZE = 100;
 let activeCellKey = null;
 let pendingClearCellKey = null;
 let armedClearCellKey = null;
 let initialCandidatesPenciled = false;
+const undoStack = [];
 
 const keyFromCoords = (row, col) => `${row}-${col}`;
 
 const dispatchReady = () => {
     document.dispatchEvent(new Event('fouc:ready'));
+};
+
+const isInteractiveElementForUndo = (target) => {
+    if (!target || typeof target.closest !== 'function') {
+        return false;
+    }
+
+    if (target.closest('button, input, select, textarea')) {
+        return true;
+    }
+
+    const editableAncestor = target.closest('[contenteditable="true"]');
+    return Boolean(editableAncestor);
 };
 
 const clearActiveCell = () => {
@@ -100,6 +115,19 @@ if (boardElement) {
         if (!boardElement.contains(event.target)) {
             clearActiveCell();
         }
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.code !== 'Space' && event.key !== ' ') {
+            return;
+        }
+
+        if (isInteractiveElementForUndo(event.target)) {
+            return;
+        }
+
+        event.preventDefault();
+        undoLastAction();
     });
 }
 
@@ -202,7 +230,87 @@ const refreshAllCandidates = () => {
     });
 };
 
-const clearPeerCandidatePencils = (row, col, value) => {
+const createActionContext = () => ({
+    cellSnapshots: new Map()
+});
+
+const captureCellSnapshot = (cellKey, context) => {
+    if (!context || context.cellSnapshots.has(cellKey)) {
+        return;
+    }
+
+    const cell = cells.get(cellKey);
+    if (!cell || cell.isGiven) {
+        return;
+    }
+
+    const penciledNumbers = [];
+    cell.candidateButtons.forEach((button, number) => {
+        if (button.classList.contains('penciled')) {
+            penciledNumbers.push(number);
+        }
+    });
+
+    context.cellSnapshots.set(cellKey, {
+        value: boardState[cell.row][cell.col],
+        filled: cell.filled,
+        penciledNumbers
+    });
+};
+
+const restoreCellSnapshot = (cellKey, snapshot) => {
+    const cell = cells.get(cellKey);
+    if (!cell || cell.isGiven) {
+        return;
+    }
+
+    const penciledSet = new Set(snapshot.penciledNumbers);
+    boardState[cell.row][cell.col] = snapshot.value;
+    cell.filled = snapshot.filled;
+    if (snapshot.filled && snapshot.value > 0) {
+        cell.valueEl.textContent = snapshot.value;
+        cell.element.classList.add('filled', 'player-value');
+    } else {
+        cell.valueEl.textContent = '';
+        cell.element.classList.remove('filled', 'player-value');
+    }
+
+    cell.candidateButtons.forEach((button, number) => {
+        button.disabled = snapshot.filled;
+        button.classList.remove('penciled');
+        if (!snapshot.filled && penciledSet.has(number)) {
+            button.classList.add('penciled');
+        }
+    });
+};
+
+const pushUndoAction = (context) => {
+    if (!context || context.cellSnapshots.size === 0) {
+        return;
+    }
+
+    undoStack.push(context);
+    if (undoStack.length > MAX_UNDO_STACK_SIZE) {
+        undoStack.shift();
+    }
+};
+
+const undoLastAction = () => {
+    if (undoStack.length === 0) {
+        return;
+    }
+
+    const action = undoStack.pop();
+    action.cellSnapshots.forEach((snapshot, cellKey) => {
+        restoreCellSnapshot(cellKey, snapshot);
+    });
+    refreshAllCandidates();
+    refreshConflicts();
+    clearActiveCell();
+    armedClearCellKey = null;
+};
+
+const clearPeerCandidatePencils = (row, col, value, actionContext = null) => {
     if (!Number.isFinite(value) || value <= 0) {
         return new Set();
     }
@@ -222,6 +330,7 @@ const clearPeerCandidatePencils = (row, col, value) => {
             return;
         }
 
+        captureCellSnapshot(key, actionContext);
         const button = cell.candidateButtons.get(value);
         if (button) {
             const wasPenciled = button.classList.contains('penciled');
@@ -271,7 +380,7 @@ const findSinglePenciledCandidateValue = (cell) => {
     return candidateValue;
 };
 
-const cascadeFillSingleCandidateCells = (initialCellKeys = []) => {
+const cascadeFillSingleCandidateCells = (initialCellKeys = [], actionContext = null) => {
     const queue = Array.from(initialCellKeys);
     const queued = new Set(queue);
 
@@ -295,7 +404,7 @@ const cascadeFillSingleCandidateCells = (initialCellKeys = []) => {
         const impactedCells = setCellValue(
             cellKey,
             forcedValue,
-            { triggerCascade: false, focusCell: false }
+            { triggerCascade: false, focusCell: false, actionContext }
         );
         impactedCells.forEach((impactedKey) => {
             if (!queued.has(impactedKey)) {
@@ -334,14 +443,19 @@ const setCellValue = (cellKey, value, options = {}) => {
 
     const {
         triggerCascade = true,
-        focusCell = true
+        focusCell = true,
+        actionContext = null
     } = options;
 
+    const context = actionContext || createActionContext();
+    const shouldCommitAction = !actionContext;
+
+    captureCellSnapshot(cellKey, context);
     boardState[cell.row][cell.col] = value;
     cell.valueEl.textContent = value;
     cell.filled = true;
     cell.element.classList.add('filled', 'player-value');
-    const impactedCells = clearPeerCandidatePencils(cell.row, cell.col, value);
+    const impactedCells = clearPeerCandidatePencils(cell.row, cell.col, value, context);
     cell.candidateButtons.forEach((button) => {
         button.classList.remove('available', 'penciled');
         button.disabled = true;
@@ -354,7 +468,11 @@ const setCellValue = (cellKey, value, options = {}) => {
     }
 
     if (triggerCascade && impactedCells.size > 0) {
-        cascadeFillSingleCandidateCells(impactedCells);
+        cascadeFillSingleCandidateCells(impactedCells, context);
+    }
+
+    if (shouldCommitAction) {
+        pushUndoAction(context);
     }
 
     return impactedCells;
@@ -396,7 +514,16 @@ const handleCandidateClick = (event, cellKey, number) => {
         return;
     }
 
+    const context = createActionContext();
+    captureCellSnapshot(cellKey, context);
+    const wasPenciled = button.classList.contains('penciled');
     button.classList.toggle('penciled');
+    const isPenciled = button.classList.contains('penciled');
+    if (wasPenciled === isPenciled) {
+        return;
+    }
+
+    pushUndoAction(context);
 };
 
 const handleCandidateDoubleClick = (event, cellKey, number) => {
