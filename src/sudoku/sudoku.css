@@ -1,0 +1,170 @@
+body.sudoku-page,
+body.sudoku-page * {
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+:root {
+    --sudoku-active-strong: #8fb7ff;
+    --sudoku-active-weak: rgba(143, 183, 255, 0.35);
+    --sudoku-filled-bg: #e4e4e4;
+    --sudoku-filled-text: #000000;
+}
+
+body.dark-mode {
+    --sudoku-active-strong: #ff7f7f;
+    --sudoku-active-weak: rgba(255, 127, 127, 0.35);
+    --sudoku-filled-bg: #1d1d1d;
+    --sudoku-filled-text: #ffffff;
+}
+
+.sudoku-main {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    align-items: center;
+}
+
+.board-wrapper {
+    width: min(90vw, 640px);
+}
+
+.sudoku-board {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    display: grid;
+    grid-template-columns: repeat(9, 1fr);
+    border: 3px solid currentColor;
+    background-color: var(--page-background-color, #ffffff);
+    box-sizing: border-box;
+}
+
+.sudoku-cell {
+    position: relative;
+    border: 1px solid currentColor;
+    background-color: var(--page-background-color, #ffffff);
+    color: inherit;
+    display: flex;
+    align-items: stretch;
+    justify-content: stretch;
+    font-size: clamp(0.6rem, 1.8vw, 1rem);
+    transition: background-color 120ms ease;
+}
+
+.sudoku-cell.border-top-bold {
+    border-top-width: 3px;
+}
+
+.sudoku-cell.border-bottom-bold {
+    border-bottom-width: 3px;
+}
+
+.sudoku-cell.border-left-bold {
+    border-left-width: 3px;
+}
+
+.sudoku-cell.border-right-bold {
+    border-right-width: 3px;
+}
+
+.sudoku-cell.filled {
+    background-color: var(--sudoku-filled-bg);
+    color: var(--sudoku-filled-text);
+}
+
+.sudoku-cell.given {
+    font-weight: 700;
+}
+
+.sudoku-cell.player.filled {
+    cursor: pointer;
+}
+
+.sudoku-cell.peer-cell {
+    background-color: var(--sudoku-active-weak, rgba(143, 183, 255, 0.35));
+}
+
+.sudoku-cell.active-cell,
+.sudoku-cell.match-cell {
+    background-color: var(--sudoku-active-strong);
+    color: #000000;
+}
+
+body.dark-mode .sudoku-cell.active-cell,
+body.dark-mode .sudoku-cell.match-cell {
+    color: #ffffff;
+}
+
+.candidates-grid {
+    width: 100%;
+    height: 100%;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+}
+
+.candidate {
+    border: none;
+    background: transparent;
+    color: currentColor;
+    font-size: clamp(0.5rem, 1.3vw, 1rem);
+    font-weight: 500;
+    font-style: normal;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    opacity: 0;
+    transition: opacity 120ms ease;
+    cursor: default;
+}
+
+.candidate.available {
+    cursor: pointer;
+}
+
+.candidate.available:hover,
+.candidate.available:focus-visible {
+    opacity: 0.45;
+}
+
+.candidate.penciled {
+    opacity: 1;
+}
+
+.candidate:focus-visible {
+    outline: 1px solid currentColor;
+    outline-offset: -1px;
+}
+
+.sudoku-cell.filled .candidates-grid {
+    display: none;
+}
+
+.cell-value {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: clamp(1.4rem, 4vw, 2.6rem);
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    pointer-events: none;
+    opacity: 0;
+}
+
+.sudoku-cell.filled .cell-value {
+    opacity: 1;
+}
+
+.sudoku-cell.player-value .cell-value {
+    font-weight: 500;
+}
+
+.sudoku-board:focus-visible {
+    outline: none;
+}
