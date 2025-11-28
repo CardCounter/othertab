@@ -265,6 +265,43 @@ const clearActiveCell = () => {
     });
 };
 
+const focusCellElement = (cell) => {
+    if (!cell || !cell.element || typeof cell.element.focus !== 'function') {
+        return;
+    }
+
+    cell.element.focus();
+};
+
+const getDigitFromKeyboardEvent = (event) => {
+    if (!event) {
+        return null;
+    }
+
+    const { key, code } = event;
+    if (typeof key === 'string' && key.length === 1 && key >= '0' && key <= '9') {
+        return Number(key);
+    }
+
+    if (typeof code === 'string') {
+        if (code.startsWith('Digit')) {
+            const digit = Number(code.slice(5));
+            if (Number.isFinite(digit) && digit >= 0 && digit <= 9) {
+                return digit;
+            }
+        }
+
+        if (code.startsWith('Numpad')) {
+            const digit = Number(code.slice(6));
+            if (Number.isFinite(digit) && digit >= 0 && digit <= 9) {
+                return digit;
+            }
+        }
+    }
+
+    return null;
+};
+
 const setBoardCellSize = (sizePx) => {
     if (!boardElement) {
         return;
@@ -389,6 +426,45 @@ const handleCellPointerDown = (cellKey) => {
     armedClearCellKey = null;
 };
 
+const handleBoardNumberInput = (event) => {
+    if (isGameComplete || !activeCellKey) {
+        return;
+    }
+
+    const digit = getDigitFromKeyboardEvent(event);
+    if (!Number.isInteger(digit)) {
+        return;
+    }
+
+    if (isInteractiveElementForUndo(event.target)) {
+        return;
+    }
+
+    const cell = cells.get(activeCellKey);
+    if (!cell || cell.isGiven) {
+        return;
+    }
+
+    if (digit === 0) {
+        if (!cell.filled) {
+            return;
+        }
+        event.preventDefault();
+        clearCellValue(activeCellKey);
+        setActiveCell(activeCellKey);
+        focusCellElement(cell);
+        return;
+    }
+
+    if (digit < 1 || digit > 9 || cell.filled) {
+        return;
+    }
+
+    event.preventDefault();
+    setCellValue(activeCellKey, digit);
+    focusCellElement(cell);
+};
+
 if (boardElement) {
     document.addEventListener('pointerdown', (event) => {
         if (!boardElement.contains(event.target)) {
@@ -409,6 +485,8 @@ if (boardElement) {
 
         undoLastAction();
     }, { capture: true });
+
+    document.addEventListener('keydown', handleBoardNumberInput, { capture: true });
 }
 
 const computeCandidates = (row, col) => {
@@ -983,10 +1061,17 @@ const createPlayerCell = (row, col) => {
         button.className = 'candidate';
         button.dataset.number = String(number);
         button.textContent = number;
+        button.tabIndex = -1;
         button.setAttribute(
             'aria-label',
             `Candidate ${number} for row ${row + 1}, column ${col + 1}`
         );
+        button.addEventListener('pointerdown', (event) => {
+            event.preventDefault();
+        });
+        button.addEventListener('mousedown', (event) => {
+            event.preventDefault();
+        });
         button.addEventListener('click', (event) => handleCandidateClick(event, keyFromCoords(row, col), number));
         grid.appendChild(button);
         candidateButtons.set(number, button);

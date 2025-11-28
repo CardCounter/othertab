@@ -90,6 +90,12 @@ body.dark-mode {
     box-sizing: border-box;
 }
 
+.sudoku-cell:focus,
+.sudoku-cell:focus-visible {
+    outline: none;
+    box-shadow: none;
+}
+
 .sudoku-cell[data-row="0"] {
     border-top: 3px solid currentColor;
 }
