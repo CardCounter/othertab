@@ -774,6 +774,7 @@ const clearPeerCandidatePencils = (row, col, value, actionContext = null) => {
     const originKey = keyFromCoords(row, col);
     const impactedCellKeys = new Set();
     const processed = new Set();
+
     const maybeClear = (targetRow, targetCol) => {
         const key = keyFromCoords(targetRow, targetCol);
         if (key === originKey || processed.has(key)) {
@@ -782,20 +783,32 @@ const clearPeerCandidatePencils = (row, col, value, actionContext = null) => {
 
         processed.add(key);
         const cell = cells.get(key);
-        if (!cell || cell.isGiven || cell.filled) {
+        if (!cell || cell.isGiven) {
+            return;
+        }
+
+        if (!cell.filled) {
+            impactedCellKeys.add(key);
+        }
+
+        if (cell.filled) {
+            return;
+        }
+
+        const button = cell.candidateButtons.get(value);
+        if (!button) {
+            return;
+        }
+
+        const hadState = button.classList.contains('penciled') ||
+            button.classList.contains(MARKED_CANDIDATE_CLASS);
+        if (!hadState) {
             return;
         }
 
         captureCellSnapshot(key, actionContext);
-        const button = cell.candidateButtons.get(value);
-        if (button) {
-            const wasPenciled = button.classList.contains('penciled');
-            button.classList.remove('penciled');
-            setCandidateMarkedState(button, value, false);
-            if (wasPenciled) {
-                impactedCellKeys.add(key);
-            }
-        }
+        button.classList.remove('penciled');
+        setCandidateMarkedState(button, value, false);
     };
 
     for (let c = 0; c < 9; c += 1) {
@@ -838,39 +851,38 @@ const findSinglePenciledCandidateValue = (cell) => {
 };
 
 const cascadeFillSingleCandidateCells = (initialCellKeys = [], actionContext = null) => {
-    const allowedCells = new Set(initialCellKeys || []);
-    const queue = Array.from(allowedCells);
-    const queued = new Set(queue);
+    if (!initialCellKeys) {
+        return;
+    }
 
-    while (queue.length > 0) {
-        const cellKey = queue.shift();
-        if (!cellKey) {
-            continue;
-        }
+    const allowedCells = new Set(initialCellKeys);
+    if (allowedCells.size === 0) {
+        return;
+    }
 
-        queued.delete(cellKey);
-        const cell = cells.get(cellKey);
-        if (!cell || cell.isGiven || cell.filled) {
-            continue;
-        }
+    let filledAny = true;
+    while (filledAny) {
+        filledAny = false;
 
-        const forcedValue = findSinglePenciledCandidateValue(cell);
-        if (!Number.isFinite(forcedValue)) {
-            continue;
-        }
-
-        const impactedCells = setCellValue(
-            cellKey,
-            forcedValue,
-            { triggerCascade: false, focusCell: false, actionContext }
-        );
-        impactedCells.forEach((impactedKey) => {
-            if (!allowedCells.has(impactedKey) || queued.has(impactedKey)) {
-                return;
+        for (const cellKey of allowedCells) {
+            const cell = cells.get(cellKey);
+            if (!cell || cell.isGiven || cell.filled) {
+                continue;
             }
-            queue.push(impactedKey);
-            queued.add(impactedKey);
-        });
+
+            const forcedValue = findSinglePenciledCandidateValue(cell);
+            if (!Number.isFinite(forcedValue)) {
+                continue;
+            }
+
+            setCellValue(
+                cellKey,
+                forcedValue,
+                { triggerCascade: false, focusCell: false, actionContext }
+            );
+            filledAny = true;
+            break;
+        }
     }
 };
 

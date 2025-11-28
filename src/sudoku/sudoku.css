@@ -34,9 +34,10 @@ body.sudoku-page > main.sudoku-main {
     --sudoku-win-text-color: #000000;
     --sudoku-conflict-color: #ff5e5e;
     --sudoku-conflict-text-color: #000000;
-    --sudoku-cell-size: 60px;
+    --sudoku-cell-size: 70px;
     --share-button-bg: blue;
     --share-button-text: #ffffff;
+    --sudoku-candidate-hover-color: rgba(0, 0, 0, 0.65);
 }
 
 body.dark-mode {
@@ -50,6 +51,7 @@ body.dark-mode {
     --sudoku-conflict-text-color: #ffffff;
     --share-button-bg: red;
     --share-button-text: #000000;
+    --sudoku-candidate-hover-color: rgba(255, 255, 255, 0.9);
 }
 
 .sudoku-main {
@@ -197,6 +199,7 @@ body.dark-mode .sudoku-cell.match-cell {
     font-size: calc(var(--sudoku-cell-size) * 0.25);
     font-weight: 500;
     font-style: normal;
+    line-height: 1;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -214,9 +217,14 @@ body.dark-mode .sudoku-cell.match-cell {
 .sudoku-cell.active-cell .candidate:not(.penciled):hover,
 .sudoku-cell.active-cell .candidate:not(.penciled):focus-visible {
     opacity: 0.6;
+    color: var(--sudoku-candidate-hover-color, currentColor);
 }
 
 .candidate.penciled {
+    opacity: 1;
+}
+
+.candidate.candidate-marked {
     opacity: 1;
 }
 
