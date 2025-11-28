@@ -30,7 +30,13 @@ body.sudoku-page > main.sudoku-main {
     --sudoku-active-weak: rgba(84, 84, 253, 0.3);
     --sudoku-filled-bg: #d8d8d8;
     --sudoku-filled-text: #000000;
+    --sudoku-win-color: blue;
+    --sudoku-win-text-color: #000000;
+    --sudoku-conflict-color: #ff5e5e;
+    --sudoku-conflict-text-color: #000000;
     --sudoku-cell-size: 60px;
+    --share-button-bg: blue;
+    --share-button-text: #ffffff;
 }
 
 body.dark-mode {
@@ -38,6 +44,12 @@ body.dark-mode {
     --sudoku-active-weak: rgba(255, 74, 74, 0.3);
     --sudoku-filled-bg: #3b3b3b;
     --sudoku-filled-text: #ffffff;
+    --sudoku-win-color: rgb(132, 255, 206);
+    --sudoku-win-text-color: #ffffff;
+    --sudoku-conflict-color: rgb(48, 110, 255);
+    --sudoku-conflict-text-color: #ffffff;
+    --share-button-bg: red;
+    --share-button-text: #000000;
 }
 
 .sudoku-main {
@@ -135,6 +147,13 @@ body.dark-mode .sudoku-cell.player.filled.match-cell {
     );
 }
 
+.sudoku-cell.invalid-placement-cell {
+    background-image: linear-gradient(
+        var(--sudoku-active-weak, rgba(143, 183, 255, 0.35)),
+        var(--sudoku-active-weak, rgba(143, 183, 255, 0.35))
+    );
+}
+
 .sudoku-cell.active-cell,
 .sudoku-cell.match-cell {
     background-color: var(--sudoku-active-strong);
@@ -152,19 +171,9 @@ body.dark-mode .sudoku-cell.match-cell {
 .sudoku-cell.player.filled.conflict-cell,
 .sudoku-cell.player.filled.conflict-cell.active-cell,
 .sudoku-cell.player.filled.conflict-cell.match-cell {
-    background-color: red !important;
-    color: #000000 !important;
+    background-color: var(--sudoku-conflict-color) !important;
+    color: var(--sudoku-conflict-text-color) !important;
     background-image: none !important;
-}
-
-body.dark-mode .sudoku-cell.conflict-cell,
-body.dark-mode .sudoku-cell.conflict-cell.active-cell,
-body.dark-mode .sudoku-cell.conflict-cell.match-cell,
-body.dark-mode .sudoku-cell.player.filled.conflict-cell,
-body.dark-mode .sudoku-cell.player.filled.conflict-cell.active-cell,
-body.dark-mode .sudoku-cell.player.filled.conflict-cell.match-cell {
-    background-color: blue !important;
-    color: white !important;
 }
 
 .candidates-grid {
@@ -205,6 +214,16 @@ body.dark-mode .sudoku-cell.player.filled.conflict-cell.match-cell {
     opacity: 1;
 }
 
+.candidate.match-candidate {
+    background-color: var(--sudoku-active-strong);
+    color: #000000;
+    opacity: 1;
+}
+
+body.dark-mode .candidate.match-candidate {
+    color: #ffffff;
+}
+
 .candidate:focus-visible {
     outline: 1px solid currentColor;
     outline-offset: -1px;
@@ -237,4 +256,37 @@ body.dark-mode .sudoku-cell.player.filled.conflict-cell.match-cell {
 
 .sudoku-board:focus-visible {
     outline: none;
+}
+
+.sudoku-footer-info {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.copy-button {
+    background-color: var(--share-button-bg, blue);
+    color: var(--share-button-text, #ffffff);
+    font-size: 1rem;
+    text-transform: lowercase;
+    border: none;
+    margin: 0;
+    padding: 0;
+    cursor: pointer;
+}
+
+.copy-button:hover,
+.copy-button:focus-visible {
+    background-color: grey;
+    color: inherit;
+}
+
+.hidden {
+    display: none !important;
+}
+
+.sudoku-cell.player.player-complete-cell {
+    background-color: var(--sudoku-win-color) !important;
+    color: var(--sudoku-win-text-color);
 }

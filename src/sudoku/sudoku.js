@@ -13,23 +13,217 @@ const puzzle = [
 const boardState = puzzle.map((row) => row.slice());
 const boardElement = document.getElementById('sudoku-board');
 const cells = new Map();
-const highlightClasses = ['active-cell', 'peer-cell', 'match-cell'];
+const MATCH_CANDIDATE_CLASS = 'match-candidate';
+const INVALID_PLACEMENT_CLASS = 'invalid-placement-cell';
+const highlightClasses = ['active-cell', 'peer-cell', 'match-cell', INVALID_PLACEMENT_CLASS];
 const CONFLICT_CLASS = 'conflict-cell';
 const DEFAULT_CELL_SIZE = 70; //px
 const MAX_UNDO_STACK_SIZE = 100;
 const CUSTOM_DOUBLE_CLICK_THRESHOLD_MS = 250;
+const timerElement = document.getElementById('sudoku-timer');
+const shareButton = document.getElementById('copy-button');
+const MAX_TIMER_SECONDS = (99 * 3600) + (59 * 60) + 59;
+const SHARE_BUTTON_RESET_DELAY_MS = 1000;
 let activeCellKey = null;
 let pendingClearCellKey = null;
 let armedClearCellKey = null;
 let initialCandidatesPenciled = false;
 const undoStack = [];
 const candidateClickTracker = new WeakMap();
+let timerIntervalId = null;
+let timerStartTimestamp = null;
+let timerElapsedMs = 0;
+let timerRunning = false;
+let lastTimerDisplayValue = '0:00';
+let isGameComplete = false;
+let currentShareText = '';
+let shareButtonResetTimeout = null;
 
 const keyFromCoords = (row, col) => `${row}-${col}`;
 
 const dispatchReady = () => {
     document.dispatchEvent(new Event('fouc:ready'));
 };
+
+const formatElapsedTime = (totalSeconds) => {
+    if (!Number.isFinite(totalSeconds) || totalSeconds < 0) {
+        return '0:00';
+    }
+
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+
+    if (hours > 0) {
+        const hourText = String(hours).padStart(2, '0');
+        const minuteText = String(minutes).padStart(2, '0');
+        const secondText = String(seconds).padStart(2, '0');
+        return `${hourText}:${minuteText}:${secondText}`;
+    }
+
+    return `${minutes}:${String(seconds).padStart(2, '0')}`;
+};
+
+const updateTimerDisplay = () => {
+    if (!timerElement) {
+        return lastTimerDisplayValue;
+    }
+
+    let elapsedMs = timerRunning && timerStartTimestamp !== null
+        ? Date.now() - timerStartTimestamp
+        : timerElapsedMs;
+
+    let elapsedSeconds = Math.floor(elapsedMs / 1000);
+    if (elapsedSeconds >= MAX_TIMER_SECONDS) {
+        elapsedSeconds = MAX_TIMER_SECONDS;
+        timerElapsedMs = elapsedSeconds * 1000;
+        timerRunning = false;
+        timerStartTimestamp = null;
+        if (timerIntervalId) {
+            clearInterval(timerIntervalId);
+            timerIntervalId = null;
+        }
+    } else if (timerRunning) {
+        timerElapsedMs = elapsedSeconds * 1000;
+    }
+
+    lastTimerDisplayValue = formatElapsedTime(elapsedSeconds);
+    timerElement.textContent = lastTimerDisplayValue;
+    return lastTimerDisplayValue;
+};
+
+const showTimerElement = () => {
+    if (timerElement) {
+        timerElement.classList.remove('hidden');
+    }
+};
+
+const hideTimerElement = () => {
+    if (timerElement) {
+        timerElement.classList.add('hidden');
+    }
+};
+
+const resetTimer = () => {
+    if (timerIntervalId) {
+        clearInterval(timerIntervalId);
+        timerIntervalId = null;
+    }
+    timerRunning = false;
+    timerStartTimestamp = null;
+    timerElapsedMs = 0;
+    lastTimerDisplayValue = '0:00';
+    if (timerElement) {
+        timerElement.textContent = lastTimerDisplayValue;
+    }
+    hideTimerElement();
+};
+
+const startTimer = () => {
+    timerStartTimestamp = Date.now();
+    timerRunning = true;
+    updateTimerDisplay();
+    showTimerElement();
+    timerIntervalId = window.setInterval(updateTimerDisplay, 1000);
+};
+
+const startTimerIfNeeded = () => {
+    if (timerRunning || timerStartTimestamp !== null || isGameComplete) {
+        return;
+    }
+    startTimer();
+};
+
+const stopTimer = () => {
+    if (timerIntervalId) {
+        clearInterval(timerIntervalId);
+        timerIntervalId = null;
+    }
+    if (timerRunning && timerStartTimestamp !== null) {
+        timerElapsedMs = Date.now() - timerStartTimestamp;
+    }
+    timerRunning = false;
+    timerStartTimestamp = null;
+    updateTimerDisplay();
+};
+
+const getFormattedElapsedTime = () => lastTimerDisplayValue;
+
+const resetShareButton = () => {
+    currentShareText = '';
+    if (shareButtonResetTimeout) {
+        clearTimeout(shareButtonResetTimeout);
+        shareButtonResetTimeout = null;
+    }
+    if (shareButton) {
+        shareButton.textContent = 'share';
+        shareButton.classList.add('hidden');
+    }
+};
+
+const showShareButton = () => {
+    if (!shareButton) {
+        return;
+    }
+    shareButton.textContent = 'share';
+    shareButton.classList.remove('hidden');
+};
+
+const copyShareText = async () => {
+    if (!currentShareText) {
+        return false;
+    }
+
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+        await navigator.clipboard.writeText(currentShareText);
+        return true;
+    }
+
+    const textarea = document.createElement('textarea');
+    textarea.value = currentShareText;
+    textarea.setAttribute('readonly', '');
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+    let copied = false;
+    try {
+        copied = document.execCommand('copy');
+    } catch (error) {
+        copied = false;
+    }
+    document.body.removeChild(textarea);
+    return copied;
+};
+
+const handleShareButtonClick = async () => {
+    if (!shareButton || !currentShareText) {
+        return;
+    }
+
+    const copied = await copyShareText().catch(() => false);
+    if (!copied) {
+        return;
+    }
+
+    shareButton.textContent = 'copied';
+    if (shareButtonResetTimeout) {
+        clearTimeout(shareButtonResetTimeout);
+    }
+    shareButtonResetTimeout = window.setTimeout(() => {
+        if (shareButton) {
+            shareButton.textContent = 'share';
+        }
+        shareButtonResetTimeout = null;
+    }, SHARE_BUTTON_RESET_DELAY_MS);
+};
+
+if (shareButton) {
+    shareButton.addEventListener('click', handleShareButtonClick);
+}
+
+resetTimer();
+resetShareButton();
 
 const isInteractiveElementForUndo = (target) => {
     if (!target || typeof target.closest !== 'function') {
@@ -65,6 +259,9 @@ const clearActiveCell = () => {
     armedClearCellKey = null;
     cells.forEach((cell) => {
         highlightClasses.forEach((cls) => cell.element.classList.remove(cls));
+        cell.candidateButtons.forEach((button) => {
+            button.classList.remove(MATCH_CANDIDATE_CLASS);
+        });
     });
 };
 
@@ -76,7 +273,66 @@ const setBoardCellSize = (sizePx) => {
     boardElement.style.setProperty('--sudoku-cell-size', `${sizePx}px`);
 };
 
+const highlightMatchingCandidates = (value) => {
+    if (!Number.isFinite(value) || value <= 0) {
+        return;
+    }
+
+    cells.forEach((cell) => {
+        if (!cell || cell.candidateButtons.size === 0) {
+            return;
+        }
+        const button = cell.candidateButtons.get(value);
+        if (button && button.classList.contains('penciled')) {
+            button.classList.add(MATCH_CANDIDATE_CLASS);
+        }
+    });
+};
+
+const highlightInvalidPlacementCells = (value) => {
+    if (!Number.isFinite(value) || value <= 0) {
+        return;
+    }
+
+    const blockedKeys = new Set();
+    for (let row = 0; row < 9; row += 1) {
+        for (let col = 0; col < 9; col += 1) {
+            if (boardState[row][col] !== value) {
+                continue;
+            }
+
+            for (let i = 0; i < 9; i += 1) {
+                blockedKeys.add(keyFromCoords(row, i));
+                blockedKeys.add(keyFromCoords(i, col));
+            }
+
+            const boxRowStart = Math.floor(row / 3) * 3;
+            const boxColStart = Math.floor(col / 3) * 3;
+            for (let r = boxRowStart; r < boxRowStart + 3; r += 1) {
+                for (let c = boxColStart; c < boxColStart + 3; c += 1) {
+                    blockedKeys.add(keyFromCoords(r, c));
+                }
+            }
+        }
+    }
+
+    blockedKeys.forEach((cellKey) => {
+        const cell = cells.get(cellKey);
+        if (!cell) {
+            return;
+        }
+        if (boardState[cell.row][cell.col] === value) {
+            return;
+        }
+        cell.element.classList.add(INVALID_PLACEMENT_CLASS);
+    });
+};
+
 const setActiveCell = (cellKey) => {
+    if (isGameComplete) {
+        return;
+    }
+
     clearActiveCell();
     if (!cellKey) {
         return;
@@ -94,6 +350,8 @@ const setActiveCell = (cellKey) => {
     cell.element.classList.add('active-cell');
     if (highlightValue) {
         cell.element.classList.add('match-cell');
+        highlightMatchingCandidates(highlightValue);
+        highlightInvalidPlacementCells(highlightValue);
     }
 
     cells.forEach((other, otherKey) => {
@@ -117,6 +375,10 @@ const setActiveCell = (cellKey) => {
 };
 
 const handleCellPointerDown = (cellKey) => {
+    if (isGameComplete) {
+        return;
+    }
+
     const wasAlreadyActive = activeCellKey === cellKey || armedClearCellKey === cellKey;
     setActiveCell(cellKey);
     if (wasAlreadyActive) {
@@ -248,6 +510,56 @@ const refreshAllCandidates = () => {
     });
 };
 
+const isBoardFilled = () => {
+    for (let row = 0; row < 9; row += 1) {
+        for (let col = 0; col < 9; col += 1) {
+            const value = boardState[row][col];
+            if (!Number.isFinite(value) || value <= 0) {
+                return false;
+            }
+        }
+    }
+    return true;
+};
+
+const prepareWinShareText = () => {
+    const timerValue = getFormattedElapsedTime();
+    currentShareText = `SUDOKU\n${timerValue}\nhttps://othertab.com/sudoku/`;
+    showShareButton();
+};
+
+const handleGameComplete = () => {
+    if (isGameComplete) {
+        return;
+    }
+
+    isGameComplete = true;
+    pendingClearCellKey = null;
+    armedClearCellKey = null;
+    stopTimer();
+    clearActiveCell();
+    cells.forEach((cell) => {
+        if (!cell || cell.isGiven || !cell.filled) {
+            return;
+        }
+        cell.element.classList.add('player-complete-cell');
+    });
+    prepareWinShareText();
+};
+
+const checkForCompletion = () => {
+    if (isGameComplete || !isBoardFilled()) {
+        return;
+    }
+
+    const conflicts = findConflictCellKeys();
+    if (conflicts.size > 0) {
+        return;
+    }
+
+    handleGameComplete();
+};
+
 const createActionContext = () => ({
     cellSnapshots: new Map()
 });
@@ -314,7 +626,7 @@ const pushUndoAction = (context) => {
 };
 
 const undoLastAction = () => {
-    if (undoStack.length === 0) {
+    if (isGameComplete || undoStack.length === 0) {
         return;
     }
 
@@ -454,6 +766,10 @@ const pencilInitialCandidates = () => {
 };
 
 const setCellValue = (cellKey, value, options = {}) => {
+    if (isGameComplete) {
+        return new Set();
+    }
+
     const cell = cells.get(cellKey);
     if (!cell || cell.isGiven) {
         return new Set();
@@ -468,6 +784,7 @@ const setCellValue = (cellKey, value, options = {}) => {
     const context = actionContext || createActionContext();
     const shouldCommitAction = !actionContext;
 
+    startTimerIfNeeded();
     captureCellSnapshot(cellKey, context);
     boardState[cell.row][cell.col] = value;
     cell.valueEl.textContent = value;
@@ -493,14 +810,22 @@ const setCellValue = (cellKey, value, options = {}) => {
         pushUndoAction(context);
     }
 
+    checkForCompletion();
+
     return impactedCells;
 };
 
 const clearCellValue = (cellKey) => {
+    if (isGameComplete) {
+        return null;
+    }
+
     const cell = cells.get(cellKey);
     if (!cell || cell.isGiven || !cell.filled) {
         return null;
     }
+
+    startTimerIfNeeded();
 
     const previousValue = boardState[cell.row][cell.col];
     boardState[cell.row][cell.col] = 0;
@@ -548,6 +873,10 @@ const isCustomDoubleClick = (button) => {
 };
 
 const fillCellFromCandidate = (cellKey, number) => {
+    if (isGameComplete) {
+        return;
+    }
+
     const cell = cells.get(cellKey);
     if (!cell || cell.isGiven || cell.filled) {
         return;
@@ -564,6 +893,10 @@ const fillCellFromCandidate = (cellKey, number) => {
 const handleCandidateClick = (event, cellKey, number) => {
     event.preventDefault();
     event.stopPropagation();
+
+    if (isGameComplete) {
+        return;
+    }
 
     const cell = cells.get(cellKey);
     if (!cell || cell.isGiven || cell.filled) {
@@ -589,11 +922,18 @@ const handleCandidateClick = (event, cellKey, number) => {
         return;
     }
 
+    startTimerIfNeeded();
     pushUndoAction(context);
 };
 
 const handleCellClear = (event, cellKey) => {
     event.stopPropagation();
+
+    if (isGameComplete) {
+        pendingClearCellKey = null;
+        return;
+    }
+
     const cell = cells.get(cellKey);
     if (!cell) {
         pendingClearCellKey = null;
@@ -656,6 +996,9 @@ const createPlayerCell = (row, col) => {
     const cellKey = keyFromCoords(row, col);
     cellElement.addEventListener('pointerdown', () => handleCellPointerDown(cellKey));
     cellElement.addEventListener('focus', () => {
+        if (isGameComplete) {
+            return;
+        }
         if (activeCellKey !== cellKey) {
             setActiveCell(cellKey);
         }
@@ -700,6 +1043,9 @@ const createGivenCell = (row, col, value) => {
     const cellKey = keyFromCoords(row, col);
     cellElement.addEventListener('pointerdown', () => handleCellPointerDown(cellKey));
     cellElement.addEventListener('focus', () => {
+        if (isGameComplete) {
+            return;
+        }
         if (activeCellKey !== cellKey) {
             setActiveCell(cellKey);
         }
@@ -731,6 +1077,9 @@ const buildBoard = () => {
         return;
     }
 
+    isGameComplete = false;
+    resetTimer();
+    resetShareButton();
     initialCandidatesPenciled = false;
     setBoardCellSize(DEFAULT_CELL_SIZE);
     clearActiveCell();
