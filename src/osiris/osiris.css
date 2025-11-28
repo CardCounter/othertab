@@ -8,7 +8,6 @@
     --laser-color: black;
     --corner-square-border-color: var(--mining-circle-color);
     --corner-square-bg: transparent;
-    --pointer-circle-color: var(--mining-circle-color);
     --pointer-laser-color: var(--laser-color);
     --ore-converter-active-bg: rgba(0, 0, 0, 0.05);
     --share-button-bg: blue;
@@ -26,7 +25,6 @@ body.dark-mode {
     --mining-circle-color: white;
     --laser-color: white;
     --corner-square-border-color: var(--mining-circle-color);
-    --pointer-circle-color: var(--mining-circle-color);
     --pointer-laser-color: var(--laser-color);
     --ore-converter-active-bg: rgba(255, 255, 255, 0.12);
     --share-button-bg: red;
@@ -77,10 +75,6 @@ main {
     background-color: var(--osiris-bg);
     box-sizing: border-box;
     cursor: auto;
-}
-
-.osiris-wrapper.cursor-hidden {
-    cursor: none;
 }
 
 .play-surface {
@@ -155,29 +149,6 @@ main {
 .reset-button:hover {
     background-color: grey;
     margin: 0;
-}
-
-.pointer-dot {
-    position: absolute;
-    width: 0.7rem;
-    height: 0.7rem;
-    top: 0;
-    left: 0;
-    transform: translate(-50%, -50%);
-    pointer-events: none;
-    opacity: 0;
-    z-index: 150;
-    color: var(--pointer-circle-color, var(--mining-circle-color));
-}
-
-.pointer-dot svg {
-    width: 100%;
-    height: 100%;
-    display: block;
-}
-
-.pointer-dot.visible {
-    opacity: 1;
 }
 
 .osiris-timer-wrapper {
