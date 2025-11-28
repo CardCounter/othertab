@@ -17,11 +17,13 @@ const highlightClasses = ['active-cell', 'peer-cell', 'match-cell'];
 const CONFLICT_CLASS = 'conflict-cell';
 const DEFAULT_CELL_SIZE = 70; //px
 const MAX_UNDO_STACK_SIZE = 100;
+const CUSTOM_DOUBLE_CLICK_THRESHOLD_MS = 250;
 let activeCellKey = null;
 let pendingClearCellKey = null;
 let armedClearCellKey = null;
 let initialCandidatesPenciled = false;
 const undoStack = [];
+const candidateClickTracker = new WeakMap();
 
 const keyFromCoords = (row, col) => `${row}-${col}`;
 
@@ -34,12 +36,27 @@ const isInteractiveElementForUndo = (target) => {
         return false;
     }
 
+    if (boardElement && boardElement.contains(target)) {
+        return false;
+    }
+
     if (target.closest('button, input, select, textarea')) {
         return true;
     }
 
     const editableAncestor = target.closest('[contenteditable="true"]');
     return Boolean(editableAncestor);
+};
+
+const blurBoardTarget = (target) => {
+    if (!boardElement || !target || typeof target.closest !== 'function') {
+        return;
+    }
+
+    const focusable = target.closest('#sudoku-board [tabindex], #sudoku-board button');
+    if (focusable && typeof focusable.blur === 'function') {
+        focusable.blur();
+    }
 };
 
 const clearActiveCell = () => {
@@ -122,13 +139,14 @@ if (boardElement) {
             return;
         }
 
+        event.preventDefault();
+        blurBoardTarget(event.target);
         if (isInteractiveElementForUndo(event.target)) {
             return;
         }
 
-        event.preventDefault();
         undoLastAction();
-    });
+    }, { capture: true });
 }
 
 const computeCandidates = (row, col) => {
@@ -498,12 +516,38 @@ const clearCellValue = (cellKey) => {
     return previousValue;
 };
 
-const handleCandidateClick = (event, cellKey, number) => {
-    event.stopPropagation();
-    if (event.detail && event.detail > 1) {
-        return;
+const markCandidateClick = (button) => {
+    const timeoutId = window.setTimeout(() => {
+        const entry = candidateClickTracker.get(button);
+        if (entry && entry.timeoutId === timeoutId) {
+            candidateClickTracker.delete(button);
+        }
+    }, CUSTOM_DOUBLE_CLICK_THRESHOLD_MS);
+    candidateClickTracker.set(button, { lastClick: performance.now(), timeoutId });
+};
+
+const isCustomDoubleClick = (button) => {
+    if (!button) {
+        return false;
     }
 
+    const now = performance.now();
+    const entry = candidateClickTracker.get(button);
+    if (entry && (now - entry.lastClick) <= CUSTOM_DOUBLE_CLICK_THRESHOLD_MS) {
+        clearTimeout(entry.timeoutId);
+        candidateClickTracker.delete(button);
+        return true;
+    }
+
+    if (entry && entry.timeoutId) {
+        clearTimeout(entry.timeoutId);
+    }
+
+    markCandidateClick(button);
+    return false;
+};
+
+const fillCellFromCandidate = (cellKey, number) => {
     const cell = cells.get(cellKey);
     if (!cell || cell.isGiven || cell.filled) {
         return;
@@ -514,19 +558,10 @@ const handleCandidateClick = (event, cellKey, number) => {
         return;
     }
 
-    const context = createActionContext();
-    captureCellSnapshot(cellKey, context);
-    const wasPenciled = button.classList.contains('penciled');
-    button.classList.toggle('penciled');
-    const isPenciled = button.classList.contains('penciled');
-    if (wasPenciled === isPenciled) {
-        return;
-    }
-
-    pushUndoAction(context);
+    setCellValue(cellKey, number);
 };
 
-const handleCandidateDoubleClick = (event, cellKey, number) => {
+const handleCandidateClick = (event, cellKey, number) => {
     event.preventDefault();
     event.stopPropagation();
 
@@ -540,7 +575,21 @@ const handleCandidateDoubleClick = (event, cellKey, number) => {
         return;
     }
 
-    setCellValue(cellKey, number);
+    if (isCustomDoubleClick(button)) {
+        fillCellFromCandidate(cellKey, number);
+        return;
+    }
+
+    const context = createActionContext();
+    captureCellSnapshot(cellKey, context);
+    const wasPenciled = button.classList.contains('penciled');
+    button.classList.toggle('penciled');
+    const isPenciled = button.classList.contains('penciled');
+    if (wasPenciled === isPenciled) {
+        return;
+    }
+
+    pushUndoAction(context);
 };
 
 const handleCellClear = (event, cellKey) => {
@@ -599,7 +648,6 @@ const createPlayerCell = (row, col) => {
             `Candidate ${number} for row ${row + 1}, column ${col + 1}`
         );
         button.addEventListener('click', (event) => handleCandidateClick(event, keyFromCoords(row, col), number));
-        button.addEventListener('dblclick', (event) => handleCandidateDoubleClick(event, keyFromCoords(row, col), number));
         grid.appendChild(button);
         candidateButtons.set(number, button);
     }
