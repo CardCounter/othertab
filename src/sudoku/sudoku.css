@@ -26,18 +26,21 @@ body.sudoku-page > main.sudoku-main {
 }
 
 :root {
-    --sudoku-active-strong: rgb(100, 100, 245);
-    --sudoku-active-weak: rgba(84, 84, 253, 0.3);
+    --sudoku-active-strong: blue;
+    --sudoku-active-weak: rgb(130, 130, 255);
     --sudoku-filled-bg: #d8d8d8;
     --sudoku-filled-text: #000000;
     --sudoku-win-color: blue;
     --sudoku-win-text-color: #000000;
     --sudoku-conflict-color: #ff5e5e;
     --sudoku-conflict-text-color: #000000;
+    --sudoku-selected-text-color: white;
+    --sudoku-selected-border-color: #000000;
     --sudoku-cell-size: 70px;
     --share-button-bg: blue;
     --share-button-text: #ffffff;
-    --sudoku-candidate-hover-color: rgba(0, 0, 0, 0.65);
+    --sudoku-candidate-hover-color: rgba(255, 255, 255, 0.7);
+    --sudoku-candidate-highlight-color: var(--sudoku-active-weak);
 }
 
 body.dark-mode {
@@ -49,9 +52,12 @@ body.dark-mode {
     --sudoku-win-text-color: #ffffff;
     --sudoku-conflict-color: rgb(48, 110, 255);
     --sudoku-conflict-text-color: #ffffff;
+    --sudoku-selected-text-color: #ffffff;
+    --sudoku-selected-border-color: #ffffff;
     --share-button-bg: red;
     --share-button-text: #000000;
     --sudoku-candidate-hover-color: rgba(255, 255, 255, 0.9);
+    --sudoku-candidate-highlight-color: var(--sudoku-active-strong);
 }
 
 .sudoku-main {
@@ -140,12 +146,13 @@ body.dark-mode {
 .sudoku-cell.player.filled.active-cell,
 .sudoku-cell.player.filled.match-cell {
     background-color: var(--sudoku-active-strong);
-    color: #000000;
+    color: var(--sudoku-selected-text-color);
+    border-color: var(--sudoku-selected-border-color);
 }
 
 body.dark-mode .sudoku-cell.player.filled.active-cell,
 body.dark-mode .sudoku-cell.player.filled.match-cell {
-    color: #ffffff;
+    color: var(--sudoku-selected-text-color);
 }
 
 .sudoku-cell.peer-cell {
@@ -165,12 +172,13 @@ body.dark-mode .sudoku-cell.player.filled.match-cell {
 .sudoku-cell.active-cell,
 .sudoku-cell.match-cell {
     background-color: var(--sudoku-active-strong);
-    color: #000000;
+    color: var(--sudoku-selected-text-color);
+    border-color: var(--sudoku-selected-border-color);
 }
 
 body.dark-mode .sudoku-cell.active-cell,
 body.dark-mode .sudoku-cell.match-cell {
-    color: #ffffff;
+    color: var(--sudoku-selected-text-color);
 }
 
 .sudoku-cell.conflict-cell,
@@ -229,7 +237,10 @@ body.dark-mode .sudoku-cell.match-cell {
 }
 
 .candidate.match-candidate {
-    background-color: var(--sudoku-active-strong);
+    background-color: var(
+        --sudoku-candidate-highlight-color,
+        var(--sudoku-active-strong)
+    );
     color: #000000;
     opacity: 1;
 }
