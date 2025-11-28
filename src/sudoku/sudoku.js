@@ -14,6 +14,19 @@ const boardState = puzzle.map((row) => row.slice());
 const boardElement = document.getElementById('sudoku-board');
 const cells = new Map();
 const MATCH_CANDIDATE_CLASS = 'match-candidate';
+const MARKED_CANDIDATE_CLASS = 'candidate-marked';
+const MARKED_CANDIDATE_LABELS = Object.freeze([
+    '',
+    '①',
+    '②',
+    '③',
+    '④',
+    '⑤',
+    '⑥',
+    '⑦',
+    '⑧',
+    '⑨'
+]);
 const INVALID_PLACEMENT_CLASS = 'invalid-placement-cell';
 const highlightClasses = ['active-cell', 'peer-cell', 'match-cell', INVALID_PLACEMENT_CLASS];
 const CONFLICT_CLASS = 'conflict-cell';
@@ -40,6 +53,33 @@ let currentShareText = '';
 let shareButtonResetTimeout = null;
 
 const keyFromCoords = (row, col) => `${row}-${col}`;
+
+const getMarkedCandidateLabel = (number) => {
+    if (!Number.isInteger(number) || number < 1 || number >= MARKED_CANDIDATE_LABELS.length) {
+        return String(number);
+    }
+    const label = MARKED_CANDIDATE_LABELS[number];
+    return typeof label === 'string' && label.length > 0 ? label : String(number);
+};
+
+const updateCandidateButtonLabel = (button, number) => {
+    if (!button) {
+        return;
+    }
+    if (button.classList.contains(MARKED_CANDIDATE_CLASS)) {
+        button.textContent = getMarkedCandidateLabel(number);
+    } else {
+        button.textContent = String(number);
+    }
+};
+
+const setCandidateMarkedState = (button, number, shouldMark) => {
+    if (!button) {
+        return;
+    }
+    button.classList.toggle(MARKED_CANDIDATE_CLASS, Boolean(shouldMark));
+    updateCandidateButtonLabel(button, number);
+};
 
 const dispatchReady = () => {
     document.dispatchEvent(new Event('fouc:ready'));
@@ -653,16 +693,21 @@ const captureCellSnapshot = (cellKey, context) => {
     }
 
     const penciledNumbers = [];
+    const markedNumbers = [];
     cell.candidateButtons.forEach((button, number) => {
         if (button.classList.contains('penciled')) {
             penciledNumbers.push(number);
+        }
+        if (button.classList.contains(MARKED_CANDIDATE_CLASS)) {
+            markedNumbers.push(number);
         }
     });
 
     context.cellSnapshots.set(cellKey, {
         value: boardState[cell.row][cell.col],
         filled: cell.filled,
-        penciledNumbers
+        penciledNumbers,
+        markedNumbers
     });
 };
 
@@ -672,7 +717,8 @@ const restoreCellSnapshot = (cellKey, snapshot) => {
         return;
     }
 
-    const penciledSet = new Set(snapshot.penciledNumbers);
+    const penciledSet = new Set(snapshot.penciledNumbers || []);
+    const markedSet = new Set(snapshot.markedNumbers || []);
     boardState[cell.row][cell.col] = snapshot.value;
     cell.filled = snapshot.filled;
     if (snapshot.filled && snapshot.value > 0) {
@@ -689,6 +735,8 @@ const restoreCellSnapshot = (cellKey, snapshot) => {
         if (!snapshot.filled && penciledSet.has(number)) {
             button.classList.add('penciled');
         }
+        const shouldBeMarked = !snapshot.filled && markedSet.has(number);
+        setCandidateMarkedState(button, number, shouldBeMarked);
     });
 };
 
@@ -743,6 +791,7 @@ const clearPeerCandidatePencils = (row, col, value, actionContext = null) => {
         if (button) {
             const wasPenciled = button.classList.contains('penciled');
             button.classList.remove('penciled');
+            setCandidateMarkedState(button, value, false);
             if (wasPenciled) {
                 impactedCellKeys.add(key);
             }
@@ -789,7 +838,8 @@ const findSinglePenciledCandidateValue = (cell) => {
 };
 
 const cascadeFillSingleCandidateCells = (initialCellKeys = [], actionContext = null) => {
-    const queue = Array.from(initialCellKeys);
+    const allowedCells = new Set(initialCellKeys || []);
+    const queue = Array.from(allowedCells);
     const queued = new Set(queue);
 
     while (queue.length > 0) {
@@ -815,10 +865,11 @@ const cascadeFillSingleCandidateCells = (initialCellKeys = [], actionContext = n
             { triggerCascade: false, focusCell: false, actionContext }
         );
         impactedCells.forEach((impactedKey) => {
-            if (!queued.has(impactedKey)) {
-                queue.push(impactedKey);
-                queued.add(impactedKey);
+            if (!allowedCells.has(impactedKey) || queued.has(impactedKey)) {
+                return;
             }
+            queue.push(impactedKey);
+            queued.add(impactedKey);
         });
     }
 };
@@ -869,8 +920,9 @@ const setCellValue = (cellKey, value, options = {}) => {
     cell.filled = true;
     cell.element.classList.add('filled', 'player-value');
     const impactedCells = clearPeerCandidatePencils(cell.row, cell.col, value, context);
-    cell.candidateButtons.forEach((button) => {
+    cell.candidateButtons.forEach((button, number) => {
         button.classList.remove('available', 'penciled');
+        setCandidateMarkedState(button, number, false);
         button.disabled = true;
     });
     refreshAllCandidates();
@@ -910,9 +962,10 @@ const clearCellValue = (cellKey) => {
     cell.valueEl.textContent = '';
     cell.filled = false;
     cell.element.classList.remove('filled', 'player-value');
-    cell.candidateButtons.forEach((button) => {
+    cell.candidateButtons.forEach((button, number) => {
         button.disabled = false;
         button.classList.remove('penciled');
+        setCandidateMarkedState(button, number, false);
     });
     refreshAllCandidates();
     refreshConflicts();
@@ -1004,6 +1057,37 @@ const handleCandidateClick = (event, cellKey, number) => {
     pushUndoAction(context);
 };
 
+const handleCandidateMark = (event, cellKey, number) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (isGameComplete) {
+        return;
+    }
+
+    const cell = cells.get(cellKey);
+    if (!cell || cell.isGiven || cell.filled) {
+        return;
+    }
+
+    const button = cell.candidateButtons.get(number);
+    if (!button || button.disabled) {
+        return;
+    }
+
+    const context = createActionContext();
+    captureCellSnapshot(cellKey, context);
+    const wasMarked = button.classList.contains(MARKED_CANDIDATE_CLASS);
+    setCandidateMarkedState(button, number, !wasMarked);
+    const isMarked = button.classList.contains(MARKED_CANDIDATE_CLASS);
+    if (wasMarked === isMarked) {
+        return;
+    }
+
+    startTimerIfNeeded();
+    pushUndoAction(context);
+};
+
 const handleCellClear = (event, cellKey) => {
     event.stopPropagation();
 
@@ -1054,6 +1138,7 @@ const createPlayerCell = (row, col) => {
     const grid = document.createElement('div');
     grid.className = 'candidates-grid';
     const candidateButtons = new Map();
+    const cellKey = keyFromCoords(row, col);
 
     for (let number = 1; number <= 9; number += 1) {
         const button = document.createElement('button');
@@ -1072,13 +1157,13 @@ const createPlayerCell = (row, col) => {
         button.addEventListener('mousedown', (event) => {
             event.preventDefault();
         });
-        button.addEventListener('click', (event) => handleCandidateClick(event, keyFromCoords(row, col), number));
+        button.addEventListener('click', (event) => handleCandidateClick(event, cellKey, number));
+        button.addEventListener('contextmenu', (event) => handleCandidateMark(event, cellKey, number));
         grid.appendChild(button);
         candidateButtons.set(number, button);
     }
 
     cellElement.appendChild(grid);
-    const cellKey = keyFromCoords(row, col);
     cellElement.addEventListener('pointerdown', () => handleCellPointerDown(cellKey));
     cellElement.addEventListener('focus', () => {
         if (isGameComplete) {
