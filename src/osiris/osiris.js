@@ -29,13 +29,13 @@ let currentWinShareText = '';
 const SPAWN_INTERVAL = { min: 3000, max: 5000 };
 const OSIRIS_SPIN = { min: -2.2, max: 2.2 };
 const OSIRIS_LINE_WIDTH = 3;
-const MINING_DAMAGE_PER_SECOND = 10;
+const MINING_DAMAGE_PER_SECOND = 5;
 const CURSOR_COLLISION_RADIUS = 1;
 const SPLIT_COUNT = 2;
 const SPLIT_DIRECTION_VARIANCE = Math.PI / 6;
 const ORE_CONVERSION_RATE = 1;
 const UPGRADE_HOLD_DURATION = 1;
-const STRENGTH_INCREMENT = 10;
+const STRENGTH_INCREMENT = 5;
 const RADIUS_INCREMENT = 4;
 const FLOCK_COUNT_BASE = 1;
 const ORE_RATIO_UPDATE_INTERVAL = { min: 5000, max: 10000 };
@@ -45,12 +45,20 @@ const START_TRIANGLE_TIER_INDEX = 0;
 const START_TRIANGLE_HEALTH = 1;
 const FLOCK_MEMBER_RADIUS = 4;
 const FLOCK_MEMBER_COLOR = '#000';
-const FLOCK_FOLLOW_LERP = 7;
+const FLOCK_MAX_SPEED = 260;
+const FLOCK_MAX_FORCE = 520;
+const FLOCK_NEIGHBOR_RADIUS = 90;
+const FLOCK_SEPARATION_RADIUS = 28;
+const FLOCK_COHESION_WEIGHT = 0.4;
+const FLOCK_ALIGNMENT_WEIGHT = 0.3;
+const FLOCK_SEPARATION_WEIGHT = 0.75;
+const FLOCK_POINTER_WEIGHT = 1.2;
 const FLOCK_CHASE_LERP = 4;
 const FLOCK_OFFSET_RANGE = { min: 12, max: 48 };
 const FLOCK_SPAWN_INTERVAL_MS = 1000;
 const FLOCK_SENSOR_DISTANCE = 60;
 const FLOCK_ATTACH_DISTANCE = 4;
+const FLOCK_ATTACH_SURFACE_OFFSET = -FLOCK_MEMBER_RADIUS * 0.5;
 
 const UPGRADE_CONFIG = {
     num: { increment: 1 },
@@ -152,6 +160,7 @@ const state = {
     },
     hasSpawnedInitialOsiris: false,
     starterActive: false,
+    starterFlockPending: false,
 };
 
 let width = window.innerWidth;
@@ -177,6 +186,31 @@ function getRandomOreRatioValue() {
 
 function clamp(value, min, max) {
     return Math.max(min, Math.min(max, value));
+}
+
+function limitVector(vector, maxMagnitude) {
+    const magnitude = Math.hypot(vector.x, vector.y);
+    if (magnitude > maxMagnitude && magnitude > 0) {
+        const scale = maxMagnitude / magnitude;
+        vector.x *= scale;
+        vector.y *= scale;
+    }
+    return vector;
+}
+
+function computeSteeringForce(desiredVector, member) {
+    const desired = limitVector(
+        {
+            x: desiredVector.x,
+            y: desiredVector.y,
+        },
+        FLOCK_MAX_SPEED
+    );
+    const steering = {
+        x: desired.x - (member.vx || 0),
+        y: desired.y - (member.vy || 0),
+    };
+    return limitVector(steering, FLOCK_MAX_FORCE);
 }
 
 function getFlockSpawnCount() {
@@ -849,18 +883,16 @@ function spawnFlockMembers(count) {
     for (let i = 0; i < count; i++) {
         const angle = Math.random() * Math.PI * 2;
         const distance = randRange(FLOCK_OFFSET_RANGE.min, FLOCK_OFFSET_RANGE.max);
-        const orbitSpeed = randRange(-1, 1);
         state.flockMembers.push({
             id: flockIdCounter++,
             x: clamp(baseX + Math.cos(angle) * distance, 0, width),
             y: clamp(baseY + Math.sin(angle) * distance, 0, height),
-            orbitAngle: angle,
-            orbitRadius: distance,
-            orbitSpeed,
+            vx: randRange(-20, 20),
+            vy: randRange(-20, 20),
             chasingId: null,
             attachedToId: null,
-            attachOffsetX: 0,
-            attachOffsetY: 0,
+            attachRadius: null,
+            attachAngleOffset: null,
             destroyed: false,
         });
     }
@@ -907,20 +939,103 @@ function attachFlockMemberToOsiris(member, osiris) {
     member.chasingId = null;
     const dx = member.x - osiris.x;
     const dy = member.y - osiris.y;
-    const distance = Math.hypot(dx, dy) || 1;
-    const attachRadius = osiris.radius + FLOCK_MEMBER_RADIUS + 1;
-    const nx = dx / distance;
-    const ny = dy / distance;
-    member.attachOffsetX = nx * attachRadius;
-    member.attachOffsetY = ny * attachRadius;
-    member.x = osiris.x + member.attachOffsetX;
-    member.y = osiris.y + member.attachOffsetY;
+    const attachRadius = Math.max(1, osiris.radius + FLOCK_ATTACH_SURFACE_OFFSET);
+    const baseAngle = Math.atan2(dy, dx);
+    member.attachRadius = attachRadius;
+    member.attachAngleOffset = baseAngle - osiris.rotation;
+    member.x = osiris.x + Math.cos(baseAngle) * attachRadius;
+    member.y = osiris.y + Math.sin(baseAngle) * attachRadius;
+    member.vx = 0;
+    member.vy = 0;
+}
+
+function computeBoidAcceleration(member, pointerX, pointerY, pointerActive) {
+    const alignment = { x: 0, y: 0 };
+    const cohesion = { x: 0, y: 0 };
+    const separation = { x: 0, y: 0 };
+    let neighborCount = 0;
+    let alignmentCount = 0;
+    let separationCount = 0;
+
+    for (const other of state.flockMembers) {
+        if (other === member || other.destroyed) continue;
+        if (typeof other.attachedToId === 'number') continue;
+        if (typeof other.chasingId === 'number') continue;
+        const dx = other.x - member.x;
+        const dy = other.y - member.y;
+        const distance = Math.hypot(dx, dy);
+        if (distance === 0 || distance > FLOCK_NEIGHBOR_RADIUS) {
+            continue;
+        }
+        neighborCount++;
+        cohesion.x += other.x;
+        cohesion.y += other.y;
+        alignment.x += other.vx || 0;
+        alignment.y += other.vy || 0;
+        alignmentCount++;
+        if (distance < FLOCK_SEPARATION_RADIUS) {
+            separation.x -= dx / distance;
+            separation.y -= dy / distance;
+            separationCount++;
+        }
+    }
+
+    const acceleration = { x: 0, y: 0 };
+    if (neighborCount > 0) {
+        cohesion.x = cohesion.x / neighborCount - member.x;
+        cohesion.y = cohesion.y / neighborCount - member.y;
+        const cohesionSteer = computeSteeringForce(
+            { x: cohesion.x, y: cohesion.y },
+            member
+        );
+        acceleration.x += cohesionSteer.x * FLOCK_COHESION_WEIGHT;
+        acceleration.y += cohesionSteer.y * FLOCK_COHESION_WEIGHT;
+    }
+
+    if (alignmentCount > 0) {
+        alignment.x /= alignmentCount;
+        alignment.y /= alignmentCount;
+        const alignmentSteer = computeSteeringForce(
+            { x: alignment.x, y: alignment.y },
+            member
+        );
+        acceleration.x += alignmentSteer.x * FLOCK_ALIGNMENT_WEIGHT;
+        acceleration.y += alignmentSteer.y * FLOCK_ALIGNMENT_WEIGHT;
+    }
+
+    if (separationCount > 0) {
+        separation.x /= separationCount;
+        separation.y /= separationCount;
+        const separationSteer = computeSteeringForce(
+            { x: separation.x, y: separation.y },
+            member
+        );
+        acceleration.x += separationSteer.x * FLOCK_SEPARATION_WEIGHT;
+        acceleration.y += separationSteer.y * FLOCK_SEPARATION_WEIGHT;
+    }
+
+    const pointerDx = pointerX - member.x;
+    const pointerDy = pointerY - member.y;
+    const pointerDistance = Math.hypot(pointerDx, pointerDy);
+    const pointerSteer = computeSteeringForce(
+        {
+            x: pointerDx,
+            y: pointerDy,
+        },
+        member
+    );
+    const pointerDistanceScale = clamp(pointerDistance / 150, 0.35, 2.5);
+    const pointerWeight = (pointerActive ? FLOCK_POINTER_WEIGHT : FLOCK_POINTER_WEIGHT * 0.4) * pointerDistanceScale;
+    acceleration.x += pointerSteer.x * pointerWeight;
+    acceleration.y += pointerSteer.y * pointerWeight;
+    return acceleration;
 }
 
 function updateFlockMembers(delta) {
     if (!state.flockMembers.length) return;
     const pointerX = state.pointer.active ? state.pointer.x : width / 2;
     const pointerY = state.pointer.active ? state.pointer.y : height / 2;
+    const pointerActive = state.pointer.active;
 
     for (const member of state.flockMembers) {
         if (member.destroyed) continue;
@@ -933,15 +1048,19 @@ function updateFlockMembers(delta) {
                 member.destroyed = true;
                 continue;
             }
-            if (
-                typeof member.attachOffsetX !== 'number' ||
-                typeof member.attachOffsetY !== 'number'
-            ) {
-                member.attachOffsetX = target.radius + FLOCK_MEMBER_RADIUS + 1;
-                member.attachOffsetY = 0;
+            if (typeof member.attachRadius !== 'number') {
+                member.attachRadius = Math.max(1, target.radius + FLOCK_ATTACH_SURFACE_OFFSET);
             }
-            member.x = target.x + member.attachOffsetX;
-            member.y = target.y + member.attachOffsetY;
+            if (typeof member.attachAngleOffset !== 'number') {
+                const fallbackDx = member.x - target.x;
+                const fallbackDy = member.y - target.y;
+                member.attachAngleOffset = Math.atan2(fallbackDy, fallbackDx) - target.rotation;
+            }
+            const attachAngle = target.rotation + member.attachAngleOffset;
+            member.x = target.x + Math.cos(attachAngle) * member.attachRadius;
+            member.y = target.y + Math.sin(attachAngle) * member.attachRadius;
+            member.vx = 0;
+            member.vy = 0;
             target.health -= getMiningDamage() * delta;
             if (target.health <= 0) {
                 breakOsiris(target);
@@ -970,6 +1089,8 @@ function updateFlockMembers(delta) {
 
         if (chasingTarget) {
             const lerpSpeed = Math.min(1, FLOCK_CHASE_LERP * delta);
+            const prevX = member.x;
+            const prevY = member.y;
             member.x += (chasingTarget.x - member.x) * lerpSpeed;
             member.y += (chasingTarget.y - member.y) * lerpSpeed;
             const dx = chasingTarget.x - member.x;
@@ -981,15 +1102,23 @@ function updateFlockMembers(delta) {
             } else if (surfaceDistance > FLOCK_SENSOR_DISTANCE * 1.5) {
                 member.chasingId = null;
             }
+            const safeDelta = delta > 0 ? delta : 1 / 60;
+            member.vx = (member.x - prevX) / safeDelta;
+            member.vy = (member.y - prevY) / safeDelta;
         } else {
-            member.orbitAngle += member.orbitSpeed * delta;
-            const offsetX = Math.cos(member.orbitAngle) * member.orbitRadius;
-            const offsetY = Math.sin(member.orbitAngle) * member.orbitRadius;
-            const targetX = pointerX + offsetX;
-            const targetY = pointerY + offsetY;
-            const lerpSpeed = Math.min(1, FLOCK_FOLLOW_LERP * delta);
-            member.x += (targetX - member.x) * lerpSpeed;
-            member.y += (targetY - member.y) * lerpSpeed;
+            member.vx = (member.vx || 0);
+            member.vy = (member.vy || 0);
+            const acceleration = computeBoidAcceleration(member, pointerX, pointerY, pointerActive);
+            member.vx += acceleration.x * delta;
+            member.vy += acceleration.y * delta;
+            const limitedVelocity = limitVector(
+                { x: member.vx, y: member.vy },
+                FLOCK_MAX_SPEED
+            );
+            member.vx = limitedVelocity.x;
+            member.vy = limitedVelocity.y;
+            member.x += member.vx * delta;
+            member.y += member.vy * delta;
         }
 
         member.x = clamp(member.x, 0, width);
@@ -1150,9 +1279,16 @@ function resetPointerToCenter() {
 
 function resetGame() {
     const nowTime = performance.now();
+    const cursorInsideWrapper = isCursorHoveringWrapper();
+    pointerInsideWrapper = cursorInsideWrapper;
     state.osirisField = [];
     state.flockMembers = [];
-    spawnFlockMembers(1);
+    state.starterFlockPending = false;
+    if (cursorInsideWrapper || document.pointerLockElement === canvas) {
+        spawnFlockMembers(1);
+    } else {
+        state.starterFlockPending = true;
+    }
     state.frozen = false;
     state.frozenAt = null;
     setPlaySurfaceFrozen(false);
@@ -1203,8 +1339,24 @@ function freezeField(reason) {
     updateTimerDisplay(state.frozenAt);
 }
 
+function maybeSpawnPendingStarterFlock() {
+    if (!state.starterFlockPending) {
+        return;
+    }
+    if (!state.awaitingStart || !state.starterActive) {
+        state.starterFlockPending = false;
+        return;
+    }
+    if (!pointerInsideWrapper && document.pointerLockElement !== canvas) {
+        return;
+    }
+    spawnFlockMembers(1);
+    state.starterFlockPending = false;
+}
+
 function handleWrapperPointerEnter() {
     pointerInsideWrapper = true;
+    maybeSpawnPendingStarterFlock();
 }
 
 function handleWrapperPointerLeave(event) {
@@ -1297,8 +1449,10 @@ function handlePointerMovement(event) {
             return;
         }
         pointerInsideWrapper = true;
+        maybeSpawnPendingStarterFlock();
     } else if (locked) {
         pointerInsideWrapper = true;
+        maybeSpawnPendingStarterFlock();
     }
     updateVirtualPointerFromMouse(event);
 }
@@ -1308,6 +1462,7 @@ function handlePointerLockChange() {
     state.pointer.locked = locked;
     if (locked) {
         pointerInsideWrapper = true;
+        maybeSpawnPendingStarterFlock();
         return;
     }
     if (!state.frozen && !state.awaitingStart) {
