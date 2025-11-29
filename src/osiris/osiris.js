@@ -1285,7 +1285,7 @@ function resetGame() {
     state.flockMembers = [];
     state.starterFlockPending = false;
     if (cursorInsideWrapper || document.pointerLockElement === canvas) {
-        spawnFlockMembers(1);
+    spawnFlockMembers(1);
     } else {
         state.starterFlockPending = true;
     }
