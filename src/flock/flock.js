@@ -1,19 +1,19 @@
-const canvas = document.getElementById('osiris-canvas');
+const canvas = document.getElementById('flock-canvas');
 const ctx = canvas.getContext('2d');
 const resetButton = document.getElementById('reset-button');
 const playSurface = document.querySelector('.play-surface');
 const resetOverlay = document.getElementById('reset-overlay');
-const osirisWrapper = document.querySelector('.osiris-wrapper');
-const timerDisplay = document.getElementById('osiris-timer');
+const flockWrapper = document.querySelector('.flock-wrapper');
+const timerDisplay = document.getElementById('flock-timer');
 const shareButton = document.getElementById('share-button');
 const shareScoreMessage = document.getElementById('share-score');
-const OSIRIS_SHARE_URL = 'https://othertab.com/osiris/';
+const FLOCK_SHARE_URL = 'https://othertab.com/flock/';
 let shareButtonResetTimeout = null;
 let currentWinShareText = '';
 
 const SPAWN_INTERVAL = { min: 1000, max: 3000 };
-const OSIRIS_SPIN = { min: -2.2, max: 2.2 };
-const OSIRIS_LINE_WIDTH = 3;
+const ASTEROID_SPIN = { min: -2.2, max: 2.2 };
+const ASTEROID_LINE_WIDTH = 3;
 const MINING_DAMAGE_PER_SECOND = 1;
 const CURSOR_COLLISION_RADIUS = 1;
 const SPLIT_COUNT = 2;
@@ -32,58 +32,58 @@ const FLOCK_SENSOR_DISTANCE = 60;
 const FLOCK_ATTACH_DISTANCE = 4;
 const FLOCK_ATTACH_SURFACE_OFFSET = -FLOCK_MEMBER_RADIUS * 0.5;
 const FLOCK_DAMAGE_BLINK_DURATION = 0.2;
-const START_CURSOR_HOLD_MS = 1000;
-const START_CURSOR_EXTRA_MS = 2000;
+const START_CURSOR_HOLD_MS = 600;
+const START_CURSOR_EXTRA_MS = 1800;
 const BORDER_BLINK_INTERVAL_MS = 300;
 
-const OSIRIS_TIERS = [
+const ASTEROID_TIERS = [
     {
         name: 'triangle',
         sides: 3,
         size: { min: 15, max: 25 },
         speed: { min: 150, max: 300 },
-        health: { min: 10, max: 20 },
+        health: { min: 1, max: 10 },
     },
     {
         name: 'square',
         sides: 4,
         size: { min: 20, max: 35 },
         speed: { min: 120, max: 240 },
-        health: { min: 20, max: 30 },
+        health: { min: 2, max: 12 },
     },
     {
         name: 'pentagon',
         sides: 5,
         size: { min: 25, max: 45 },
         speed: { min: 100, max: 200 },
-        health: { min: 30, max: 40 },
+        health: { min: 4, max: 14 },
     },
     {
         name: 'hexagon',
         sides: 6,
         size: { min: 30, max: 55 },
         speed: { min: 90, max: 180 },
-        health: { min: 40, max: 50 },
+        health: { min: 6, max: 16 },
     },
     {
         name: 'heptagon',
         sides: 7,
         size: { min: 35, max: 75 },
         speed: { min: 70, max: 140 },
-        health: { min: 50, max: 60 },
+        health: { min: 8, max: 18 },
     },
     {
         name: 'octagon',
         sides: 8,
         size: { min: 40, max: 95 },
         speed: { min: 60, max: 120 },
-        health: { min: 60, max: 70 },
+        health: { min: 10, max: 20 },
     },
 ];
 
-const MAX_TIER_INDEX = OSIRIS_TIERS.length - 1;
+const MAX_TIER_INDEX = ASTEROID_TIERS.length - 1;
 const OCTAGON_TIER_INDEX = (() => {
-    const idx = OSIRIS_TIERS.findIndex((tier) => tier.name === 'octagon');
+    const idx = ASTEROID_TIERS.findIndex((tier) => tier.name === 'octagon');
     return idx >= 0 ? idx : MAX_TIER_INDEX;
 })();
 
@@ -130,9 +130,10 @@ function getFlockSpawnCount() {
     return FLOCK_COUNT_BASE;
 }
 
-function getFlockSpawnIntervalMs() {
+function getFlockSpawnIntervalMs(now = performance.now()) {
     const spawnRate = Math.max(1, getFlockSpawnCount());
-    return FLOCK_SPAWN_INTERVAL_MS / spawnRate;
+    const difficultyMultiplier = getDifficultyMultiplier(now);
+    return (FLOCK_SPAWN_INTERVAL_MS / spawnRate) / difficultyMultiplier;
 }
 
 function getMiningDamage() {
@@ -218,7 +219,7 @@ function getOsirisSurfacePoint(osiris, angle) {
 }
 
 function applyLineWidth(widthValue) {
-    document.documentElement.style.setProperty('--osiris-line-width', widthValue);
+    document.documentElement.style.setProperty('--flock-line-width', widthValue);
 }
 
 function setPlaySurfaceFrozen(frozen) {
@@ -305,7 +306,7 @@ function startGameplay(now = performance.now()) {
     setPlaySurfaceLive(true);
     const startTime = typeof now === 'number' ? now : performance.now();
     state.gameStartTime = startTime;
-    const flockSpawnInterval = getFlockSpawnIntervalMs();
+    const flockSpawnInterval = getFlockSpawnIntervalMs(startTime);
     state.nextSpawnAt = startTime;
     state.lastFlockSpawnAt = startTime;
     state.nextFlockSpawnAt = startTime + flockSpawnInterval;
@@ -316,9 +317,9 @@ function startGameplay(now = performance.now()) {
 
 function isCursorHoveringWrapper() {
     return Boolean(
-        osirisWrapper &&
-        typeof osirisWrapper.matches === 'function' &&
-        osirisWrapper.matches(':hover')
+        flockWrapper &&
+        typeof flockWrapper.matches === 'function' &&
+        flockWrapper.matches(':hover')
     );
 }
 
@@ -394,7 +395,7 @@ function updateShareScoreDisplay(visible) {
 
 function getWinShareText() {
     const elapsedLabel = formatElapsedTime(getElapsedTimeMs());
-    return `OSIRIS\n${elapsedLabel}\n${OSIRIS_SHARE_URL}`;
+    return `FLOCK\n${elapsedLabel}\n${FLOCK_SHARE_URL}`;
 }
 
 function showWinShareButton() {
@@ -528,7 +529,7 @@ function getDifficultyMultiplier(now = performance.now()) {
 }
 
 function createOsirisFromTier(tierIndex, options = {}) {
-    const tier = OSIRIS_TIERS[tierIndex] || OSIRIS_TIERS[MAX_TIER_INDEX];
+    const tier = ASTEROID_TIERS[tierIndex] || ASTEROID_TIERS[MAX_TIER_INDEX];
     const parentRadius = options.parentRadius;
     let radius = options.radius ?? randRange(tier.size.min, tier.size.max);
     if (parentRadius) {
@@ -575,7 +576,7 @@ function createOsirisFromTier(tierIndex, options = {}) {
     const spin =
         typeof options.spin === 'number'
             ? options.spin
-            : randRange(OSIRIS_SPIN.min, OSIRIS_SPIN.max);
+            : randRange(ASTEROID_SPIN.min, ASTEROID_SPIN.max);
 
     return {
         id: osirisIdCounter++,
@@ -614,7 +615,7 @@ function breakOsiris(osiris) {
     const nextTierIndex = osiris.tierIndex - 1;
     if (nextTierIndex >= 0) {
         const difficultyMultiplier = getDifficultyMultiplier();
-        const tier = OSIRIS_TIERS[nextTierIndex];
+        const tier = ASTEROID_TIERS[nextTierIndex];
         const speedMin = tier.speed.min * difficultyMultiplier;
         const speedMax = tier.speed.max * difficultyMultiplier;
 
@@ -702,7 +703,7 @@ function maybeSpawnFlockMembers(now) {
     ) {
         return;
     }
-    const spawnInterval = getFlockSpawnIntervalMs();
+    const spawnInterval = getFlockSpawnIntervalMs(now);
     if (!state.nextFlockSpawnAt) {
         state.lastFlockSpawnAt = now;
         state.nextFlockSpawnAt = now + spawnInterval;
@@ -887,7 +888,7 @@ function detectCollisions() {
         const dy = state.pointer.y - osiris.y;
         const distance = Math.hypot(dx, dy);
         if (distance <= osiris.radius + pointerCollisionRadius) {
-            freezeField('osiris impact');
+            freezeField('flock impact');
             return;
         }
     }
@@ -911,29 +912,29 @@ function drawOsiriss() {
     const bodyStyle = getComputedStyle(document.body);
     const rootStyle = getComputedStyle(document.documentElement);
     ctx.lineWidth =
-        parseFloat(bodyStyle.getPropertyValue('--osiris-line-width')) ||
-        parseFloat(rootStyle.getPropertyValue('--osiris-line-width')) ||
-        OSIRIS_LINE_WIDTH;
+        parseFloat(bodyStyle.getPropertyValue('--flock-line-width')) ||
+        parseFloat(rootStyle.getPropertyValue('--flock-line-width')) ||
+        ASTEROID_LINE_WIDTH;
     const strokeColor =
-        (bodyStyle.getPropertyValue('--osiris-stroke') ||
-            rootStyle.getPropertyValue('--osiris-stroke') ||
-            rootStyle.getPropertyValue('--osiris-accent') ||
+        (bodyStyle.getPropertyValue('--flock-stroke') ||
+            rootStyle.getPropertyValue('--flock-stroke') ||
+            rootStyle.getPropertyValue('--flock-accent') ||
             '#000')
             .trim();
     ctx.strokeStyle = strokeColor;
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
     const rawInnerStrokeOpacity =
-        (bodyStyle.getPropertyValue('--osiris-inner-stroke-opacity') ||
-            rootStyle.getPropertyValue('--osiris-inner-stroke-opacity') ||
+        (bodyStyle.getPropertyValue('--flock-inner-stroke-opacity') ||
+            rootStyle.getPropertyValue('--flock-inner-stroke-opacity') ||
             '1')
             .trim();
     const parsedInnerStrokeOpacity = parseFloat(rawInnerStrokeOpacity);
     const innerStrokeOpacity = Number.isFinite(parsedInnerStrokeOpacity)
         ? clamp(parsedInnerStrokeOpacity, 0, 1)
         : 1;
-    const flockTextColor = resolveCssValue(bodyStyle, rootStyle, '--osiris-text', '#000');
-    const flockBackgroundColor = resolveCssValue(bodyStyle, rootStyle, '--osiris-bg', '#fff');
+    const flockTextColor = resolveCssValue(bodyStyle, rootStyle, '--flock-text', '#000');
+    const flockBackgroundColor = resolveCssValue(bodyStyle, rootStyle, '--flock-bg', '#fff');
     for (const osiris of state.osirisField) {
         if (osiris.destroyed) continue;
         const points = getOsirisVertices(osiris);
@@ -988,7 +989,7 @@ function resetGame() {
     setPlaySurfaceFrozen(false);
     clearPlaySurfaceBlinkStyle();
     setPlaySurfaceLive(false);
-    const flockSpawnInterval = getFlockSpawnIntervalMs();
+    const flockSpawnInterval = getFlockSpawnIntervalMs(nowTime);
     state.nextSpawnAt = nowTime;
     state.lastFlockSpawnAt = nowTime;
     state.nextFlockSpawnAt = nowTime + flockSpawnInterval;
@@ -1032,14 +1033,14 @@ function handleWrapperPointerEnter(event) {
 }
 
 function handleWrapperPointerLeave(event) {
-    if (!osirisWrapper) {
+    if (!flockWrapper) {
         return;
     }
     if (document.pointerLockElement === canvas) {
         return;
     }
     const nextTarget = event.relatedTarget;
-    if (nextTarget && osirisWrapper.contains(nextTarget)) {
+    if (nextTarget && flockWrapper.contains(nextTarget)) {
         return;
     }
     pointerInsideWrapper = false;
@@ -1050,7 +1051,7 @@ function handleWrapperPointerLeave(event) {
     if (state.frozen) {
         return;
     }
-    freezeField('cursor left osiris wrapper');
+    freezeField('cursor left flock wrapper');
 }
 
 function handleWindowLeave(event) {
@@ -1105,10 +1106,10 @@ function updateVirtualPointerFromMouse(event) {
 }
 
 function isPointerWithinWrapper(clientX, clientY) {
-    if (!osirisWrapper || typeof clientX !== 'number' || typeof clientY !== 'number') {
+    if (!flockWrapper || typeof clientX !== 'number' || typeof clientY !== 'number') {
         return true;
     }
-    const rect = osirisWrapper.getBoundingClientRect();
+    const rect = flockWrapper.getBoundingClientRect();
     if (!rect) {
         return true;
     }
@@ -1122,14 +1123,14 @@ function isPointerWithinWrapper(clientX, clientY) {
 
 function handlePointerMovement(event) {
     const locked = document.pointerLockElement === canvas;
-    if (!locked && osirisWrapper) {
+    if (!locked && flockWrapper) {
         const inside = isPointerWithinWrapper(event.clientX, event.clientY);
         if (!inside) {
             pointerInsideWrapper = false;
             if (state.awaitingStart) {
                 resetStartCountdown();
             } else if (!state.frozen) {
-                freezeField('cursor left osiris wrapper');
+                freezeField('cursor left flock wrapper');
             }
             return;
         }
@@ -1162,7 +1163,7 @@ function handlePointerLockChange() {
         return;
     }
     if (!state.frozen) {
-        freezeField('cursor left osiris wrapper');
+        freezeField('cursor left flock wrapper');
     }
 }
 
@@ -1220,9 +1221,9 @@ function loop(now) {
 
 resizeCanvas();
 window.addEventListener('resize', resizeCanvas);
-if (osirisWrapper) {
-    osirisWrapper.addEventListener('pointerenter', handleWrapperPointerEnter, { passive: true });
-    osirisWrapper.addEventListener('pointerleave', handleWrapperPointerLeave, { passive: true });
+if (flockWrapper) {
+    flockWrapper.addEventListener('pointerenter', handleWrapperPointerEnter, { passive: true });
+    flockWrapper.addEventListener('pointerleave', handleWrapperPointerLeave, { passive: true });
 }
 window.addEventListener('mousemove', handlePointerMovement, { passive: true });
 document.addEventListener('mouseleave', handleWindowLeave, { passive: true });
@@ -1238,11 +1239,11 @@ if (shareButton) {
     shareButton.addEventListener('click', handleShareButtonClick);
 }
 hideResetOverlay();
-if (osirisWrapper && typeof osirisWrapper.matches === 'function') {
-    pointerInsideWrapper = osirisWrapper.matches(':hover');
+if (flockWrapper && typeof flockWrapper.matches === 'function') {
+    pointerInsideWrapper = flockWrapper.matches(':hover');
 }
 
-applyLineWidth(OSIRIS_LINE_WIDTH);
+applyLineWidth(ASTEROID_LINE_WIDTH);
 
 resetGame();
 requestAnimationFrame(loop);

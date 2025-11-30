@@ -1,9 +1,10 @@
 :root {
-    --osiris-bg: white;
-    --osiris-accent: blue;
-    --osiris-text: black;
-    --osiris-stroke: blue;
-    --osiris-inner-stroke-opacity: 0.4;
+    --flock-bg: white;
+    --flock-accent: blue;
+    --flock-text: black;
+    --flock-stroke: blue;
+    --flock-inner-stroke-opacity: 0.4;
+    --flock-line-width: 3;
     --mining-circle-color: black;
     --laser-color: black;
     --pointer-laser-color: var(--laser-color);
@@ -13,11 +14,12 @@
 }
 
 body.dark-mode {
-    --osiris-bg: black;
-    --osiris-accent: red;
-    --osiris-text: white;
-    --osiris-stroke: red;
-    --osiris-inner-stroke-opacity: 0.4;
+    --flock-bg: black;
+    --flock-accent: red;
+    --flock-text: white;
+    --flock-stroke: red;
+    --flock-inner-stroke-opacity: 0.4;
+    --flock-line-width: 3;
     --mining-circle-color: white;
     --laser-color: white;
     --pointer-laser-color: var(--laser-color);
@@ -39,8 +41,8 @@ body {
     min-height: 100vh;
     display: flex;
     flex-direction: column;
-    background-color: var(--osiris-bg);
-    color: var(--osiris-text);
+    background-color: var(--flock-bg);
+    color: var(--flock-text);
     overflow: hidden;
     margin: 0;
 }
@@ -61,11 +63,11 @@ main {
     justify-content: center;
 }
 
-.osiris-wrapper {
+.flock-wrapper {
     display: flex;
     justify-content: center;
     align-items: center;
-    background-color: var(--osiris-bg);
+    background-color: var(--flock-bg);
     box-sizing: border-box;
     cursor: auto;
 }
@@ -76,10 +78,14 @@ main {
     height: 600px;
     padding: 0;
     box-sizing: border-box;
-    background-color: var(--osiris-bg);
+    background-color: var(--flock-bg);
     overflow: hidden;
-    border: 8px solid var(--osiris-stroke);
+    border: 8px dashed var(--flock-stroke);
     transition: border-style 0.1s ease;
+}
+
+.play-surface.is-live {
+    border-style: solid;
 }
 
 .play-surface.is-frozen {
@@ -94,7 +100,7 @@ main {
     border-style: dashed;
 }
 
-.osiris-field {
+.flock-field {
     position: absolute;
     inset: 0;
     background: transparent;
@@ -102,7 +108,7 @@ main {
     pointer-events: none;
 }
 
-#osiris-canvas {
+#flock-canvas {
     width: 100%;
     height: 100%;
     display: block;
@@ -112,7 +118,7 @@ main {
 .reset-button {
     border: none;
     background: transparent;
-    color: var(--osiris-text);
+    color: var(--flock-text);
     font-style: italic;
     font-size: 1rem;
     padding: 0;
@@ -125,7 +131,7 @@ main {
     margin: 0;
 }
 
-.osiris-timer-wrapper {
+.flock-timer-wrapper {
     position: absolute;
     inset: 0;
     display: flex;
@@ -138,7 +144,7 @@ main {
     text-align: center;
 }
 
-.osiris-timer {
+.flock-timer {
     font-size: 100px;
     font-weight: 600;
     color: grey;
@@ -156,16 +162,16 @@ main {
     cursor: pointer;
 }
 
-.share-button:hover {
+ .share-button:hover {
     background-color: grey;
     margin: 0;
-    color: var(--osiris-text);
+    color: var(--flock-text);
 }
 
-.share-score {
+ .share-score {
     font-size: 1rem;
     text-transform: lowercase;
-    color: var(--osiris-text);
+    color: var(--flock-text);
     margin: 0;
 }
 

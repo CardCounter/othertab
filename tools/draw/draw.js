@@ -567,8 +567,8 @@ window.addEventListener('DOMContentLoaded', () => {
             case 'square':
                 drawSquareBrush(pos);
                 break;
-            case 'osiris':
-                drawOsirisBrush(pos);
+            case 'flock':
+                drawFlockBrush(pos);
                 break;
             case 'line':
                 drawLineTool(pos);
@@ -605,7 +605,7 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function drawOsirisBrush(pos) {
+    function drawFlockBrush(pos) {
         let radius = Math.max(1, brushSize / 2);
         const highRes = canvasSize >= 512;
         const isMediumBrush = highRes && currentBrushSizeType === '10';
@@ -1652,7 +1652,7 @@ window.addEventListener('DOMContentLoaded', () => {
         }
 
         if (key === 'w') { setActiveBrushType('square'); e.preventDefault(); return; }
-        if (key === 'a') { setActiveBrushType('osiris'); e.preventDefault(); return; }
+        if (key === 'a') { setActiveBrushType('flock'); e.preventDefault(); return; }
         if (key === 'e') { setActiveBrushType('eraser'); e.preventDefault(); return; }
         if (key === 's') { setActiveBrushType('line'); e.preventDefault(); return; }
         if (key === 'd') { setActiveBrushType('fill'); e.preventDefault(); return; }
