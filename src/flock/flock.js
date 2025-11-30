@@ -29,7 +29,6 @@ const FLOCK_CHASE_LERP = 7;
 const FLOCK_OFFSET_RANGE = { min: 10, max: 50 };
 const FLOCK_SPAWN_INTERVAL_MS = 1000;
 const FLOCK_SENSOR_DISTANCE = 60;
-const FLOCK_ATTACH_DISTANCE = 4;
 const FLOCK_ATTACH_SURFACE_OFFSET = -FLOCK_MEMBER_RADIUS * 0.5;
 const FLOCK_DAMAGE_BLINK_DURATION = 0.2;
 const START_CURSOR_HOLD_MS = 600;
@@ -95,6 +94,7 @@ const state = {
         y: 0,
         active: false,
         locked: false,
+        attackActive: false,
     },
     frozen: false,
     awaitingStart: false,
@@ -723,9 +723,9 @@ function maybeSpawnFlockMembers(now) {
     state.nextFlockSpawnAt = now + spawnInterval;
 }
 
-function tryAcquireFlockTarget(member) {
+function tryAcquireFlockTarget(member, maxDistance = FLOCK_SENSOR_DISTANCE) {
     let best = null;
-    let closest = FLOCK_SENSOR_DISTANCE;
+    let closest = maxDistance;
     for (const osiris of state.osirisField) {
         if (osiris.destroyed) continue;
         const dx = osiris.x - member.x;
@@ -737,6 +737,23 @@ function tryAcquireFlockTarget(member) {
         }
     }
     return best;
+}
+
+function tryAttachOnContact(member) {
+    if (typeof member.attachedToId === 'number') {
+        return false;
+    }
+    for (const osiris of state.osirisField) {
+        if (osiris.destroyed) continue;
+        const dx = osiris.x - member.x;
+        const dy = osiris.y - member.y;
+        const distance = Math.hypot(dx, dy);
+        if (distance <= osiris.radius + FLOCK_MEMBER_RADIUS) {
+            attachFlockMemberToOsiris(member, osiris);
+            return true;
+        }
+    }
+    return false;
 }
 
 function alignMemberToOsirisSurface(member, osiris, angleOverride) {
@@ -773,6 +790,7 @@ function updateFlockMembers(delta) {
     if (!state.flockMembers.length) return;
     const pointerX = state.pointer.active ? state.pointer.x : width / 2;
     const pointerY = state.pointer.active ? state.pointer.y : height / 2;
+    const attackActive = !!state.pointer.attackActive;
 
     for (const member of state.flockMembers) {
         if (member.destroyed) continue;
@@ -821,38 +839,47 @@ function updateFlockMembers(delta) {
 
         member.damageTickTimer = 0;
 
-        let chasingTarget = null;
-        if (typeof member.chasingId === 'number') {
-            chasingTarget = state.osirisField.find(
-                (osiris) => !osiris.destroyed && osiris.id === member.chasingId
-            );
+        if (tryAttachOnContact(member)) {
+            continue;
+        }
+
+        let didChase = false;
+        if (attackActive) {
+            let chasingTarget = null;
+            if (typeof member.chasingId === 'number') {
+                chasingTarget = state.osirisField.find(
+                    (osiris) => !osiris.destroyed && osiris.id === member.chasingId
+                );
+                if (!chasingTarget) {
+                    member.chasingId = null;
+                }
+            }
+
             if (!chasingTarget) {
-                member.chasingId = null;
+                const acquired = tryAcquireFlockTarget(member, Infinity);
+                if (acquired) {
+                    member.chasingId = acquired.id;
+                    chasingTarget = acquired;
+                }
+            }
+
+            if (chasingTarget) {
+                didChase = true;
+                const lerpSpeed = Math.min(1, FLOCK_CHASE_LERP * delta);
+                member.x += (chasingTarget.x - member.x) * lerpSpeed;
+                member.y += (chasingTarget.y - member.y) * lerpSpeed;
+                const dx = chasingTarget.x - member.x;
+                const dy = chasingTarget.y - member.y;
+                const distance = Math.hypot(dx, dy);
+                const surfaceDistance = distance - chasingTarget.radius;
+                if (surfaceDistance > FLOCK_SENSOR_DISTANCE * 1.5) {
+                    member.chasingId = null;
+                }
             }
         }
 
-        if (!chasingTarget) {
-            const acquired = tryAcquireFlockTarget(member);
-            if (acquired) {
-                member.chasingId = acquired.id;
-                chasingTarget = acquired;
-            }
-        }
-
-        if (chasingTarget) {
-            const lerpSpeed = Math.min(1, FLOCK_CHASE_LERP * delta);
-            member.x += (chasingTarget.x - member.x) * lerpSpeed;
-            member.y += (chasingTarget.y - member.y) * lerpSpeed;
-            const dx = chasingTarget.x - member.x;
-            const dy = chasingTarget.y - member.y;
-            const distance = Math.hypot(dx, dy);
-            const surfaceDistance = distance - chasingTarget.radius;
-            if (surfaceDistance <= FLOCK_ATTACH_DISTANCE) {
-                attachFlockMemberToOsiris(member, chasingTarget);
-            } else if (surfaceDistance > FLOCK_SENSOR_DISTANCE * 1.5) {
-                member.chasingId = null;
-            }
-        } else {
+        if (!didChase) {
+            member.chasingId = null;
             if (typeof member.orbitAngle !== 'number') {
                 member.orbitAngle = Math.random() * Math.PI * 2;
             }
@@ -870,6 +897,10 @@ function updateFlockMembers(delta) {
             const lerpSpeed = Math.min(1, FLOCK_FOLLOW_LERP * delta);
             member.x += (targetX - member.x) * lerpSpeed;
             member.y += (targetY - member.y) * lerpSpeed;
+        }
+
+        if (tryAttachOnContact(member)) {
+            continue;
         }
 
         member.x = clamp(member.x, 0, width);
@@ -976,11 +1007,13 @@ function resetPointerToCenter() {
     state.pointer.y = height / 2;
     state.pointer.active = false;
     state.pointer.locked = false;
+    state.pointer.attackActive = false;
 }
 
 function resetGame() {
     const nowTime = performance.now();
     pointerInsideWrapper = isCursorHoveringWrapper();
+    state.pointer.attackActive = false;
     state.osirisField = [];
     state.flockMembers = [];
     state.gameStartTime = nowTime;
@@ -1005,6 +1038,7 @@ function resetGame() {
 function freezeField(reason) {
     if (state.frozen) return;
     releasePointerLock();
+    state.pointer.attackActive = false;
     state.frozen = true;
     state.frozenAt = performance.now();
     setPlaySurfaceLive(false);
@@ -1157,6 +1191,7 @@ function handlePointerLockChange() {
         }
         return;
     }
+    state.pointer.attackActive = false;
     pointerInsideWrapper = false;
     if (state.awaitingStart) {
         resetStartCountdown();
@@ -1170,6 +1205,45 @@ function handlePointerLockChange() {
 function requestPointerLock() {
     if (canvas && canvas.requestPointerLock && document.pointerLockElement !== canvas) {
         canvas.requestPointerLock();
+    }
+}
+
+function handleCanvasPointerDown(event) {
+    if (event.button === 0) {
+        state.pointer.attackActive = true;
+    }
+    requestPointerLock();
+}
+
+function handlePointerAttackRelease(event) {
+    if (event.button === 0) {
+        state.pointer.attackActive = false;
+    }
+}
+
+function handleMouseAttackStart(event) {
+    if (event.button !== 0) return;
+    if (
+        pointerInsideWrapper ||
+        document.pointerLockElement === canvas
+    ) {
+        state.pointer.attackActive = true;
+    }
+}
+
+function handleAttackKeyDown(event) {
+    if (event.code !== 'Space') {
+        return;
+    }
+    if (!state.pointer.attackActive) {
+        state.pointer.attackActive = true;
+    }
+    event.preventDefault();
+}
+
+function handleAttackKeyUp(event) {
+    if (event.code === 'Space') {
+        state.pointer.attackActive = false;
     }
 }
 
@@ -1230,9 +1304,14 @@ document.addEventListener('mouseleave', handleWindowLeave, { passive: true });
 window.addEventListener('blur', handleBlur);
 document.addEventListener('pointerlockchange', handlePointerLockChange);
 if (canvas) {
-    canvas.addEventListener('pointerdown', requestPointerLock);
+    canvas.addEventListener('pointerdown', handleCanvasPointerDown);
 }
+window.addEventListener('pointerup', handlePointerAttackRelease, { passive: true });
+window.addEventListener('pointercancel', handlePointerAttackRelease, { passive: true });
+window.addEventListener('mousedown', handleMouseAttackStart, { passive: true });
 window.addEventListener('contextmenu', handleContextMenu);
+window.addEventListener('keydown', handleAttackKeyDown);
+window.addEventListener('keyup', handleAttackKeyUp);
 window.addEventListener('keydown', handleResetKeys);
 resetButton.addEventListener('click', resetGame);
 if (shareButton) {
