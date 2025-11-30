@@ -17,7 +17,8 @@ const ASTEROID_LINE_WIDTH = 3;
 const MINING_DAMAGE_PER_SECOND = 1;
 const CURSOR_COLLISION_RADIUS = 1;
 const SPLIT_COUNT = 2;
-const SPLIT_DIRECTION_VARIANCE = Math.PI / 6;
+const SPLIT_V_SEPARATION = Math.PI / 3;
+const SPLIT_V_VARIANCE = Math.PI / 18;
 const FLOCK_COUNT_BASE = 1;
 const DIFFICULTY_RAMP = 0.25;
 const TRIANGLE_TIER_INDEX = 0;
@@ -631,8 +632,11 @@ function breakOsiris(osiris) {
             : Math.random() * Math.PI * 2;
 
         for (let i = 0; i < SPLIT_COUNT; i++) {
-            const heading =
-                baseHeading + randRange(-SPLIT_DIRECTION_VARIANCE, SPLIT_DIRECTION_VARIANCE);
+            const spreadIndex =
+                SPLIT_COUNT > 1 ? i - (SPLIT_COUNT - 1) / 2 : 0;
+            const separation = spreadIndex * SPLIT_V_SEPARATION;
+            const jitter = randRange(-SPLIT_V_VARIANCE, SPLIT_V_VARIANCE);
+            const heading = baseHeading + separation + jitter;
             const speed = parentHasMomentum
                 ? clamp(
                       clampedParentSpeed * randRange(0.9, 1.1),
