@@ -29,6 +29,7 @@ const FLOCK_CHASE_LERP = 7;
 const FLOCK_OFFSET_RANGE = { min: 10, max: 50 };
 const FLOCK_SPAWN_INTERVAL_MS = 1000;
 const FLOCK_SENSOR_DISTANCE = 60;
+const FLOCK_STREAM_INTERVAL_MS = 80;
 const FLOCK_ATTACH_SURFACE_OFFSET = -FLOCK_MEMBER_RADIUS * 0.5;
 const FLOCK_DAMAGE_BLINK_DURATION = 0.2;
 const START_CURSOR_HOLD_MS = 600;
@@ -90,12 +91,13 @@ const state = {
     osirisField: [],
     flockMembers: [],
     pointer: {
-        x: 0,
-        y: 0,
-        active: false,
-        locked: false,
-        attackActive: false,
-    },
+		x: 0,
+		y: 0,
+		active: false,
+		locked: false,
+		attackActive: false,
+		attackStreamTimer: 0,
+	},
     frozen: false,
     awaitingStart: false,
     finishReason: null,
@@ -756,6 +758,26 @@ function tryAttachOnContact(member) {
     return false;
 }
 
+function sendRandomMemberToAsteroid() {
+    const candidates = state.flockMembers.filter(
+        (member) =>
+            !member.destroyed &&
+            typeof member.attachedToId !== 'number' &&
+            typeof member.chasingId !== 'number'
+    );
+    if (!candidates.length || !state.osirisField.length) {
+        return false;
+    }
+    const member =
+        candidates[Math.floor(Math.random() * candidates.length)];
+    const target = tryAcquireFlockTarget(member, Infinity);
+    if (!target) {
+        return false;
+    }
+    member.chasingId = target.id;
+    return true;
+}
+
 function alignMemberToOsirisSurface(member, osiris, angleOverride) {
     let angle = angleOverride;
     if (typeof angle !== 'number') {
@@ -791,6 +813,15 @@ function updateFlockMembers(delta) {
     const pointerX = state.pointer.active ? state.pointer.x : width / 2;
     const pointerY = state.pointer.active ? state.pointer.y : height / 2;
     const attackActive = !!state.pointer.attackActive;
+    if (attackActive) {
+        state.pointer.attackStreamTimer -= delta * 1000;
+        if (state.pointer.attackStreamTimer <= 0) {
+            sendRandomMemberToAsteroid();
+            state.pointer.attackStreamTimer = FLOCK_STREAM_INTERVAL_MS;
+        }
+    } else {
+        state.pointer.attackStreamTimer = 0;
+    }
 
     for (const member of state.flockMembers) {
         if (member.destroyed) continue;
@@ -843,43 +874,21 @@ function updateFlockMembers(delta) {
             continue;
         }
 
-        let didChase = false;
-        if (attackActive) {
-            let chasingTarget = null;
-            if (typeof member.chasingId === 'number') {
-                chasingTarget = state.osirisField.find(
-                    (osiris) => !osiris.destroyed && osiris.id === member.chasingId
-                );
-                if (!chasingTarget) {
-                    member.chasingId = null;
-                }
-            }
-
+        let chasingTarget = null;
+        if (typeof member.chasingId === 'number') {
+            chasingTarget = state.osirisField.find(
+                (osiris) => !osiris.destroyed && osiris.id === member.chasingId
+            );
             if (!chasingTarget) {
-                const acquired = tryAcquireFlockTarget(member, Infinity);
-                if (acquired) {
-                    member.chasingId = acquired.id;
-                    chasingTarget = acquired;
-                }
-            }
-
-            if (chasingTarget) {
-                didChase = true;
-                const lerpSpeed = Math.min(1, FLOCK_CHASE_LERP * delta);
-                member.x += (chasingTarget.x - member.x) * lerpSpeed;
-                member.y += (chasingTarget.y - member.y) * lerpSpeed;
-                const dx = chasingTarget.x - member.x;
-                const dy = chasingTarget.y - member.y;
-                const distance = Math.hypot(dx, dy);
-                const surfaceDistance = distance - chasingTarget.radius;
-                if (surfaceDistance > FLOCK_SENSOR_DISTANCE * 1.5) {
-                    member.chasingId = null;
-                }
+                member.chasingId = null;
             }
         }
 
-        if (!didChase) {
-            member.chasingId = null;
+        if (chasingTarget) {
+            const lerpSpeed = Math.min(1, FLOCK_CHASE_LERP * delta);
+            member.x += (chasingTarget.x - member.x) * lerpSpeed;
+            member.y += (chasingTarget.y - member.y) * lerpSpeed;
+        } else {
             if (typeof member.orbitAngle !== 'number') {
                 member.orbitAngle = Math.random() * Math.PI * 2;
             }
@@ -1008,12 +1017,14 @@ function resetPointerToCenter() {
     state.pointer.active = false;
     state.pointer.locked = false;
     state.pointer.attackActive = false;
+    state.pointer.attackStreamTimer = 0;
 }
 
 function resetGame() {
     const nowTime = performance.now();
     pointerInsideWrapper = isCursorHoveringWrapper();
     state.pointer.attackActive = false;
+    state.pointer.attackStreamTimer = 0;
     state.osirisField = [];
     state.flockMembers = [];
     state.gameStartTime = nowTime;
@@ -1039,6 +1050,7 @@ function freezeField(reason) {
     if (state.frozen) return;
     releasePointerLock();
     state.pointer.attackActive = false;
+    state.pointer.attackStreamTimer = 0;
     state.frozen = true;
     state.frozenAt = performance.now();
     setPlaySurfaceLive(false);
@@ -1192,6 +1204,7 @@ function handlePointerLockChange() {
         return;
     }
     state.pointer.attackActive = false;
+    state.pointer.attackStreamTimer = 0;
     pointerInsideWrapper = false;
     if (state.awaitingStart) {
         resetStartCountdown();
@@ -1218,6 +1231,7 @@ function handleCanvasPointerDown(event) {
 function handlePointerAttackRelease(event) {
     if (event.button === 0) {
         state.pointer.attackActive = false;
+        state.pointer.attackStreamTimer = 0;
     }
 }
 
@@ -1228,6 +1242,7 @@ function handleMouseAttackStart(event) {
         document.pointerLockElement === canvas
     ) {
         state.pointer.attackActive = true;
+        state.pointer.attackStreamTimer = 0;
     }
 }
 
@@ -1237,6 +1252,7 @@ function handleAttackKeyDown(event) {
     }
     if (!state.pointer.attackActive) {
         state.pointer.attackActive = true;
+        state.pointer.attackStreamTimer = 0;
     }
     event.preventDefault();
 }
@@ -1244,6 +1260,7 @@ function handleAttackKeyDown(event) {
 function handleAttackKeyUp(event) {
     if (event.code === 'Space') {
         state.pointer.attackActive = false;
+        state.pointer.attackStreamTimer = 0;
     }
 }
 
