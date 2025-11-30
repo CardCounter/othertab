@@ -48,7 +48,7 @@ body.dark-mode {
     --sudoku-active-weak: rgba(255, 74, 74, 0.3);
     --sudoku-filled-bg: #3b3b3b;
     --sudoku-filled-text: #ffffff;
-    --sudoku-win-color: rgb(132, 255, 206);
+    --sudoku-win-color: red;
     --sudoku-win-text-color: #ffffff;
     --sudoku-conflict-color: rgb(48, 110, 255);
     --sudoku-conflict-text-color: #ffffff;
