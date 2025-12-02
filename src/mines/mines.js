@@ -2,20 +2,25 @@ class Minesweeper {
     constructor() {
         this.difficultyStorageKey = 'MINES-last-difficulty';
         this.firstGameStorageKey = 'MINES-first-game-completed';
-        this.difficulty = this.getStoredDifficulty(); // default fallback handled in helper
-        this.setDifficultySettings(this.difficulty);
-        this.updateActiveDifficultyButton();
-        
+        this.gameContainer = document.getElementById('game-container');
+        this.gridWrapper = document.querySelector('.grid-wrapper');
+        this.gridElement = document.getElementById('grid');
+        this.flagCountElement = document.getElementById('flag-count');
+        this.timerElement = document.getElementById('timer');
+        this.shareButton = document.getElementById('copy-button');
+        this.resetHintElement = document.getElementById('reset-hint');
+        this.newGameButton = document.getElementById('new-game-button');
+        this.modeButton = document.getElementById('mode-button');
+        this.modePanel = document.getElementById('mode-panel');
+        this.difficultyButtons = Array.from(document.querySelectorAll('.difficulty-button'));
+
         this.grid = [];
         this.revealed = 0;
         this.gameOver = false;
         this.firstClick = true;
-        this.flagsRemaining = this.mines;
         this.timer = 0;
         this.timerInterval = null;
         this.maxTimerSeconds = (99 * 3600) + (59 * 60) + 59;
-        this.gameContainer = document.getElementById('game-container');
-        this.gridWrapper = document.querySelector('.grid-wrapper');
         this.isWin = false;
         this.isMouseDown = false;
         this.mouseDownButton = null;
@@ -24,30 +29,18 @@ class Minesweeper {
         this.isSeedLoadedGame = false;
         this.seedLockActive = false;
         this.seedStartCell = null;
-        this.shareButton = document.getElementById('copy-button');
         this.shareButtonResetTimeout = null;
-        this.resetHintElement = document.getElementById('reset-hint');
-        this.hideResetHint();
-        if (this.shareButton) {
-            this.shareButton.onclick = () => {
-                if (!this.currentShareText || this.shareButton.classList.contains('hidden')) {
-                    return;
-                }
+        this.hoveredCell = null;
 
-                navigator.clipboard.writeText(this.currentShareText);
-                this.shareButton.textContent = 'copied';
-                if (this.shareButtonResetTimeout) {
-                    clearTimeout(this.shareButtonResetTimeout);
-                }
-                this.shareButtonResetTimeout = setTimeout(() => {
-                    if (this.shareButton) {
-                        this.shareButton.textContent = 'share';
-                    }
-                }, 1000);
-            };
+        this.setDifficulty(this.getStoredDifficulty());
+        this.flagsRemaining = this.mines;
+
+        if (this.shareButton) {
+            this.shareButton.addEventListener('click', () => {
+                this.handleShareButtonClick();
+            });
         }
 
-        this.newGameButton = document.getElementById('new-game-button');
         if (this.newGameButton) {
             this.newGameButton.addEventListener('click', () => {
                 this.newGameButton.blur();
@@ -55,26 +48,24 @@ class Minesweeper {
             });
         }
 
-        this.modeButton = document.getElementById('mode-button');
-        this.modePanel = document.getElementById('mode-panel');
         if (this.modeButton && this.modePanel) {
             this.modeButton.addEventListener('click', () => {
-                const isHidden = this.modePanel.classList.toggle('hidden');
-                this.modeButton.setAttribute('aria-expanded', (!isHidden).toString());
-                this.modePanel.setAttribute('aria-hidden', isHidden.toString());
+                if (this.isModePanelOpen()) {
+                    this.closeModePanel();
+                } else {
+                    this.openModePanel();
+                }
             });
 
             document.addEventListener('click', (event) => {
-                if (!this.modePanel || this.modePanel.classList.contains('hidden')) {
+                if (!this.isModePanelOpen()) {
                     return;
                 }
                 const target = event.target;
                 if (this.modePanel.contains(target) || this.modeButton.contains(target)) {
                     return;
                 }
-                this.modePanel.classList.add('hidden');
-                this.modeButton.setAttribute('aria-expanded', 'false');
-                this.modePanel.setAttribute('aria-hidden', 'true');
+                this.closeModePanel();
             });
         }
         
@@ -85,64 +76,26 @@ class Minesweeper {
         this.showGridBorder();
 
         // difficulty buttons
-        const difficultyButtons = document.querySelectorAll('.difficulty-button');
-        difficultyButtons.forEach(button => {
+        this.difficultyButtons.forEach(button => {
             button.addEventListener('click', () => {
                 // set difficulty and reset game
-                this.difficulty = button.id;
-                this.setDifficultySettings(this.difficulty);
-                this.persistDifficulty();
-                this.updateActiveDifficultyButton();
+                this.setDifficulty(button.id);
                 this.resetGame();
-                if (this.modePanel && this.modeButton) {
-                    this.modePanel.classList.add('hidden');
-                    this.modeButton.setAttribute('aria-expanded', 'false');
-                    this.modePanel.setAttribute('aria-hidden', 'true');
-                }
+                this.closeModePanel();
             });
         });
 
-        // functionality for space, reset keys
-        document.addEventListener('keydown', (e) => {
-            if ((e.code === 'Space')) { // && !this.gameOver
-                e.preventDefault();   
-                if (!this.gameOver){
-                    const hoveredCell = document.querySelector('.cell:hover');
+        this.bindGridEvents();
+        this.bindKeyboardShortcuts();
 
-                    if (hoveredCell) {
-                        const row = parseInt(hoveredCell.dataset.row);
-                        const col = parseInt(hoveredCell.dataset.col);
-                        
-                        if (!this.grid[row][col].isRevealed) {
-                            this.toggleFlag(row, col);
-                        } 
-                        
-                        else if (this.grid[row][col].value > 0) {
-                            this.chord(row, col);
-                        }
-                    }
-                }
-            }
-                
-            // reset game with r or Enter
-            const isEnterReset = e.code === 'Enter' || e.code === 'NumpadEnter';
-            if (e.code === 'KeyR' || isEnterReset) {
-                e.preventDefault();
-                this.resetGame();
-            }
-
-        });
-
-        document.addEventListener('mouseup', (event) => {
-            if (event.button === 0) {
-                this.handleGlobalMouseRelease();
-            }
+        document.addEventListener('mouseup', () => {
+            this.handleGlobalMouseRelease();
         });
 
         window.addEventListener('blur', () => {
             this.handleGlobalMouseRelease();
         });
-        
+        this.setupNewGame();
     }
     
     getStoredDifficulty() {
@@ -157,13 +110,25 @@ class Minesweeper {
         localStorage.setItem(this.difficultyStorageKey, this.difficulty);
     }
 
+    setDifficulty(difficulty) {
+        const validDifficulties = ['easy', 'medium', 'hard'];
+        if (!validDifficulties.includes(difficulty)) {
+            difficulty = 'hard';
+        }
+        this.difficulty = difficulty;
+        this.setDifficultySettings(this.difficulty);
+        this.persistDifficulty();
+        this.updateActiveDifficultyButton();
+    }
+
     updateActiveDifficultyButton() {
-        document.querySelectorAll('.difficulty-button').forEach(btn => {
-            if (btn.id === this.difficulty) {
-                btn.classList.add('active');
-            } else {
-                btn.classList.remove('active');
-            }
+        if (!this.difficultyButtons || !this.difficultyButtons.length) {
+            return;
+        }
+        const activeClass = 'difficulty-button--active';
+        this.difficultyButtons.forEach(btn => {
+            const isActive = btn.id === this.difficulty;
+            btn.classList.toggle(activeClass, isActive);
         });
     }
 
@@ -188,23 +153,106 @@ class Minesweeper {
         }
     }
 
+    updateTimerDisplay() {
+        if (this.timerElement) {
+            this.timerElement.textContent = this.formatTime(this.timer);
+        }
+    }
+
     updateStats() {
-        document.getElementById('flag-count').textContent = this.flagsRemaining;
-        document.getElementById('timer').textContent = this.formatTime(this.timer);
+        if (this.flagCountElement) {
+            this.flagCountElement.textContent = this.flagsRemaining;
+        }
+        this.updateTimerDisplay();
     }
 
     showTimer() {
-        const timerEl = document.getElementById('timer');
-        if (timerEl) {
-            timerEl.classList.remove('hidden');
+        if (this.timerElement) {
+            this.timerElement.classList.remove('hidden');
         }
     }
 
     hideTimer() {
-        const timerEl = document.getElementById('timer');
-        if (timerEl) {
-            timerEl.classList.add('hidden');
+        if (this.timerElement) {
+            this.timerElement.classList.add('hidden');
         }
+    }
+
+    setupNewGame(options = {}) {
+        const { fromSeed = false, beforeRender } = options;
+        const wasSeedLoadedGame = this.isSeedLoadedGame;
+        if (wasSeedLoadedGame && !fromSeed) {
+            this.clearSeedFromUrl();
+        }
+        this.stopTimer();
+        this.hideResetHint();
+        this.showGridBorder();
+        this.clearAllPressedStyles();
+        this.hoveredCell = null;
+        if (!fromSeed) {
+            this.setDifficultySettings(this.difficulty);
+        }
+        this.gameOver = false;
+        this.firstClick = true;
+        this.isWin = false;
+        this.seedLockActive = false;
+        this.seedStartCell = null;
+        this.revealed = 0;
+        this.flagsRemaining = this.mines;
+        this.timer = 0;
+        this.isSeedLoadedGame = fromSeed;
+        this.currentSeed = '';
+        this.hideTimer();
+        this.updateTimerDisplay();
+        this.resetShareButton();
+        this.initializeGrid();
+        if (typeof beforeRender === 'function') {
+            beforeRender();
+        }
+        this.renderGrid();
+        this.updateStats();
+    }
+
+    clearShareButtonTimeout() {
+        if (this.shareButtonResetTimeout) {
+            clearTimeout(this.shareButtonResetTimeout);
+            this.shareButtonResetTimeout = null;
+        }
+    }
+
+    resetShareButton() {
+        this.currentShareText = '';
+        this.clearShareButtonTimeout();
+        if (this.shareButton) {
+            this.shareButton.textContent = 'share';
+            this.shareButton.classList.add('hidden');
+        }
+    }
+
+    showShareButton({ text = 'share', shareText } = {}) {
+        if (!this.shareButton) {
+            return;
+        }
+        this.clearShareButtonTimeout();
+        if (shareText) {
+            this.currentShareText = shareText;
+        }
+        this.shareButton.textContent = text;
+        this.shareButton.classList.remove('hidden');
+    }
+
+    handleShareButtonClick() {
+        if (!this.shareButton || !this.currentShareText || this.shareButton.classList.contains('hidden')) {
+            return;
+        }
+        navigator.clipboard.writeText(this.currentShareText);
+        this.shareButton.textContent = 'copied';
+        this.clearShareButtonTimeout();
+        this.shareButtonResetTimeout = setTimeout(() => {
+            if (this.shareButton) {
+                this.shareButton.textContent = 'share';
+            }
+        }, 1000);
     }
 
     loadSeed(seedString) {
@@ -212,69 +260,41 @@ class Minesweeper {
             return;
         }
         const parsed = window.MinesSeed.parseSeed(seedString);
-        this.hideResetHint();
-        this.stopTimer();
-        this.showGridBorder();
-        this.difficulty = parsed.mode;
-        this.setDifficultySettings(this.difficulty);
-        this.persistDifficulty();
-        this.updateActiveDifficultyButton();
-
+        this.setDifficulty(parsed.mode);
         this.rows = parsed.rows;
         this.cols = parsed.cols;
-        this.initializeGrid();
-        let mineCount = 0;
-        for (let row = 0; row < this.rows; row++) {
-            for (let col = 0; col < this.cols; col++) {
-                const isMine = parsed.layout[row][col];
-                if (isMine) {
-                    this.grid[row][col].isMine = true;
-                    mineCount++;
-                } else {
-                    this.grid[row][col].isMine = false;
+        this.setupNewGame({
+            fromSeed: true,
+            beforeRender: () => {
+                let mineCount = 0;
+                for (let row = 0; row < this.rows; row++) {
+                    for (let col = 0; col < this.cols; col++) {
+                        const cell = this.grid[row][col];
+                        const isMine = Boolean(parsed.layout[row][col]);
+                        cell.isMine = isMine;
+                        cell.isRevealed = false;
+                        cell.isFlagged = false;
+                        cell.value = 0;
+                        delete cell.isSafe;
+                        if (isMine) {
+                            mineCount++;
+                        }
+                    }
                 }
-                this.grid[row][col].isRevealed = false;
-                this.grid[row][col].isFlagged = false;
-                this.grid[row][col].value = 0;
-                delete this.grid[row][col].isSafe;
-            }
-        }
-        for (let row = 0; row < this.rows; row++) {
-            for (let col = 0; col < this.cols; col++) {
-                if (!this.grid[row][col].isMine) {
-                    this.grid[row][col].value = this.countAdjacentMines(row, col);
+                for (let row = 0; row < this.rows; row++) {
+                    for (let col = 0; col < this.cols; col++) {
+                        if (!this.grid[row][col].isMine) {
+                            this.grid[row][col].value = this.countAdjacentMines(row, col);
+                        }
+                    }
                 }
+                this.mines = mineCount;
+                this.flagsRemaining = this.mines;
+                this.seedLockActive = true;
+                this.seedStartCell = { row: parsed.startRow, col: parsed.startCol };
+                this.currentSeed = parsed.seed;
             }
-        }
-
-        this.mines = mineCount;
-        this.flagsRemaining = this.mines;
-        this.revealed = 0;
-        this.gameOver = false;
-        this.firstClick = true;
-        this.isWin = false;
-        this.isSeedLoadedGame = true;
-        this.seedLockActive = true;
-        this.seedStartCell = { row: parsed.startRow, col: parsed.startCol };
-        this.currentSeed = parsed.seed;
-        this.currentShareText = '';
-
-        this.timer = 0;
-        document.getElementById('timer').textContent = this.formatTime(this.timer);
-        this.hideTimer();
-        this.hideResetHint();
-
-        if (this.shareButton) {
-            this.shareButton.textContent = 'share';
-            this.shareButton.classList.add('hidden');
-        }
-        if (this.shareButtonResetTimeout) {
-            clearTimeout(this.shareButtonResetTimeout);
-            this.shareButtonResetTimeout = null;
-        }
-
-        this.renderGrid();
-        this.updateStats();
+        });
     }
 
     isCellLocked(row, col) {
@@ -288,7 +308,10 @@ class Minesweeper {
     }
 
     refreshSeedLockState() {
-        const cells = document.querySelectorAll('.cell');
+        if (!this.gridElement) {
+            return;
+        }
+        const cells = this.gridElement.querySelectorAll('.cell');
         cells.forEach(cell => {
             const row = parseInt(cell.dataset.row, 10);
             const col = parseInt(cell.dataset.col, 10);
@@ -353,11 +376,188 @@ class Minesweeper {
         this.clearAllPressedStyles();
     }
 
+    bindGridEvents() {
+        if (!this.gridElement) {
+            return;
+        }
+        this.gridElement.addEventListener('mousedown', (event) => this.handleGridMouseDown(event));
+        this.gridElement.addEventListener('mouseup', (event) => this.handleGridMouseUp(event));
+        this.gridElement.addEventListener('contextmenu', (event) => this.handleGridContextMenu(event));
+        this.gridElement.addEventListener('mouseover', (event) => this.handleGridMouseOver(event));
+        this.gridElement.addEventListener('mouseout', (event) => this.handleGridMouseOut(event));
+        this.gridElement.addEventListener('mouseleave', () => this.handleGridMouseLeave());
+    }
+
+    bindKeyboardShortcuts() {
+        document.addEventListener('keydown', (event) => this.handleKeyDown(event));
+    }
+
+    isInteractiveElementFocused() {
+        const activeElement = document.activeElement;
+        if (!activeElement || activeElement === document.body) {
+            return false;
+        }
+        const tagName = activeElement.tagName;
+        if (!tagName) {
+            return false;
+        }
+        const interactiveTags = ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON', 'A'];
+        if (interactiveTags.includes(tagName)) {
+            return true;
+        }
+        if (activeElement.isContentEditable) {
+            return true;
+        }
+        return false;
+    }
+
+    handleKeyDown(event) {
+        const interactiveElementFocused = this.isInteractiveElementFocused();
+
+        if (event.code === 'Space') {
+            if (interactiveElementFocused || this.gameOver) {
+                return;
+            }
+            const hoveredCell = this.hoveredCell;
+            if (!hoveredCell) {
+                return;
+            }
+            const { row, col } = hoveredCell;
+            const cell = this.grid[row] && this.grid[row][col];
+            if (!cell) {
+                return;
+            }
+            event.preventDefault();
+            if (!cell.isRevealed) {
+                this.toggleFlag(row, col);
+            } else if (cell.value > 0) {
+                this.chord(row, col);
+            }
+            return;
+        }
+
+        const isEnterReset = event.code === 'Enter' || event.code === 'NumpadEnter';
+        if ((event.code === 'KeyR' || isEnterReset) && !interactiveElementFocused) {
+            event.preventDefault();
+            this.resetGame();
+        }
+    }
+
+    getCellFromEvent(event) {
+        if (!event || !event.target || !this.gridElement) {
+            return null;
+        }
+        const targetElement = event.target.nodeType === 1 ? event.target : event.target.parentElement;
+        if (!targetElement) {
+            return null;
+        }
+        const target = targetElement.closest('.cell');
+        if (!target || !this.gridElement.contains(target)) {
+            return null;
+        }
+        return target;
+    }
+
+    getCellCoordinates(cellElement) {
+        return {
+            row: parseInt(cellElement.dataset.row, 10),
+            col: parseInt(cellElement.dataset.col, 10)
+        };
+    }
+
+    handleGridMouseDown(event) {
+        const cellElement = this.getCellFromEvent(event);
+        if (!cellElement) {
+            return;
+        }
+        const { row, col } = this.getCellCoordinates(cellElement);
+        this.hoveredCell = { row, col };
+        if (this.isCellLocked(row, col) || this.gameOver) {
+            return;
+        }
+        this.isMouseDown = true;
+        this.mouseDownButton = event.button;
+        if (event.button !== 2 && !cellElement.classList.contains('revealed')) {
+            this.applyCellPressedStyle(cellElement);
+        }
+        if ((event.button === 1 || event.buttons === 3) && this.grid[row][col].isRevealed) {
+            this.chord(row, col);
+        }
+    }
+
+    handleGridMouseUp(event) {
+        const cellElement = this.getCellFromEvent(event);
+        if (!cellElement) {
+            return;
+        }
+        const { row, col } = this.getCellCoordinates(cellElement);
+        this.clearCellPressedStyle(cellElement);
+        if (this.isCellLocked(row, col) || this.gameOver) {
+            return;
+        }
+        if (event.button !== 2 && !this.grid[row][col].isFlagged) {
+            this.reveal(row, col);
+        }
+    }
+
+    handleGridContextMenu(event) {
+        const cellElement = this.getCellFromEvent(event);
+        if (!cellElement) {
+            return;
+        }
+        event.preventDefault();
+        const { row, col } = this.getCellCoordinates(cellElement);
+        if (this.isCellLocked(row, col) || this.gameOver) {
+            return;
+        }
+        if (!this.grid[row][col].isRevealed) {
+            this.toggleFlag(row, col);
+        }
+    }
+
+    handleGridMouseOver(event) {
+        const cellElement = this.getCellFromEvent(event);
+        if (!cellElement) {
+            return;
+        }
+        const { row, col } = this.getCellCoordinates(cellElement);
+        this.hoveredCell = { row, col };
+        if (this.isCellLocked(row, col) || this.gameOver) {
+            return;
+        }
+        if (this.isMouseDown && this.mouseDownButton !== 2 && !cellElement.classList.contains('revealed')) {
+            this.applyCellPressedStyle(cellElement);
+        }
+    }
+
+    handleGridMouseOut(event) {
+        const cellElement = this.getCellFromEvent(event);
+        if (!cellElement) {
+            return;
+        }
+        if (!cellElement.classList.contains('revealed')) {
+            this.clearCellPressedStyle(cellElement);
+        }
+        const { row, col } = this.getCellCoordinates(cellElement);
+        if (this.hoveredCell && this.hoveredCell.row === row && this.hoveredCell.col === col) {
+            this.hoveredCell = null;
+        }
+    }
+
+    handleGridMouseLeave() {
+        this.hoveredCell = null;
+        if (this.isMouseDown) {
+            this.clearAllPressedStyles();
+        }
+    }
+
     renderGrid() {
-        const gridElement = document.getElementById('grid');
-        gridElement.innerHTML = '';
-        gridElement.style.gridTemplateColumns = `repeat(${this.cols}, 2rem)`; // change cell size here
-        gridElement.style.gridTemplateRows = `repeat(${this.rows}, 2rem)`;
+        if (!this.gridElement) {
+            return;
+        }
+        this.gridElement.innerHTML = '';
+        this.gridElement.style.gridTemplateColumns = `repeat(${this.cols}, 2rem)`; // change cell size here
+        this.gridElement.style.gridTemplateRows = `repeat(${this.rows}, 2rem)`;
         
         for (let row = 0; row < this.rows; row++) {
             for (let col = 0; col < this.cols; col++) {
@@ -366,66 +566,21 @@ class Minesweeper {
                 cell.dataset.row = row;
                 cell.dataset.col = col;
 
-                // middle click or both buttons for chord
-                cell.addEventListener('mousedown', (e) => {
-                    if (this.isCellLocked(row, col) || this.gameOver) {
-                        return;
-                    }
-                    this.isMouseDown = true;
-                    this.mouseDownButton = e.button;
-                    if (e.button !== 2 && !cell.classList.contains('revealed')) {
-                        this.applyCellPressedStyle(cell);
-                    }
-
-                    // middle click or left right, note button vs buttons
-                    if ((e.button === 1 || (e.buttons === 3)) && this.grid[row][col].isRevealed) {
-                        this.chord(row, col);
-                    }
-                });
-
-                cell.addEventListener('mouseup', (e) => {
-                    this.isMouseDown = false;
-                    this.mouseDownButton = null;
-                    this.clearCellPressedStyle(cell);
-                    if (this.isCellLocked(row, col) || this.gameOver) {
-                        return;
-                    }
-                    if (e.button !== 2){
-                        if (!this.grid[row][col].isFlagged) {
-                            this.reveal(row, col);
-                        }
-                    }
-                });
-
-                cell.addEventListener('contextmenu', (e) => {
-                    e.preventDefault();
-                    if (this.isCellLocked(row, col) || this.gameOver) {
-                        return;
-                    }
-                    if (!this.grid[row][col].isRevealed) {
-                        this.toggleFlag(row, col);
-                    }
-                });
-
-                cell.addEventListener('mouseover', () => {
-                    if (this.isCellLocked(row, col) || this.gameOver) {
-                        return;
-                    }
-                    if (this.isMouseDown && this.mouseDownButton !== 2 && !cell.classList.contains('revealed')) {
-                        this.applyCellPressedStyle(cell);
-                    }
-                });
-
-                // fix for the hover state bug, force reset of style when mouse leaves
-                cell.addEventListener('mouseleave', () => { 
-                    if (!cell.classList.contains('revealed')) {
-                        this.clearCellPressedStyle(cell);
-                    }
-                });
-
                 this.updateCellAppearance(cell, row, col);  
                 
-                gridElement.appendChild(cell);
+                this.gridElement.appendChild(cell);
+            }
+        }
+    }
+
+    forEachNeighbor(row, col, callback, options = {}) {
+        const { includeSelf = false } = options;
+        for (let r = Math.max(0, row - 1); r <= Math.min(this.rows - 1, row + 1); r++) {
+            for (let c = Math.max(0, col - 1); c <= Math.min(this.cols - 1, col + 1); c++) {
+                if (!includeSelf && r === row && c === col) {
+                    continue;
+                }
+                callback(r, c);
             }
         }
     }
@@ -459,23 +614,19 @@ class Minesweeper {
     
     clearAreaAroundFirstClick(row, col) {
         // make island
-        for (let r = Math.max(0, row - 1); r <= Math.min(this.rows - 1, row + 1); r++) {
-            for (let c = Math.max(0, col - 1); c <= Math.min(this.cols - 1, col + 1); c++) {
-                this.grid[r][c].isSafe = true;
-            }
-        }
+        this.forEachNeighbor(row, col, (r, c) => {
+            this.grid[r][c].isSafe = true;
+        }, { includeSelf: true });
     }
     
     countAdjacentMines(row, col) {
         let count = 0;
-        
-        for (let r = Math.max(0, row - 1); r <= Math.min(this.rows - 1, row + 1); r++) {
-            for (let c = Math.max(0, col - 1); c <= Math.min(this.cols - 1, col + 1); c++) {
-                if (this.grid[r][c].isMine) {
-                    count++;
-                }
+
+        this.forEachNeighbor(row, col, (r, c) => {
+            if (this.grid[r][c].isMine) {
+                count++;
             }
-        }
+        });
         
         return count;
     }
@@ -522,13 +673,9 @@ class Minesweeper {
         
         // auto-reveal empty cells
         if (cell.value === 0) {
-            for (let r = Math.max(0, row - 1); r <= Math.min(this.rows - 1, row + 1); r++) {
-                for (let c = Math.max(0, col - 1); c <= Math.min(this.cols - 1, col + 1); c++) {
-                    if (r !== row || c !== col) {
-                        this.reveal(r, c);
-                    }
-                }
-            }
+            this.forEachNeighbor(row, col, (r, c) => {
+                this.reveal(r, c);
+            });
         }
         
         // update the ui
@@ -573,23 +720,19 @@ class Minesweeper {
         
         // count flagged cells around
         let flaggedCount = 0;
-        for (let r = Math.max(0, row - 1); r <= Math.min(this.rows - 1, row + 1); r++) {
-            for (let c = Math.max(0, col - 1); c <= Math.min(this.cols - 1, col + 1); c++) {
-                if (this.grid[r][c].isFlagged) {
-                    flaggedCount++;
-                }
+        this.forEachNeighbor(row, col, (r, c) => {
+            if (this.grid[r][c].isFlagged) {
+                flaggedCount++;
             }
-        }
+        });
         
         // if flags match the number, reveal all non-flagged cells
         if (flaggedCount === cell.value) {
-            for (let r = Math.max(0, row - 1); r <= Math.min(this.rows - 1, row + 1); r++) {
-                for (let c = Math.max(0, col - 1); c <= Math.min(this.cols - 1, col + 1); c++) {
-                    if (!this.grid[r][c].isRevealed && !this.grid[r][c].isFlagged) {
-                        this.reveal(r, c);
-                    }
+            this.forEachNeighbor(row, col, (r, c) => {
+                if (!this.grid[r][c].isRevealed && !this.grid[r][c].isFlagged) {
+                    this.reveal(r, c);
                 }
-            }
+            });
         }
     }
 
@@ -645,23 +788,30 @@ class Minesweeper {
         cell.textContent = 'X';
         cell.classList.add('false-flag');
     }
-    
+
+    getCellElement(row, col) {
+        if (!this.gridElement) {
+            return null;
+        }
+        return this.gridElement.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
+    }
+
     updateCell(row, col) {
-        const cellElement = document.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
+        const cellElement = this.getCellElement(row, col);
         if (cellElement) {
             this.updateCellAppearance(cellElement, row, col);
         }
     }
 
     updateClickedMine(row, col) {
-        const cellElement = document.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
+        const cellElement = this.getCellElement(row, col);
         if (cellElement) {
             this.updateClickedMineAppearance(cellElement);
         }
     }
 
     updateFalseFlag(row, col) {
-        const cellElement = document.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
+        const cellElement = this.getCellElement(row, col);
         if (cellElement) {
             this.updateFalseFlagAppearance(cellElement);
         }
@@ -690,7 +840,7 @@ class Minesweeper {
     startTimer() {
         this.stopTimer(); // stop any existing timer
         this.timer = 0;
-        const timerEl = document.getElementById('timer');
+        const timerEl = this.timerElement;
         if (!timerEl) {
             return;
         }
@@ -746,41 +896,31 @@ class Minesweeper {
         }
     }
 
+    buildShareText({ result = 'win' } = {}) {
+        const timerValue = this.formatTime(this.timer);
+        const difficultyLabel = this.getDifficultyLabel();
+        const statusLine = result === 'fail' ? `X, ${timerValue}` : timerValue;
+        let shareText = `MINES_${difficultyLabel}\n${statusLine}`;
+        if (this.currentSeed) {
+            shareText += `\nhttps://othertab.com/mines/?${this.currentSeed}`;
+        }
+        return shareText;
+    }
+
     showWinPopup(){
         if (!this.shareButton) {
             return;
         }
-        const timerValue = this.formatTime(this.timer);
-        const difficultyLabel = this.getDifficultyLabel();
-        let shareText = `MINES_${difficultyLabel}\n${timerValue}`;
-        const shareLink = this.currentSeed ? `https://othertab.com/mines/?${this.currentSeed}` : '';
-        if (shareLink) {
-            shareText += `\n${shareLink}`;
-        }
-        this.currentShareText = shareText;
-        if (this.shareButtonResetTimeout) {
-            clearTimeout(this.shareButtonResetTimeout);
-            this.shareButtonResetTimeout = null;
-        }
-        this.shareButton.textContent = 'share';
-        this.shareButton.classList.remove('hidden');
+        const shareText = this.buildShareText({ result: 'win' });
+        this.showShareButton({ shareText });
     }
 
     showSeedFailureShare() {
         if (!this.shareButton || !this.isSeedLoadedGame || !this.currentSeed) {
             return;
         }
-        const timerValue = this.formatTime(this.timer);
-        const difficultyLabel = this.getDifficultyLabel();
-        let shareText = `MINES_${difficultyLabel}\nX, ${timerValue}`;
-        shareText += `\nhttps://othertab.com/mines/?${this.currentSeed}`;
-        this.currentShareText = shareText;
-        if (this.shareButtonResetTimeout) {
-            clearTimeout(this.shareButtonResetTimeout);
-            this.shareButtonResetTimeout = null;
-        }
-        this.shareButton.textContent = 'share';
-        this.shareButton.classList.remove('hidden');
+        const shareText = this.buildShareText({ result: 'fail' });
+        this.showShareButton({ shareText });
     }
 
     showResetHintIfFirstTime() {
@@ -819,6 +959,33 @@ class Minesweeper {
         }
     }
 
+    isModePanelOpen() {
+        if (!this.modePanel) {
+            return false;
+        }
+        return !this.modePanel.classList.contains('hidden');
+    }
+
+    openModePanel() {
+        if (this.modePanel) {
+            this.modePanel.classList.remove('hidden');
+            this.modePanel.setAttribute('aria-hidden', 'false');
+        }
+        if (this.modeButton) {
+            this.modeButton.setAttribute('aria-expanded', 'true');
+        }
+    }
+
+    closeModePanel() {
+        if (this.modePanel) {
+            this.modePanel.classList.add('hidden');
+            this.modePanel.setAttribute('aria-hidden', 'true');
+        }
+        if (this.modeButton) {
+            this.modeButton.setAttribute('aria-expanded', 'false');
+        }
+    }
+
     clearSeedFromUrl() {
         if (!window.location || !window.history || !window.history.replaceState) {
             return;
@@ -832,43 +999,7 @@ class Minesweeper {
     }
 
     resetGame() {
-        if (this.isSeedLoadedGame) {
-            this.clearSeedFromUrl();
-        }
-        this.stopTimer();
-        this.hideResetHint();
-        this.setDifficultySettings(this.difficulty);
-        this.grid = [];
-        this.revealed = 0;
-        this.gameOver = false;
-        this.firstClick = true;
-        this.isSeedLoadedGame = false;
-        this.seedLockActive = false;
-        this.seedStartCell = null;
-        this.currentSeed = '';
-        this.flagsRemaining = this.mines;
-        this.timer = 0;
-        this.isWin = false;
-        this.showGridBorder();
-
-        // reset timer display
-        document.getElementById('timer').textContent = this.formatTime(this.timer);
-        this.hideTimer();
-
-        // reset share button
-        if (this.shareButton) {
-            this.shareButton.textContent = 'share';
-            this.shareButton.classList.add('hidden');
-        }
-        this.currentShareText = '';
-        if (this.shareButtonResetTimeout) {
-            clearTimeout(this.shareButtonResetTimeout);
-            this.shareButtonResetTimeout = null;
-        }
-
-        this.initializeGrid();
-        this.renderGrid();
-        this.updateStats();
+        this.setupNewGame();
     }
 }
 
