@@ -2,39 +2,44 @@ import SudokuTechniqueLadderModule, { SudokuTechniqueLadder as NamedTechniqueLad
 
 const PRESET_TECHNIQUE_LADDER = SudokuTechniqueLadderModule || NamedTechniqueLadder || null;
 
+const EASY_TECHNIQUES = Object.freeze([
+    'fullHouse', //
+    'nakedSingle', //
+    'hiddenSingle', //
+    'lockedCandidatesType1Pointing', //
+    'lockedCandidatesType2Claiming', //
+    'nakedPair' //
+]);
+
+const MEDIUM_ADDITIONAL_TECHNIQUES = Object.freeze([
+    'hiddenPair', //
+    'hiddenTriple', //
+    'hiddenQuadruple', //
+    'nakedTriple', //
+    'nakedQuadruple', //
+    'xWing', //
+    'skyscraper', //
+    'twoStringKite', //
+    'xyWing', //
+    'simpleColors' //
+]);
+
 const SUDOKU_DIFFICULTY_CONFIG = Object.freeze({
     easy: {
         key: 'easy',
         displayName: 'Easy',
-        techniques: [
-            'fullHouse', //
-            'nakedSingle', //
-            'hiddenSingle', //
-            'lockedCandidatesType1Pointing', //
-            'lockedCandidatesType2Claiming', //
-            'nakedPair' //
-        ],
+        techniques: EASY_TECHNIQUES,
         minGivens: 36,
-        maxGivens: 49
+        maxGivens: 49,
+        maxAttempts: 50
     },
     medium: {
         key: 'medium',
         displayName: 'Medium',
-        techniques: [
-            'hiddenPair',
-            'hiddenTriple',
-            'hiddenQuadruple',
-            'nakedTriple',
-            'nakedQuadruple',
-            'basicFish',
-            'xWing',
-            'skyscraper',
-            'twoStringKite',
-            'xyWing',
-            'simpleColors'
-        ],
-        minGivens: 32,
-        maxGivens: 35
+        techniques: [...EASY_TECHNIQUES, ...MEDIUM_ADDITIONAL_TECHNIQUES],
+        minGivens: 30,
+        maxGivens: 35,
+        maxAttempts: 100
     },
     hard: {
         key: 'hard',
@@ -422,6 +427,53 @@ const solveWithBacktracking = (grid, limitSolutions = 2) => {
 
 const carvePuzzleFromSolution = (solutionGrid, config) => {
     const puzzleGrid = cloneGrid(solutionGrid);
+    const shouldBiasMediumRemovals = Boolean(config && config.key === 'medium');
+
+    const evaluateRemovalCandidateCount = (grid, row, col) => {
+        const originalValue = grid[row][col];
+        if (!Number.isFinite(originalValue) || originalValue <= 0) {
+            return 0;
+        }
+        grid[row][col] = 0;
+        const candidateCount = getCandidatesForCell(grid, row, col).length;
+        grid[row][col] = originalValue;
+        return candidateCount;
+    };
+
+    const buildRemovalPositions = (grid, biasRemovals) => {
+        const cells = [];
+        for (let r = 0; r < 9; r += 1) {
+            for (let c = 0; c < 9; c += 1) {
+                cells.push({ r, c });
+            }
+        }
+        if (!biasRemovals) {
+            shuffleArrayInPlace(cells);
+            return cells;
+        }
+        cells.forEach((cell) => {
+            cell.removalCandidateCount = evaluateRemovalCandidateCount(grid, cell.r, cell.c);
+        });
+        const multiCandidateCells = [];
+        const limitedCandidateCells = [];
+        cells.forEach((cell) => {
+            if ((cell.removalCandidateCount || 0) > 1) {
+                multiCandidateCells.push(cell);
+            } else {
+                limitedCandidateCells.push(cell);
+            }
+        });
+        multiCandidateCells.sort((a, b) => {
+            const countA = a.removalCandidateCount || 0;
+            const countB = b.removalCandidateCount || 0;
+            if (countA !== countB) {
+                return countB - countA;
+            }
+            return Math.random() - 0.5;
+        });
+        shuffleArrayInPlace(limitedCandidateCells);
+        return [...multiCandidateCells, ...limitedCandidateCells];
+    };
 
     const runTechniqueSolver = (grid, allowedTechniques, { requireUnique = true } = {}) => {
         const workingGrid = cloneGrid(grid);
@@ -474,71 +526,192 @@ const carvePuzzleFromSolution = (solutionGrid, config) => {
         };
     };
 
-    const positions = [];
-    for (let r = 0; r < 9; r += 1) {
-        for (let c = 0; c < 9; c += 1) {
-            positions.push({ r, c });
-        }
-    }
-    shuffleArrayInPlace(positions);
+    const attemptCarveWithTechniqueSequence = ({
+        techniqueSequence,
+        minGivens,
+        maxGivens,
+        biasRemovals,
+        label,
+        difficultyKey
+    }) => {
+        const puzzleGrid = cloneGrid(solutionGrid);
+        const positions = buildRemovalPositions(puzzleGrid, biasRemovals);
+        let currentGivenCount = countGivensInGrid(puzzleGrid);
+        let madeRemoval = false;
+        const aggregatedUsedTechniques = new Set();
 
-    let currentGivenCount = countGivensInGrid(puzzleGrid);
-    const aggregatedUsedTechniques = new Set();
+        const addUsedTechniques = (analysisResult) => {
+            if (!analysisResult || !analysisResult.usedTechniques || analysisResult.usedTechniques.size === 0) {
+                return;
+            }
+            analysisResult.usedTechniques.forEach((technique) => aggregatedUsedTechniques.add(technique));
+        };
 
-    for (const { r, c } of positions) {
-        const originalValue = puzzleGrid[r][c];
-        if (!Number.isFinite(originalValue) || originalValue <= 0) {
-            continue;
-        }
-
-        if (currentGivenCount <= config.minGivens) {
-            break;
-        }
-
-        puzzleGrid[r][c] = 0;
-        currentGivenCount -= 1;
-
-        if (currentGivenCount < config.minGivens) {
-            puzzleGrid[r][c] = originalValue;
-            currentGivenCount += 1;
-            continue;
-        }
-
-        const stepAnalysis = runTechniqueSolver(
+        const analyzeCurrentPuzzle = () => runTechniqueSolver(
             puzzleGrid,
-            config.techniques,
-            { requireUnique: true }
+            techniqueSequence,
+            { requireUnique: false }
         );
 
-        if (!stepAnalysis.isSolvable || !stepAnalysis.isUnique) {
-            puzzleGrid[r][c] = originalValue;
-            currentGivenCount += 1;
-            continue;
+        for (const { r, c } of positions) {
+            if (currentGivenCount <= minGivens) {
+                break;
+            }
+
+            const originalValue = puzzleGrid[r][c];
+            if (!Number.isFinite(originalValue) || originalValue <= 0) {
+                continue;
+            }
+
+            if (biasRemovals) {
+                const removalCandidateCount = evaluateRemovalCandidateCount(puzzleGrid, r, c);
+                if (removalCandidateCount <= 1) {
+                    continue;
+                }
+            }
+
+            puzzleGrid[r][c] = 0;
+            currentGivenCount -= 1;
+
+            if (currentGivenCount < minGivens) {
+                puzzleGrid[r][c] = originalValue;
+                currentGivenCount += 1;
+                continue;
+            }
+
+            const removalAnalysis = analyzeCurrentPuzzle();
+            if (!removalAnalysis.isSolvable) {
+                puzzleGrid[r][c] = originalValue;
+                currentGivenCount += 1;
+                continue;
+            }
+
+            addUsedTechniques(removalAnalysis);
+            madeRemoval = true;
+            console.log(
+                '%cRemoved given permanently%c row %d, col %d during %s',
+                'background:#222;color:#5dfc0a;font-weight:bold;padding:2px 4px;border-radius:2px;',
+                'color:inherit;font-weight:normal;',
+                r + 1,
+                c + 1,
+                label || 'carving'
+            );
         }
 
-        if (stepAnalysis.usedTechniques && stepAnalysis.usedTechniques.size > 0) {
-            stepAnalysis.usedTechniques.forEach((t) => aggregatedUsedTechniques.add(t));
-        }
+        const finalAnalysis = analyzeCurrentPuzzle();
+        addUsedTechniques(finalAnalysis);
+        const finalUsed = new Set(aggregatedUsedTechniques);
+
+        const success =
+            finalAnalysis.isSolvable &&
+            currentGivenCount >= minGivens &&
+            currentGivenCount <= maxGivens;
+
+        return {
+            success,
+            madeRemoval,
+            puzzleGrid,
+            analysis: {
+                isSolvable: finalAnalysis.isSolvable,
+                isUnique: finalAnalysis.isUnique,
+                usedTechniques: finalUsed
+            },
+            appliedKey: difficultyKey
+        };
+    };
+
+    const attemptConfigs = [];
+
+    if (config.key === 'medium') {
+        attemptConfigs.push({
+            techniqueSequence: config.techniques,
+            minGivens: config.minGivens,
+            maxGivens: config.maxGivens,
+            biasRemovals: true,
+            label: 'medium technique pass',
+            difficultyKey: 'medium'
+        });
+        attemptConfigs.push({
+            techniqueSequence: EASY_TECHNIQUES,
+            minGivens: SUDOKU_DIFFICULTY_CONFIG.easy.minGivens,
+            maxGivens: SUDOKU_DIFFICULTY_CONFIG.easy.maxGivens,
+            biasRemovals: false,
+            label: 'easy fallback pass',
+            difficultyKey: 'easy'
+        });
+    } else {
+        attemptConfigs.push({
+            techniqueSequence: config.techniques,
+            minGivens: config.minGivens,
+            maxGivens: config.maxGivens,
+            biasRemovals: shouldBiasMediumRemovals,
+            label: `${config.key} technique pass`,
+            difficultyKey: config.key
+        });
     }
 
-    const finalAnalysis = runTechniqueSolver(
-        puzzleGrid,
-        config.techniques,
-        { requireUnique: true }
-    );
+    let finalResult = null;
+    let lastResult = null;
 
-    const finalUsed = new Set(aggregatedUsedTechniques);
-    if (finalAnalysis.usedTechniques && finalAnalysis.usedTechniques.size > 0) {
-        finalAnalysis.usedTechniques.forEach((t) => finalUsed.add(t));
+    if (config.key === 'medium' && attemptConfigs.length >= 2) {
+        const mediumAttemptConfig = attemptConfigs[0];
+        const easyAttemptConfig = attemptConfigs[1];
+        const mediumPassLimit = Number.isFinite(config.maxAttempts) ? config.maxAttempts : 50;
+        let easyFallbackResult = null;
+
+        for (let pass = 0; pass < mediumPassLimit; pass += 1) {
+            const mediumResult = attemptCarveWithTechniqueSequence(mediumAttemptConfig);
+            if (mediumResult) {
+                lastResult = mediumResult;
+                if (mediumResult.success) {
+                    finalResult = mediumResult;
+                    break;
+                }
+            }
+
+            const easyResult = attemptCarveWithTechniqueSequence(easyAttemptConfig);
+            if (easyResult) {
+                lastResult = easyResult;
+                if (easyResult.success) {
+                    easyFallbackResult = easyResult;
+                }
+            }
+
+            if (finalResult) {
+                break;
+            }
+        }
+
+        if (!finalResult) {
+            finalResult = easyFallbackResult || lastResult;
+        }
+    } else if (attemptConfigs.length > 0) {
+        finalResult = attemptCarveWithTechniqueSequence(attemptConfigs[0]);
+    }
+
+    if (!finalResult) {
+        finalResult = attemptCarveWithTechniqueSequence({
+            techniqueSequence: config.techniques,
+            minGivens: config.minGivens,
+            maxGivens: config.maxGivens,
+            biasRemovals: shouldBiasMediumRemovals,
+            label: `${config.key} fallback carve`,
+            difficultyKey: config.key
+        }) || {
+            puzzleGrid: cloneGrid(solutionGrid),
+            analysis: {
+                isSolvable: false,
+                isUnique: false,
+                usedTechniques: new Set()
+            },
+            appliedKey: config.key
+        };
     }
 
     return {
-        puzzleGrid,
-        analysis: {
-            isSolvable: finalAnalysis.isSolvable,
-            isUnique: finalAnalysis.isUnique,
-            usedTechniques: finalUsed
-        }
+        puzzleGrid: finalResult.puzzleGrid,
+        analysis: finalResult.analysis,
+        appliedKey: finalResult.appliedKey || config.key
     };
 };
 
@@ -547,28 +720,52 @@ const generateSudokuPuzzle = (difficultyKey = 'easy', options = {}) => {
         SUDOKU_DIFFICULTY_CONFIG[difficultyKey] ||
         SUDOKU_DIFFICULTY_CONFIG.easy;
 
+    const defaultAttempts = Number.isFinite(config.maxAttempts)
+        ? config.maxAttempts
+        : 50;
+
     const maxAttempts = Number.isFinite(options.maxAttempts)
         ? options.maxAttempts
-        : 50;
+        : defaultAttempts;
 
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
         const solutionGrid = generateCompleteSolutionGrid();
 
-        const { puzzleGrid, analysis } = carvePuzzleFromSolution(solutionGrid, config);
+        const { puzzleGrid, analysis, appliedKey } = carvePuzzleFromSolution(solutionGrid, config);
+
+        const appliedConfigKey = appliedKey || config.key;
+        const appliedConfig = SUDOKU_DIFFICULTY_CONFIG[appliedConfigKey] || config;
 
         const givenCount = countGivensInGrid(puzzleGrid);
-        if (givenCount < config.minGivens || givenCount > config.maxGivens) {
+        if (givenCount < appliedConfig.minGivens || givenCount > appliedConfig.maxGivens) {
             continue;
         }
 
-        if (!analysis.isSolvable || !analysis.isUnique) {
+        if (!analysis.isSolvable) {
             continue;
+        }
+
+        if (analysis && analysis.usedTechniques) {
+            const allTechniquesUsed = Array.from(analysis.usedTechniques);
+            console.log(`Puzzle techniques used (${config.key}):`, allTechniquesUsed);
+        }
+
+        if (config.key === 'medium' && analysis && analysis.usedTechniques) {
+            const mediumTechniquesUsed = Array.from(analysis.usedTechniques)
+                .filter((technique) => MEDIUM_ADDITIONAL_TECHNIQUES.includes(technique));
+            console.log('Medium puzzle techniques:', mediumTechniquesUsed);
+        }
+
+        if (config.key !== appliedConfigKey) {
+            console.log(`Generated "${appliedConfigKey}" puzzle (requested ${config.key}) in ${attempt} attempt${attempt === 1 ? '' : 's'}`);
+        } else {
+            console.log(`Generated "${config.key}" puzzle in ${attempt} attempt${attempt === 1 ? '' : 's'}`);
         }
 
         return {
             puzzle: puzzleGrid,
             solution: solutionGrid,
-            difficulty: config.key,
+            difficulty: appliedConfigKey,
             attempt,
             meta: {
                 givenCount,

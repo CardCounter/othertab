@@ -184,27 +184,27 @@ body.dark-mode .sudoku-difficulty-button--active:hover {
 }
 
 .sudoku-cell[data-row="0"] {
-    border-top: 3px solid currentColor;
+    border-top: 5px solid currentColor;
 }
 
 .sudoku-cell[data-col="0"] {
-    border-left: 3px solid currentColor;
+    border-left: 5px solid currentColor;
 }
 
 .sudoku-cell[data-row="8"] {
-    border-bottom: 3px solid currentColor;
+    border-bottom: 5px solid currentColor;
 }
 
 .sudoku-cell[data-col="8"] {
-    border-right: 3px solid currentColor;
+    border-right: 5px solid currentColor;
 }
 
 .sudoku-cell.border-top-bold {
-    border-top-width: 3px;
+    border-top-width: 5px;
 }
 
 .sudoku-cell.border-left-bold {
-    border-left-width: 3px;
+    border-left-width: 5px;
 }
 
 .sudoku-cell.filled {

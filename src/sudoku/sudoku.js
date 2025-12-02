@@ -288,7 +288,7 @@ const getDifficultyConfig = (difficultyKey = currentDifficulty) => (
     SUDOKU_DIFFICULTY_CONFIG[difficultyKey] || SUDOKU_DIFFICULTY_CONFIG.easy
 );
 
-const isDifficultyEnabled = (difficultyKey) => difficultyKey === 'easy';
+const isDifficultyEnabled = (difficultyKey) => difficultyKey === 'easy' || difficultyKey === 'medium';
 
 const updateModeButtonLabel = () => {
     if (!modeButtonLabel) {
@@ -399,7 +399,7 @@ const requestNewPuzzle = (difficultyKey = currentDifficulty) => {
         puzzle = createGridClone(FALLBACK_PUZZLE);
         boardState = createGridClone(puzzle);
         currentPuzzleResult = null;
-        currentDifficulty = 'easy';
+        currentDifficulty = targetDifficulty;
     } finally {
         isGeneratingPuzzle = false;
         setNewPuzzleButtonBusyState(false);

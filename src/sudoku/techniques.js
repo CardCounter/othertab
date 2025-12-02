@@ -74,6 +74,29 @@ const SudokuTechniqueLadder = (() => {
 
     const ALL_HOUSES = [...ROW_HOUSES, ...COLUMN_HOUSES, ...BOX_HOUSES];
 
+    const cellsShareBlock = (rowA, colA, rowB, colB) =>
+        Math.floor(rowA / 3) === Math.floor(rowB / 3) && Math.floor(colA / 3) === Math.floor(colB / 3);
+
+    const cellsSeeEachOther = (rowA, colA, rowB, colB) =>
+        rowA === rowB || colA === colB || cellsShareBlock(rowA, colA, rowB, colB);
+
+    const getCombinations = (items, size) => {
+        const results = [];
+        const recurse = (startIndex, path) => {
+            if (path.length === size) {
+                results.push(path.slice());
+                return;
+            }
+            for (let i = startIndex; i < items.length; i += 1) {
+                path.push(items[i]);
+                recurse(i + 1, path);
+                path.pop();
+            }
+        };
+        recurse(0, []);
+        return results;
+    };
+
     const removeCandidateFromCell = (candidates, row, col, value) => {
         const cellCandidates = candidates[row][col];
         if (!cellCandidates || cellCandidates.length === 0) {
@@ -85,6 +108,226 @@ const SudokuTechniqueLadder = (() => {
         }
         cellCandidates.splice(index, 1);
         return true;
+    };
+
+    const eliminateUsingSharedPeers = (grid, candidates, digit, cellA, cellB, protectedCells = []) => {
+        const skipKeys = new Set();
+        const addKey = ([row, col]) => {
+            if (typeof row !== 'number' || typeof col !== 'number') {
+                return;
+            }
+            skipKeys.add(`${row}-${col}`);
+        };
+        addKey(cellA);
+        addKey(cellB);
+        for (let i = 0; i < protectedCells.length; i += 1) {
+            addKey(protectedCells[i]);
+        }
+
+        for (let row = 0; row < 9; row += 1) {
+            for (let col = 0; col < 9; col += 1) {
+                if (skipKeys.has(`${row}-${col}`)) {
+                    continue;
+                }
+                if (grid[row][col] > 0) {
+                    continue;
+                }
+                if (!cellsSeeEachOther(row, col, cellA[0], cellA[1])) {
+                    continue;
+                }
+                if (!cellsSeeEachOther(row, col, cellB[0], cellB[1])) {
+                    continue;
+                }
+                if (removeCandidateFromCell(candidates, row, col, digit)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    };
+
+    const applySimpleColors = (grid, candidates) => {
+        const getCellKey = (row, col) => `${row}-${col}`;
+
+        const buildConjugateGraph = (digit) => {
+            const graph = new Map();
+            const ensureNode = (row, col) => {
+                const key = getCellKey(row, col);
+                if (!graph.has(key)) {
+                    graph.set(key, { key, row, col, neighbors: new Set() });
+                }
+                return graph.get(key);
+            };
+            const connectCells = (cellA, cellB) => {
+                const [rowA, colA] = cellA;
+                const [rowB, colB] = cellB;
+                const nodeA = ensureNode(rowA, colA);
+                const nodeB = ensureNode(rowB, colB);
+                nodeA.neighbors.add(nodeB.key);
+                nodeB.neighbors.add(nodeA.key);
+            };
+            const processHouse = (cells) => {
+                const locations = [];
+                for (let i = 0; i < cells.length; i += 1) {
+                    const [row, col] = cells[i];
+                    if (grid[row][col] > 0) {
+                        continue;
+                    }
+                    const cellCandidates = candidates[row][col];
+                    if (!cellCandidates || cellCandidates.length === 0) {
+                        continue;
+                    }
+                    if (cellCandidates.includes(digit)) {
+                        locations.push([row, col]);
+                        if (locations.length > 2) {
+                            break;
+                        }
+                    }
+                }
+                if (locations.length === 2) {
+                    connectCells(locations[0], locations[1]);
+                }
+            };
+
+            for (let i = 0; i < ALL_HOUSES.length; i += 1) {
+                processHouse(ALL_HOUSES[i]);
+            }
+
+            return graph;
+        };
+
+        const exploreComponent = (startKey, graph, visitedKeys) => {
+            const queue = [startKey];
+            const colorAssignments = new Map([[startKey, 0]]);
+            const keySet = new Set();
+            const colorGroups = [[], []];
+            visitedKeys.add(startKey);
+
+            for (let queueIndex = 0; queueIndex < queue.length; queueIndex += 1) {
+                const key = queue[queueIndex];
+                const node = graph.get(key);
+                if (!node) {
+                    continue;
+                }
+                const color = colorAssignments.get(key) || 0;
+                keySet.add(key);
+                colorGroups[color].push([node.row, node.col]);
+                for (const neighborKey of node.neighbors) {
+                    if (colorAssignments.has(neighborKey)) {
+                        continue;
+                    }
+                    colorAssignments.set(neighborKey, 1 - color);
+                    queue.push(neighborKey);
+                    visitedKeys.add(neighborKey);
+                }
+            }
+
+            return { colorAssignments, keySet, colorGroups };
+        };
+
+        const tryColorWrap = (component, digit) => {
+            for (let color = 0; color < 2; color += 1) {
+                const cells = component.colorGroups[color];
+                if (cells.length < 2) {
+                    continue;
+                }
+                for (let i = 0; i < cells.length - 1; i += 1) {
+                    const [rowA, colA] = cells[i];
+                    for (let j = i + 1; j < cells.length; j += 1) {
+                        const [rowB, colB] = cells[j];
+                        if (!cellsSeeEachOther(rowA, colA, rowB, colB)) {
+                            continue;
+                        }
+                        let changed = false;
+                        for (let k = 0; k < cells.length; k += 1) {
+                            const [targetRow, targetCol] = cells[k];
+                            if (removeCandidateFromCell(candidates, targetRow, targetCol, digit)) {
+                                changed = true;
+                            }
+                        }
+                        if (changed) {
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        };
+
+        const tryColorTrap = (component, digit) => {
+            if (component.keySet.size === 0) {
+                return false;
+            }
+            for (let row = 0; row < 9; row += 1) {
+                for (let col = 0; col < 9; col += 1) {
+                    if (grid[row][col] > 0) {
+                        continue;
+                    }
+                    const cellCandidates = candidates[row][col];
+                    if (!cellCandidates || cellCandidates.length === 0) {
+                        continue;
+                    }
+                    if (!cellCandidates.includes(digit)) {
+                        continue;
+                    }
+                    const cellKey = getCellKey(row, col);
+                    if (component.keySet.has(cellKey)) {
+                        continue;
+                    }
+                    let seesColorA = false;
+                    let seesColorB = false;
+                    const peers = PEERS[row][col];
+                    for (let i = 0; i < peers.length; i += 1) {
+                        const [peerRow, peerCol] = peers[i];
+                        const peerKey = getCellKey(peerRow, peerCol);
+                        if (!component.colorAssignments.has(peerKey)) {
+                            continue;
+                        }
+                        const peerColor = component.colorAssignments.get(peerKey);
+                        if (peerColor === 0) {
+                            seesColorA = true;
+                        } else {
+                            seesColorB = true;
+                        }
+                        if (seesColorA && seesColorB) {
+                            break;
+                        }
+                    }
+                    if (seesColorA && seesColorB) {
+                        if (removeCandidateFromCell(candidates, row, col, digit)) {
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        };
+
+        for (let digitIndex = 0; digitIndex < DIGITS.length; digitIndex += 1) {
+            const digit = DIGITS[digitIndex];
+            const graph = buildConjugateGraph(digit);
+            if (graph.size === 0) {
+                continue;
+            }
+            const visited = new Set();
+            for (const key of graph.keys()) {
+                if (visited.has(key)) {
+                    continue;
+                }
+                const component = exploreComponent(key, graph, visited);
+                if (component.keySet.size < 2) {
+                    continue;
+                }
+                if (tryColorWrap(component, digit)) {
+                    return true;
+                }
+                if (tryColorTrap(component, digit)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     };
 
     const applyValueToCell = (grid, candidates, row, col, value) => {
@@ -359,13 +602,537 @@ const SudokuTechniqueLadder = (() => {
         return false;
     };
 
+    const createNakedSubsetExecutor = (subsetSize) => {
+        const processHouse = (cells, grid, candidates) => {
+            const eligibleCells = [];
+            for (let i = 0; i < cells.length; i += 1) {
+                const [row, col] = cells[i];
+                if (grid[row][col] > 0) {
+                    continue;
+                }
+                const cellCandidates = candidates[row][col];
+                if (!cellCandidates || cellCandidates.length === 0) {
+                    continue;
+                }
+                if (cellCandidates.length > subsetSize) {
+                    continue;
+                }
+                eligibleCells.push({ row, col, candidates: cellCandidates });
+            }
+            if (eligibleCells.length < subsetSize) {
+                return false;
+            }
+
+            const combinations = getCombinations(eligibleCells, subsetSize);
+            for (let comboIndex = 0; comboIndex < combinations.length; comboIndex += 1) {
+                const subsetCells = combinations[comboIndex];
+                const unionDigits = new Set();
+                for (let subsetIndex = 0; subsetIndex < subsetCells.length; subsetIndex += 1) {
+                    const { candidates: cellCandidates } = subsetCells[subsetIndex];
+                    for (let idx = 0; idx < cellCandidates.length; idx += 1) {
+                        unionDigits.add(cellCandidates[idx]);
+                    }
+                }
+                if (unionDigits.size !== subsetSize) {
+                    continue;
+                }
+                const anchorKeys = new Set(
+                    subsetCells.map(({ row, col }) => `${row}-${col}`)
+                );
+                let changed = false;
+                for (let cellIndex = 0; cellIndex < cells.length; cellIndex += 1) {
+                    const [row, col] = cells[cellIndex];
+                    if (grid[row][col] > 0) {
+                        continue;
+                    }
+                    const key = `${row}-${col}`;
+                    if (anchorKeys.has(key)) {
+                        continue;
+                    }
+                    for (const digit of unionDigits) {
+                        if (removeCandidateFromCell(candidates, row, col, digit)) {
+                            changed = true;
+                        }
+                    }
+                }
+                if (changed) {
+                    return true;
+                }
+            }
+            return false;
+        };
+
+        return (grid, candidates) => {
+            for (let i = 0; i < ALL_HOUSES.length; i += 1) {
+                if (processHouse(ALL_HOUSES[i], grid, candidates)) {
+                    return true;
+                }
+            }
+            return false;
+        };
+    };
+
+    const createHiddenSubsetExecutor = (subsetSize) => {
+        const processHouse = (cells, grid, candidates) => {
+            const digitLocations = new Map();
+            for (let i = 0; i < cells.length; i += 1) {
+                const [row, col] = cells[i];
+                if (grid[row][col] > 0) {
+                    continue;
+                }
+                const cellCandidates = candidates[row][col];
+                for (let idx = 0; idx < cellCandidates.length; idx += 1) {
+                    const digit = cellCandidates[idx];
+                    if (!digitLocations.has(digit)) {
+                        digitLocations.set(digit, []);
+                    }
+                    digitLocations.get(digit).push([row, col]);
+                }
+            }
+
+            const eligibleDigits = Array.from(digitLocations.entries()).filter(
+                (entry) => entry[1].length > 0 && entry[1].length <= subsetSize
+            );
+            if (eligibleDigits.length < subsetSize) {
+                return false;
+            }
+
+            const digitValues = eligibleDigits.map((entry) => entry[0]);
+            const combinations = getCombinations(digitValues, subsetSize);
+            for (let comboIndex = 0; comboIndex < combinations.length; comboIndex += 1) {
+                const subsetDigits = combinations[comboIndex];
+                const unionCells = [];
+                const cellKeys = new Set();
+                for (let d = 0; d < subsetDigits.length; d += 1) {
+                    const digit = subsetDigits[d];
+                    const locations = digitLocations.get(digit);
+                    for (let locIndex = 0; locIndex < locations.length; locIndex += 1) {
+                        const [row, col] = locations[locIndex];
+                        const key = `${row}-${col}`;
+                        if (!cellKeys.has(key)) {
+                            cellKeys.add(key);
+                            unionCells.push([row, col]);
+                        }
+                    }
+                }
+                if (unionCells.length !== subsetSize) {
+                    continue;
+                }
+                const allowedDigits = new Set(subsetDigits);
+                let changed = false;
+                for (let cellIndex = 0; cellIndex < unionCells.length; cellIndex += 1) {
+                    const [row, col] = unionCells[cellIndex];
+                    const cellCandidates = candidates[row][col];
+                    if (!cellCandidates || cellCandidates.length === 0) {
+                        continue;
+                    }
+                    for (let idx = cellCandidates.length - 1; idx >= 0; idx -= 1) {
+                        const value = cellCandidates[idx];
+                        if (!allowedDigits.has(value)) {
+                            cellCandidates.splice(idx, 1);
+                            changed = true;
+                        }
+                    }
+                }
+                if (changed) {
+                    return true;
+                }
+            }
+            return false;
+        };
+
+        return (grid, candidates) => {
+            for (let i = 0; i < ALL_HOUSES.length; i += 1) {
+                if (processHouse(ALL_HOUSES[i], grid, candidates)) {
+                    return true;
+                }
+            }
+            return false;
+        };
+    };
+
+    const applyNakedTriples = createNakedSubsetExecutor(3);
+    const applyNakedQuadruples = createNakedSubsetExecutor(4);
+
+    const applyHiddenPairs = createHiddenSubsetExecutor(2);
+    const applyHiddenTriples = createHiddenSubsetExecutor(3);
+    const applyHiddenQuadruples = createHiddenSubsetExecutor(4);
+
+    const applySkyscraper = (grid, candidates) => {
+        const searchOrientation = (useRows) => {
+            for (let digitIndex = 0; digitIndex < DIGITS.length; digitIndex += 1) {
+                const digit = DIGITS[digitIndex];
+                const basePositions = Array.from({ length: 9 }, () => null);
+
+                for (let base = 0; base < 9; base += 1) {
+                    const slots = [];
+                    for (let cover = 0; cover < 9; cover += 1) {
+                        const row = useRows ? base : cover;
+                        const col = useRows ? cover : base;
+                        if (grid[row][col] > 0) {
+                            continue;
+                        }
+                        const cellCandidates = candidates[row][col];
+                        if (!cellCandidates || cellCandidates.length === 0) {
+                            continue;
+                        }
+                        if (cellCandidates.includes(digit)) {
+                            slots.push(useRows ? col : row);
+                        }
+                    }
+                    if (slots.length === 2) {
+                        basePositions[base] = slots;
+                    }
+                }
+
+                for (let baseA = 0; baseA < 9; baseA += 1) {
+                    const positionsA = basePositions[baseA];
+                    if (!positionsA) {
+                        continue;
+                    }
+                    for (let baseB = baseA + 1; baseB < 9; baseB += 1) {
+                        const positionsB = basePositions[baseB];
+                        if (!positionsB) {
+                            continue;
+                        }
+
+                        let sharedValue = null;
+                        let sharedCount = 0;
+                        for (let i = 0; i < positionsA.length; i += 1) {
+                            if (positionsB.includes(positionsA[i])) {
+                                sharedValue = positionsA[i];
+                                sharedCount += 1;
+                            }
+                        }
+                        if (sharedCount !== 1) {
+                            continue;
+                        }
+
+                        const otherA = positionsA[0] === sharedValue ? positionsA[1] : positionsA[0];
+                        const otherB = positionsB[0] === sharedValue ? positionsB[1] : positionsB[0];
+                        if (otherA === sharedValue || otherB === sharedValue) {
+                            continue;
+                        }
+
+                        if (Math.floor(baseA / 3) !== Math.floor(baseB / 3)) {
+                            continue;
+                        }
+
+                        const remoteCellA = useRows ? [baseA, otherA] : [otherA, baseA];
+                        const remoteCellB = useRows ? [baseB, otherB] : [otherB, baseB];
+                        const baseCells = useRows
+                            ? [
+                                [baseA, sharedValue],
+                                [baseB, sharedValue]
+                            ]
+                            : [
+                                [sharedValue, baseA],
+                                [sharedValue, baseB]
+                            ];
+
+                        if (eliminateUsingSharedPeers(grid, candidates, digit, remoteCellA, remoteCellB, baseCells)) {
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        };
+
+        return searchOrientation(true) || searchOrientation(false);
+    };
+
+    const applyTwoStringKite = (grid, candidates) => {
+        for (let digitIndex = 0; digitIndex < DIGITS.length; digitIndex += 1) {
+            const digit = DIGITS[digitIndex];
+            const rowPositions = Array.from({ length: 9 }, () => []);
+            const columnPositions = Array.from({ length: 9 }, () => []);
+
+            for (let row = 0; row < 9; row += 1) {
+                for (let col = 0; col < 9; col += 1) {
+                    if (grid[row][col] > 0) {
+                        continue;
+                    }
+                    const cellCandidates = candidates[row][col];
+                    if (!cellCandidates || cellCandidates.length === 0) {
+                        continue;
+                    }
+                    if (cellCandidates.includes(digit)) {
+                        rowPositions[row].push(col);
+                        columnPositions[col].push(row);
+                    }
+                }
+            }
+
+            for (let row = 0; row < 9; row += 1) {
+                const rowCols = rowPositions[row];
+                if (rowCols.length !== 2) {
+                    continue;
+                }
+                for (let col = 0; col < 9; col += 1) {
+                    const colRows = columnPositions[col];
+                    if (colRows.length !== 2) {
+                        continue;
+                    }
+
+                    for (let rowChoiceIndex = 0; rowChoiceIndex < 2; rowChoiceIndex += 1) {
+                        const rowConnectorCell = [row, rowCols[rowChoiceIndex]];
+                        for (let colChoiceIndex = 0; colChoiceIndex < 2; colChoiceIndex += 1) {
+                            const colConnectorCell = [colRows[colChoiceIndex], col];
+                            if (
+                                rowConnectorCell[0] === colConnectorCell[0] &&
+                                rowConnectorCell[1] === colConnectorCell[1]
+                            ) {
+                                continue;
+                            }
+                            if (
+                                !cellsShareBlock(
+                                    rowConnectorCell[0],
+                                    rowConnectorCell[1],
+                                    colConnectorCell[0],
+                                    colConnectorCell[1]
+                                )
+                            ) {
+                                continue;
+                            }
+
+                            const rowOtherCol = rowCols[1 - rowChoiceIndex];
+                            const colOtherRow = colRows[1 - colChoiceIndex];
+                            const rowOtherCell = [row, rowOtherCol];
+                            const colOtherCell = [colOtherRow, col];
+                            if (
+                                rowOtherCell[0] === colOtherCell[0] &&
+                                rowOtherCell[1] === colOtherCell[1]
+                            ) {
+                                continue;
+                            }
+
+                            const protectedCells = [rowConnectorCell, colConnectorCell];
+                            if (
+                                eliminateUsingSharedPeers(
+                                    grid,
+                                    candidates,
+                                    digit,
+                                    rowOtherCell,
+                                    colOtherCell,
+                                    protectedCells
+                                )
+                            ) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return false;
+    };
+
+    const applyXYWing = (grid, candidates) => {
+        const gatherPincers = (pivotRow, pivotCol, sharedDigit, excludedDigit) => {
+            const pincers = [];
+            const peers = PEERS[pivotRow][pivotCol];
+            for (let i = 0; i < peers.length; i += 1) {
+                const [row, col] = peers[i];
+                if (grid[row][col] > 0) {
+                    continue;
+                }
+                const peerCandidates = candidates[row][col];
+                if (!peerCandidates || peerCandidates.length !== 2) {
+                    continue;
+                }
+                if (!peerCandidates.includes(sharedDigit)) {
+                    continue;
+                }
+                const otherDigit = peerCandidates[0] === sharedDigit ? peerCandidates[1] : peerCandidates[0];
+                if (otherDigit === excludedDigit) {
+                    continue;
+                }
+                pincers.push({ cell: [row, col], zDigit: otherDigit });
+            }
+            return pincers;
+        };
+
+        for (let row = 0; row < 9; row += 1) {
+            for (let col = 0; col < 9; col += 1) {
+                if (grid[row][col] > 0) {
+                    continue;
+                }
+                const pivotCandidates = candidates[row][col];
+                if (!pivotCandidates || pivotCandidates.length !== 2) {
+                    continue;
+                }
+                const [digitA, digitB] = pivotCandidates;
+                const pincersA = gatherPincers(row, col, digitA, digitB);
+                const pincersB = gatherPincers(row, col, digitB, digitA);
+                if (pincersA.length === 0 || pincersB.length === 0) {
+                    continue;
+                }
+                for (let i = 0; i < pincersA.length; i += 1) {
+                    const pincerA = pincersA[i];
+                    for (let j = 0; j < pincersB.length; j += 1) {
+                        const pincerB = pincersB[j];
+                        if (
+                            pincerA.cell[0] === pincerB.cell[0] &&
+                            pincerA.cell[1] === pincerB.cell[1]
+                        ) {
+                            continue;
+                        }
+                        if (pincerA.zDigit !== pincerB.zDigit) {
+                            continue;
+                        }
+                        const protectedCells = [[row, col]];
+                        if (
+                            eliminateUsingSharedPeers(
+                                grid,
+                                candidates,
+                                pincerA.zDigit,
+                                pincerA.cell,
+                                pincerB.cell,
+                                protectedCells
+                            )
+                        ) {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        return false;
+    };
+
+    const applyXWing = (grid, candidates) => {
+        const eliminateFromColumns = (rowA, rowB, columns, digit) => {
+            let changed = false;
+            for (let i = 0; i < columns.length; i += 1) {
+                const col = columns[i];
+                for (let row = 0; row < 9; row += 1) {
+                    if (row === rowA || row === rowB) {
+                        continue;
+                    }
+                    if (grid[row][col] > 0) {
+                        continue;
+                    }
+                    if (removeCandidateFromCell(candidates, row, col, digit)) {
+                        changed = true;
+                    }
+                }
+            }
+            return changed;
+        };
+
+        const eliminateFromRows = (colA, colB, rows, digit) => {
+            let changed = false;
+            for (let i = 0; i < rows.length; i += 1) {
+                const row = rows[i];
+                for (let col = 0; col < 9; col += 1) {
+                    if (col === colA || col === colB) {
+                        continue;
+                    }
+                    if (grid[row][col] > 0) {
+                        continue;
+                    }
+                    if (removeCandidateFromCell(candidates, row, col, digit)) {
+                        changed = true;
+                    }
+                }
+            }
+            return changed;
+        };
+
+        const searchXWing = (useRows) => {
+            for (let digitIndex = 0; digitIndex < DIGITS.length; digitIndex += 1) {
+                const digit = DIGITS[digitIndex];
+                const basePositions = Array.from({ length: 9 }, () => []);
+                if (useRows) {
+                    for (let row = 0; row < 9; row += 1) {
+                        for (let col = 0; col < 9; col += 1) {
+                            if (grid[row][col] > 0) {
+                                continue;
+                            }
+                            const cellCandidates = candidates[row][col];
+                            if (!cellCandidates || cellCandidates.length === 0) {
+                                continue;
+                            }
+                            if (cellCandidates.includes(digit)) {
+                                basePositions[row].push(col);
+                            }
+                        }
+                    }
+                } else {
+                    for (let col = 0; col < 9; col += 1) {
+                        for (let row = 0; row < 9; row += 1) {
+                            if (grid[row][col] > 0) {
+                                continue;
+                            }
+                            const cellCandidates = candidates[row][col];
+                            if (!cellCandidates || cellCandidates.length === 0) {
+                                continue;
+                            }
+                            if (cellCandidates.includes(digit)) {
+                                basePositions[col].push(row);
+                            }
+                        }
+                    }
+                }
+
+                const signatureMap = new Map();
+                for (let baseIndex = 0; baseIndex < basePositions.length; baseIndex += 1) {
+                    const positions = basePositions[baseIndex];
+                    if (positions.length !== 2) {
+                        continue;
+                    }
+                    const sorted = positions.slice().sort((a, b) => a - b);
+                    const key = `${sorted[0]}-${sorted[1]}`;
+                    if (!signatureMap.has(key)) {
+                        signatureMap.set(key, { coverPair: sorted, baseIndexes: [] });
+                    }
+                    signatureMap.get(key).baseIndexes.push(baseIndex);
+                }
+
+                for (const entry of signatureMap.values()) {
+                    const { coverPair, baseIndexes } = entry;
+                    if (baseIndexes.length < 2) {
+                        continue;
+                    }
+                    for (let i = 0; i < baseIndexes.length - 1; i += 1) {
+                        for (let j = i + 1; j < baseIndexes.length; j += 1) {
+                            const baseA = baseIndexes[i];
+                            const baseB = baseIndexes[j];
+                            if (useRows) {
+                                if (eliminateFromColumns(baseA, baseB, coverPair, digit)) {
+                                    return true;
+                                }
+                            } else if (eliminateFromRows(baseA, baseB, coverPair, digit)) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+            return false;
+        };
+
+        return searchXWing(true) || searchXWing(false);
+    };
+
     const TECHNIQUE_EXECUTORS = Object.freeze({
         fullHouse: applyFullHouse,
         nakedSingle: applyNakedSingles,
         hiddenSingle: applyHiddenSingles,
         lockedCandidatesType1Pointing: applyLockedCandidatesType1Pointing,
         lockedCandidatesType2Claiming: applyLockedCandidatesType2Claiming,
-        nakedPair: applyNakedPairs
+        nakedPair: applyNakedPairs,
+        nakedTriple: applyNakedTriples,
+        nakedQuadruple: applyNakedQuadruples,
+        hiddenPair: applyHiddenPairs,
+        hiddenTriple: applyHiddenTriples,
+        hiddenQuadruple: applyHiddenQuadruples,
+        xWing: applyXWing,
+        skyscraper: applySkyscraper,
+        twoStringKite: applyTwoStringKite,
+        xyWing: applyXYWing,
+        simpleColors: applySimpleColors
     });
 
     const TECHNIQUE_KEYS = Object.freeze(Object.keys(TECHNIQUE_EXECUTORS));
@@ -387,7 +1154,10 @@ const SudokuTechniqueLadder = (() => {
         }
         for (let i = 0; i < techniqueSequence.length; i += 1) {
             const techniqueName = techniqueSequence[i];
-            if (executeTechnique(techniqueName, grid, candidates)) {
+            console.log(`Trying ${techniqueName}`);
+            const succeeded = executeTechnique(techniqueName, grid, candidates);
+            console.log(`${succeeded ? 'Success' : 'Fail'} ${techniqueName}`);
+            if (succeeded) {
                 return techniqueName;
             }
         }
