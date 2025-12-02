@@ -82,4 +82,179 @@ rn removes a given, checks if med technique solves it. if not try a different gi
 been tested, go back but only use easy techniques. this just gives a board of easy techniques
 
 need tests for each technique to see it things even work properly
+
+try this? 
+https://javascript.plainenglish.io/building-a-sudoku-puzzle-generator-d55cead9656d
+
+or make a solver, cat each puzzle based on num givens and techniques needed, then use above
+https://www.kaggle.com/datasets/rohanrao/sudoku/data
+https://huggingface.co/datasets/Ritvik19/Sudoku-Dataset
+
+Yeah, “same family” is a real thing in Sudoku world, and there *are* ways to detect it. Eigenvalues can kind of show up via graph ideas, but they’re not the clean way to *fully* solve it.
+
+Let me break it down.
+
+---
+
+## What “same family” actually means
+
+Two puzzles (P) and (Q) are in the same family if you can get from one to the other using only solution-preserving symmetries:
+
+* Permute digits (1↔5, etc)
+* Swap rows in a band, bands themselves
+* Swap columns in a stack, stacks themselves
+* Transpose, rotate, reflect
+
+Formally: (Q = g(P)) for some symmetry (g) in the Sudoku automorphism group.
+
+You want to check:
+
+> Is there *some* sequence of those moves that turns puzzle A into puzzle B?
+
+---
+
+## High-level approaches
+
+### 1. Canonical form (most common trick)
+
+Idea:
+Turn every puzzle into a “canonical representative”. If two puzzles have the same canonical form, then they’re in the same family.
+
+Rough outline:
+
+1. **Generate all board symmetries** you care about:
+
+   * transpose vs not
+   * permutations of bands & stacks
+   * permutations of rows within bands and columns within stacks
+
+2. For a given puzzle:
+
+   * Apply each symmetry → you get a transformed puzzle.
+   * For each transformed puzzle, **canonicalize the digits**:
+
+     * e.g. relabel digits in the order they first appear (top-left to bottom-right):
+       first seen digit → `1`, second unseen digit → `2`, etc.
+   * Flatten the puzzle as a string (e.g. `81` chars, `0`/`.` for blank).
+
+3. Pick the **lexicographically smallest string** among all those variations → that’s the canonical ID of the puzzle.
+
+Then:
+
+* Compute `canon(A)` and `canon(B)`
+* If `canon(A) === canon(B)`, they’re the same family.
+* If not, they’re genuinely different.
+
+This is “complete”: it will correctly say “same family” iff they are.
+
+Downside: combinatorial explosion if you do it naïvely. But you can prune a ton:
+
+* Fix band/stack orders based on which one has the earliest given, etc.
+* Use local invariants (clue count per row/column/box) to avoid generating symmetric duplicates.
+
+For casual scale (comparing individual puzzles), it’s very doable.
+
+---
+
+### 2. Backtracking over the symmetry group
+
+Alternative: directly try to match A to B using a search:
+
+1. First check **easy invariants**, e.g.:
+
+   * Same total number of clues?
+   * Same multiset of clue counts per row, per column, per box?
+   * Same multiset of digit frequencies?
+
+   If any of these differ → definitely *not* same family.
+
+2. Then search:
+
+   * Choose a mapping for digits compatible with frequencies.
+   * Choose band/row/stack/col permutations that make the clue pattern line up.
+   * At each step, prune if partial mapping already contradicts B.
+
+If you can complete a full mapping: same family.
+If search exhausts: different puzzles.
+
+This is basically doing graph isomorphism by hand on the Sudoku symmetry group.
+
+---
+
+## So… where do eigenvalues come in?
+
+You *can* bring eigenvalues in via a graph viewpoint, but they’re only a **filter**, not a full test.
+
+### Graph encoding idea
+
+Think of encoding a Sudoku puzzle as a graph:
+
+* Nodes = cells, or (cell, digit) pairs, etc.
+* Edges = “same row/column/box” constraints, plus maybe edges to represent given clues.
+* Two puzzles are in the same family ⇔ the corresponding graphs are isomorphic via a permutation that represents allowed Sudoku symmetries (row/col/digit relabel, etc).
+
+If you build an adjacency matrix (A) for that graph, then:
+
+* Any allowed symmetry is a permutation matrix (P) with
+  ( A' = P^\top A P )
+* That preserves the **eigenvalues** of (A).
+* So: if two puzzles are in the same family, their graphs’ adjacency matrices will be **cospectral** (same eigenvalues).
+
+But the converse is false in general:
+
+* There are many non-isomorphic graphs with the same adjacency spectrum.
+* So eigenvalues give a **necessary** condition but not a **sufficient** one:
+
+  * Different eigenvalues → definitely not same family.
+  * Same eigenvalues → *maybe* same family, you still don’t know.
+
+Also, the obvious “constraints-only” graph (cells linked if they share row/col/box) has the **same structure for every Sudoku** (it doesn’t depend on the actual givens), so its eigenvalues are identical for *all* puzzles. That’s useless.
+
+You’d need to bake *givens* into the graph somehow (weights, extra nodes, etc.), which makes things more complicated, and still doesn’t get you a perfect equivalence test.
+
+So eigenvalues are:
+
+* OK as a **quick hash-like filter**.
+* Not enough to *prove* two puzzles are equivalent.
+
+---
+
+## Practical way to do this (in code)
+
+If you want to actually implement something:
+
+1. **Normalize digits**:
+
+   * Scan puzzle top-left to bottom-right.
+   * For each non-empty cell:
+
+     * If digit not seen before, assign it the next label `1,2,3,…`.
+     * Replace with canonical label.
+   * That kills most digit-permutation variability.
+
+2. **Normalize rows/columns inside bands/stacks**:
+
+   * For each band, sort its 3 rows lexicographically (using the whole row).
+   * For each stack, sort its 3 columns lexicographically.
+
+3. **Consider transposition**:
+
+   * Do steps (1–2) on the original puzzle and on the transposed one.
+   * Take the lexicographically smallest of the two flattened results as the canonical.
+
+This isn’t *perfectly* canonical in the strict math sense (you can refine it further), but it already crushes a huge amount of symmetry and will usually match “same-family” puzzles.
+
+Then:
+
+```text
+if canonicalize(A) === canonicalize(B):
+    same family
+else:
+    different
+```
+
+---
+
+If you want, I can sketch a JS or Python `canonicalizeSudoku(puzzleString)` that does the digit normalization + row/col sorting + transpose check so you can just plug it into your generator/tests.
+
 -->
