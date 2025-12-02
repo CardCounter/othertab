@@ -6,6 +6,7 @@
     <meta name="description" content="o_m">
     <link rel="icon" href="images/mines.png" type="image/png">
     <title>mines</title>
+
     <!-- prevents fouc, hide style as loading html -->
     <style>
         html.js-loading {
@@ -16,19 +17,19 @@
     <script>document.documentElement.classList.add('js-loading');</script>
     <script>
         window.OTHERTAB_MOBILE_HEADER = 'MINES';
-        window.OTHERTAB_MOBILE_MESSAGE = 'mines controls are tricky on mobile, try it on desktop instead';
+        window.OTHERTAB_MOBILE_MESSAGE = 'mines is desktop only';
     </script>
     <link rel="stylesheet" href="../css/global.css">
     <link rel="stylesheet" href="../css/header-footer.css">
     <link rel="stylesheet" href="../css/link.css">
     <link rel="stylesheet" href="mines.css">
 </head>
-<body>
+<body class="mines-page">
     <header>
         <p class="title">MINES</p>
     </header>
 
-    <main oncontextmenu="return false;">
+    <main>
         <div class="board-wrapper">
             <div class="grid-wrapper">
                 <div id="game-container" class="game-container">
@@ -42,18 +43,18 @@
         <div class="footer-left">
             <div class="settings-group">
                 <div class="panel-anchor">
-                    <button id="mode-button" class="settings-button" aria-haspopup="true" aria-expanded="false">mode</button>
+                    <button id="mode-button" class="mines-button settings-button" aria-haspopup="true" aria-expanded="false">mode</button>
                     <div id="mode-panel" class="settings-panel hidden" aria-hidden="true">
                         <div class="difficulty-buttons-grid">
-                            <button id="easy" class="difficulty-button difficulty">easy</button>
-                            <button id="medium" class="difficulty-button difficulty">medium</button>
-                            <button id="hard" class="difficulty-button difficulty">hard</button>
+                            <button id="easy" class="mines-button difficulty-button difficulty">easy</button>
+                            <button id="medium" class="mines-button difficulty-button difficulty">medium</button>
+                            <button id="hard" class="mines-button difficulty-button difficulty">hard</button>
                         </div>
                     </div>
                 </div>
             </div>
             <div class="retry-reset-group">
-                <button id="new-game-button" class="settings-button" type="button">reset</button>
+                <button id="new-game-button" class="mines-button settings-button" type="button">reset</button>
             </div>
         </div>
 
@@ -70,7 +71,7 @@
                 <span id="reset-hint" class="reset-hint hidden"></span>
                 <div class="flags-display">flags: <span id="flag-count" class="count-value"></span></div>
                 <span id="timer" class="timer hidden">0:00</span>
-                <button id="copy-button" class="copy-button hidden">share</button>
+                <button id="copy-button" class="mines-button copy-button hidden">share</button>
             </div>
         </div>
     </footer>
@@ -83,7 +84,3 @@
     <script data-goatcounter="https://othertab.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 </body>
 </html>
-
-<!-- TODO
-change everything in terms of rem, make header and footer standard, add to global css
--->
