@@ -36,7 +36,21 @@
     </main>
 
     <footer>
-        <div class="footer-left"></div>
+        <div class="footer-left sudoku-footer-left" aria-label="Sudoku controls">
+            <div class="sudoku-settings-group">
+                <div class="panel-anchor sudoku-panel-anchor">
+                    <button id="mode-button" class="sudoku-footer-button mode-button" type="button" aria-haspopup="true" aria-expanded="false">
+                        <span id="mode-button-label" class="mode-button-label">mode</span>
+                    </button>
+                    <div id="mode-panel" class="sudoku-settings-panel hidden" aria-hidden="true">
+                        <div id="mode-menu" class="sudoku-difficulty-buttons" role="menu" aria-label="Select Sudoku difficulty"></div>
+                    </div>
+                </div>
+                <button id="new-puzzle-button" class="sudoku-footer-button sudoku-reset-button" type="button">
+                    <span id="new-puzzle-button-label" class="new-puzzle-label">reset</span>
+                </button>
+            </div>
+        </div>
         <div class="footer-center">
             <p class="footer-brand">o_s</p>
             <a href="controls/" class="footer-link">controls</a>

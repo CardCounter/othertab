@@ -1,4 +1,6 @@
-const puzzle = [
+import { generateSudokuPuzzle, SUDOKU_DIFFICULTY_CONFIG } from './puzzle.js';
+
+const FALLBACK_PUZZLE = [
     [5, 3, 0, 0, 7, 0, 0, 0, 0],
     [6, 0, 0, 1, 9, 5, 0, 0, 0],
     [0, 9, 8, 0, 0, 0, 0, 6, 0],
@@ -10,7 +12,15 @@ const puzzle = [
     [0, 0, 0, 0, 8, 0, 0, 7, 9]
 ];
 
-const boardState = puzzle.map((row) => row.slice());
+const createGridClone = (grid) => grid.map((row) => row.slice());
+
+let currentDifficulty = 'easy';
+let currentPuzzleResult = null;
+let puzzle = createGridClone(FALLBACK_PUZZLE);
+let boardState = createGridClone(puzzle);
+let isGeneratingPuzzle = false;
+let isModeMenuOpen = false;
+
 const boardElement = document.getElementById('sudoku-board');
 const cells = new Map();
 const MATCH_CANDIDATE_CLASS = 'match-candidate';
@@ -35,6 +45,12 @@ const MAX_UNDO_STACK_SIZE = 100;
 const CUSTOM_DOUBLE_CLICK_THRESHOLD_MS = 250;
 const timerElement = document.getElementById('sudoku-timer');
 const shareButton = document.getElementById('copy-button');
+const newPuzzleButton = document.getElementById('new-puzzle-button');
+const newPuzzleButtonLabel = document.getElementById('new-puzzle-button-label');
+const difficultyButton = document.getElementById('mode-button');
+const modeButtonLabel = document.getElementById('mode-button-label');
+const difficultyPanel = document.getElementById('mode-panel');
+const difficultyMenu = document.getElementById('mode-menu');
 const MAX_TIMER_SECONDS = (99 * 3600) + (59 * 60) + 59;
 const SHARE_BUTTON_RESET_DELAY_MS = 1000;
 let activeCellKey = null;
@@ -264,6 +280,200 @@ if (shareButton) {
 
 resetTimer();
 resetShareButton();
+
+const DIFFICULTY_ORDER = ['easy', 'medium', 'hard', 'expert'];
+let controlsInitialized = false;
+
+const getDifficultyConfig = (difficultyKey = currentDifficulty) => (
+    SUDOKU_DIFFICULTY_CONFIG[difficultyKey] || SUDOKU_DIFFICULTY_CONFIG.easy
+);
+
+const isDifficultyEnabled = (difficultyKey) => difficultyKey === 'easy';
+
+const updateModeButtonLabel = () => {
+    if (!modeButtonLabel) {
+        return;
+    }
+    modeButtonLabel.textContent = 'mode';
+};
+
+const updateNewPuzzleButtonLabel = () => {
+    if (!newPuzzleButtonLabel) {
+        return;
+    }
+    const labelText = 'reset';
+    newPuzzleButtonLabel.textContent = labelText;
+    if (newPuzzleButton) {
+        newPuzzleButton.setAttribute('aria-label', `${labelText} (press enter or r)`);
+    }
+};
+
+const setModeMenuVisibility = (visible) => {
+    if (!difficultyPanel || !difficultyButton) {
+        return;
+    }
+    isModeMenuOpen = visible;
+    difficultyPanel.classList.toggle('hidden', !visible);
+    difficultyButton.setAttribute('aria-expanded', visible ? 'true' : 'false');
+    difficultyPanel.setAttribute('aria-hidden', visible ? 'false' : 'true');
+};
+
+const closeDifficultyMenu = () => setModeMenuVisibility(false);
+const openDifficultyMenu = () => setModeMenuVisibility(true);
+
+const renderDifficultyMenu = () => {
+    if (!difficultyMenu) {
+        return;
+    }
+    difficultyMenu.textContent = '';
+    DIFFICULTY_ORDER.forEach((difficultyKey) => {
+        const config = SUDOKU_DIFFICULTY_CONFIG[difficultyKey];
+        if (!config) {
+            return;
+        }
+        const option = document.createElement('button');
+        option.type = 'button';
+        option.className = 'sudoku-footer-button sudoku-difficulty-button';
+        option.dataset.difficulty = difficultyKey;
+        option.textContent = config.displayName.toLowerCase();
+        option.classList.toggle('sudoku-difficulty-button--active', currentDifficulty === difficultyKey);
+        const enabled = isDifficultyEnabled(difficultyKey);
+        if (!enabled) {
+            option.disabled = true;
+            option.setAttribute('aria-disabled', 'true');
+            option.title = 'coming soon';
+        } else {
+            option.addEventListener('click', () => {
+                if (currentDifficulty !== difficultyKey) {
+                    requestNewPuzzle(difficultyKey);
+                }
+                closeDifficultyMenu();
+            });
+        }
+        difficultyMenu.appendChild(option);
+    });
+};
+
+const refreshDifficultyUi = () => {
+    updateModeButtonLabel();
+    updateNewPuzzleButtonLabel();
+    renderDifficultyMenu();
+};
+
+const shouldIgnoreGlobalShortcut = (target) => {
+    if (!target || typeof target.closest !== 'function') {
+        return false;
+    }
+    return Boolean(target.closest('input, textarea, select, [contenteditable="true"]'));
+};
+
+const setNewPuzzleButtonBusyState = (isBusy) => {
+    if (!newPuzzleButton) {
+        return;
+    }
+    newPuzzleButton.disabled = Boolean(isBusy);
+    newPuzzleButton.classList.toggle('is-loading', Boolean(isBusy));
+    if (isBusy) {
+        newPuzzleButton.setAttribute('aria-busy', 'true');
+    } else {
+        newPuzzleButton.removeAttribute('aria-busy');
+    }
+};
+
+const requestNewPuzzle = (difficultyKey = currentDifficulty) => {
+    if (isGeneratingPuzzle) {
+        return;
+    }
+
+    const targetDifficulty = isDifficultyEnabled(difficultyKey) ? difficultyKey : 'easy';
+    isGeneratingPuzzle = true;
+    setNewPuzzleButtonBusyState(true);
+    try {
+        const result = generateSudokuPuzzle(targetDifficulty);
+        puzzle = createGridClone(result.puzzle);
+        boardState = createGridClone(puzzle);
+        currentPuzzleResult = result;
+        currentDifficulty = result.difficulty || targetDifficulty;
+    } catch (error) {
+        console.error('Failed to generate Sudoku puzzle, using fallback puzzle.', error);
+        puzzle = createGridClone(FALLBACK_PUZZLE);
+        boardState = createGridClone(puzzle);
+        currentPuzzleResult = null;
+        currentDifficulty = 'easy';
+    } finally {
+        isGeneratingPuzzle = false;
+        setNewPuzzleButtonBusyState(false);
+    }
+
+    buildBoard();
+    refreshDifficultyUi();
+};
+
+const handleModeButtonClick = (event) => {
+    event.preventDefault();
+    if (!difficultyPanel) {
+        return;
+    }
+    if (isModeMenuOpen) {
+        closeDifficultyMenu();
+    } else {
+        openDifficultyMenu();
+    }
+};
+
+const handleGlobalPointerDown = (event) => {
+    if (!isModeMenuOpen || !difficultyPanel || !difficultyButton) {
+        return;
+    }
+    if (difficultyPanel.contains(event.target) || difficultyButton.contains(event.target)) {
+        return;
+    }
+    closeDifficultyMenu();
+};
+
+const handleModeMenuKeydown = (event) => {
+    if (event.key !== 'Escape' || !isModeMenuOpen) {
+        return;
+    }
+    event.preventDefault();
+    closeDifficultyMenu();
+    if (difficultyButton && typeof difficultyButton.focus === 'function') {
+        difficultyButton.focus();
+    }
+};
+
+const handleNewPuzzleShortcut = (event) => {
+    const key = typeof event.key === 'string' ? event.key.toLowerCase() : '';
+    if (key !== 'enter' && key !== 'r') {
+        return;
+    }
+
+    if (shouldIgnoreGlobalShortcut(event.target)) {
+        return;
+    }
+
+    event.preventDefault();
+    requestNewPuzzle(currentDifficulty);
+};
+
+const initializeControlListeners = () => {
+    if (controlsInitialized) {
+        return;
+    }
+    controlsInitialized = true;
+
+    if (difficultyButton) {
+        difficultyButton.addEventListener('click', handleModeButtonClick);
+    }
+    if (newPuzzleButton) {
+        newPuzzleButton.addEventListener('click', () => {
+            requestNewPuzzle(currentDifficulty);
+        });
+    }
+    document.addEventListener('pointerdown', handleGlobalPointerDown);
+    document.addEventListener('keydown', handleModeMenuKeydown);
+    document.addEventListener('keydown', handleNewPuzzleShortcut);
+};
 
 const isInteractiveElementForUndo = (target) => {
     if (!target || typeof target.closest !== 'function') {
@@ -1259,10 +1469,12 @@ const buildBoard = () => {
         return;
     }
 
+    boardState = createGridClone(puzzle);
     isGameComplete = false;
     resetTimer();
     resetShareButton();
     initialCandidatesPenciled = false;
+    undoStack.length = 0;
     setBoardCellSize(DEFAULT_CELL_SIZE);
     clearActiveCell();
     boardElement.textContent = '';
@@ -1284,8 +1496,14 @@ const buildBoard = () => {
     dispatchReady();
 };
 
+const initializeSudoku = () => {
+    refreshDifficultyUi();
+    initializeControlListeners();
+    requestNewPuzzle(currentDifficulty);
+};
+
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', buildBoard, { once: true });
+    document.addEventListener('DOMContentLoaded', initializeSudoku, { once: true });
 } else {
-    buildBoard();
+    initializeSudoku();
 }

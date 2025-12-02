@@ -73,6 +73,85 @@ body.dark-mode {
     width: var(--sudoku-cell-size) * 9;
 }
 
+.sudoku-footer-left {
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.sudoku-settings-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.sudoku-footer-button {
+    background-color: transparent;
+    border: none;
+    color: inherit;
+    text-transform: lowercase;
+    padding: 0;
+    font-size: 1rem;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.sudoku-footer-button:hover,
+.sudoku-footer-button:focus-visible {
+    background-color: grey;
+    color: inherit;
+}
+
+.sudoku-panel-anchor {
+    position: relative;
+    display: inline-flex;
+}
+
+.sudoku-settings-panel {
+    position: absolute;
+    bottom: 1.5rem;
+    left: 0;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--page-background-color, #ffffff);
+    z-index: 10;
+}
+
+.sudoku-difficulty-buttons {
+    display: inline-flex;
+    flex-direction: row;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.sudoku-difficulty-button {
+    text-transform: lowercase;
+}
+
+.sudoku-difficulty-button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.sudoku-difficulty-button--active {
+    color: transparent;
+    background-color: var(--sudoku-active-strong, blue);
+}
+
+body.dark-mode .sudoku-difficulty-button--active {
+    background-color: var(--sudoku-active-strong, red);
+}
+
+.sudoku-difficulty-button--active:hover {
+    background-color: var(--sudoku-active-strong, blue);
+}
+
+body.dark-mode .sudoku-difficulty-button--active:hover {
+    background-color: var(--sudoku-active-strong, red);
+}
+
 .sudoku-board {
     display: grid;
     grid-template-columns: repeat(9, var(--sudoku-cell-size));
@@ -305,6 +384,19 @@ body.dark-mode .candidate.match-candidate {
 .copy-button:focus-visible {
     background-color: grey;
     color: inherit;
+}
+
+.sudoku-footer-button.is-loading {
+    opacity: 0.7;
+    cursor: wait;
+}
+
+.new-puzzle-label {
+    display: inline;
+}
+
+.mode-button {
+    min-width: initial;
 }
 
 .hidden {
