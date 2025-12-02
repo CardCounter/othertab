@@ -267,6 +267,7 @@ class Minesweeper {
             fromSeed: true,
             beforeRender: () => {
                 let mineCount = 0;
+                const minePositions = [];
                 for (let row = 0; row < this.rows; row++) {
                     for (let col = 0; col < this.cols; col++) {
                         const cell = this.grid[row][col];
@@ -278,16 +279,17 @@ class Minesweeper {
                         delete cell.isSafe;
                         if (isMine) {
                             mineCount++;
+                            minePositions.push({ row, col });
                         }
                     }
                 }
-                for (let row = 0; row < this.rows; row++) {
-                    for (let col = 0; col < this.cols; col++) {
-                        if (!this.grid[row][col].isMine) {
-                            this.grid[row][col].value = this.countAdjacentMines(row, col);
+                minePositions.forEach(({ row, col }) => {
+                    this.forEachNeighbor(row, col, (r, c) => {
+                        if (!this.grid[r][c].isMine) {
+                            this.grid[r][c].value += 1;
                         }
-                    }
-                }
+                    });
+                });
                 this.mines = mineCount;
                 this.flagsRemaining = this.mines;
                 this.seedLockActive = true;
@@ -586,30 +588,61 @@ class Minesweeper {
     }
     
     placeMines(firstRow, firstCol) {
-        let minesPlaced = 0;
-        
         // create island
         this.clearAreaAroundFirstClick(firstRow, firstCol);
-        
-        while (minesPlaced < this.mines) {
-            const row = Math.floor(Math.random() * this.rows);
-            const col = Math.floor(Math.random() * this.cols);
-            
-            // dont place mines in island or ontop of each other
-            if (!this.grid[row][col].isSafe && !this.grid[row][col].isMine) {
-                this.grid[row][col].isMine = true;
-                minesPlaced++;
-            }
-        }
-        
-        // calc mine numbers
+
+        // build flat list of candidate cell indices (exclude safe island)
+        const availableIndices = [];
         for (let row = 0; row < this.rows; row++) {
             for (let col = 0; col < this.cols; col++) {
-                if (!this.grid[row][col].isMine) {
-                    this.grid[row][col].value = this.countAdjacentMines(row, col);
+                const cell = this.grid[row][col];
+                if (!cell.isSafe && !cell.isMine) {
+                    availableIndices.push(row * this.cols + col);
                 }
             }
         }
+
+        const minePositions = [];
+        const availableCount = availableIndices.length;
+        let minesToPlace = this.mines;
+
+        if (availableCount < minesToPlace) {
+            console.warn('mines: not enough available cells to place requested mines; reducing mine count.');
+            minesToPlace = availableCount;
+            this.mines = minesToPlace;
+            this.flagsRemaining = Math.min(this.flagsRemaining, this.mines);
+            this.updateStats();
+        }
+
+        // partial Fisher–Yates: only shuffle as many mines as needed
+        for (let i = 0; i < minesToPlace; i++) {
+            const j = i + Math.floor(Math.random() * (availableIndices.length - i));
+            const temp = availableIndices[i];
+            availableIndices[i] = availableIndices[j];
+            availableIndices[j] = temp;
+
+            const index = availableIndices[i];
+            const row = Math.floor(index / this.cols);
+            const col = index % this.cols;
+            this.grid[row][col].isMine = true;
+            minePositions.push({ row, col });
+        }
+
+        // reset all cell values before counting
+        for (let row = 0; row < this.rows; row++) {
+            for (let col = 0; col < this.cols; col++) {
+                this.grid[row][col].value = 0;
+            }
+        }
+
+        // mine-centric adjacency counting
+        minePositions.forEach(({ row, col }) => {
+            this.forEachNeighbor(row, col, (r, c) => {
+                if (!this.grid[r][c].isMine) {
+                    this.grid[r][c].value += 1;
+                }
+            });
+        });
     }
     
     clearAreaAroundFirstClick(row, col) {
@@ -617,18 +650,6 @@ class Minesweeper {
         this.forEachNeighbor(row, col, (r, c) => {
             this.grid[r][c].isSafe = true;
         }, { includeSelf: true });
-    }
-    
-    countAdjacentMines(row, col) {
-        let count = 0;
-
-        this.forEachNeighbor(row, col, (r, c) => {
-            if (this.grid[r][c].isMine) {
-                count++;
-            }
-        });
-        
-        return count;
     }
     
     reveal(row, col) {
