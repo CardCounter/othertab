@@ -2,8 +2,7 @@
   "use strict";
 
   const sizeCodeMap = {
-    ca: 30,
-    tz: 25,
+    ca: 25,
     de: 20,
     kr: 15,
     al: 10,
@@ -14,8 +13,7 @@
   const CURRENT_VERSION = 1;
   const MAX_SIZE = 64;
   const sizeMaskSeeds = {
-    ca: 173,
-    tz: 89,
+    ca: 89,
     de: 241,
     kr: 37,
     al: 199,
