@@ -4,15 +4,15 @@ const PRESET_TECHNIQUE_LADDER = SudokuTechniqueLadderModule || NamedTechniqueLad
 
 const EASY_TECHNIQUES = Object.freeze([
     'fullHouse', //
-    'nakedSingle', //
-    'hiddenSingle', //
+    'nakedSingle', ////
+    'hiddenSingle', ////
     'lockedCandidatesType1Pointing', //
     'lockedCandidatesType2Claiming', //
     'nakedPair' //
 ]);
 
 const MEDIUM_ADDITIONAL_TECHNIQUES = Object.freeze([
-    'hiddenPair', //
+    'hiddenPair', ////
     'hiddenTriple', //
     'hiddenQuadruple', //
     'nakedTriple', //
@@ -51,19 +51,19 @@ const SUDOKU_DIFFICULTY_CONFIG = Object.freeze({
             'finnedXWing',
             'finnedSwordfish',
             'finnedJellyfish',
-            'turbotFish',
+            'turbotFish', //
             'emptyRectangle',
             'xyzWing',
             'wWing',
             'remotePair',
             'xChain',
-            'xyChain',
+            'xyChain',//
             'niceLoop',
             'groupedNiceLoop',
             'sueDeCoq',
             'alsXz',
             'alsXyWing',
-            'alsChain',
+            'alsChain',//
             'uniqueRectangleType1',
             'uniqueRectangleType2',
             'uniqueRectangleType3',
@@ -87,10 +87,10 @@ const SUDOKU_DIFFICULTY_CONFIG = Object.freeze({
             'uniqueRectangleType5',
             'uniqueRectangleType6',
             'uniqueRectangleMissingCandidates',
-            'deathBlossom',
-            'forcingChain',
-            'forcingNet',
-            'bruteForce'
+            'deathBlossom',//
+            'forcingChain',//
+            'forcingNet',//
+            'bruteForce'//
         ],
         minGivens: 17,
         maxGivens: 27
