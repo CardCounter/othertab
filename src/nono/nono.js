@@ -135,6 +135,7 @@ class Nono {
         this.syncTableSizes();
         this.mainGameActions();
         this.mainKeyActions();
+        this.beginBoardTimer();
 
     }
 
@@ -242,6 +243,7 @@ class Nono {
         this.initializeTable();
         this.syncTableSizes();
         this.mainGameActions();
+        this.beginBoardTimer();
     }
 
     reset() {
@@ -300,6 +302,7 @@ class Nono {
         this.initializeTable();
         this.syncTableSizes();
         this.mainGameActions();
+        this.beginBoardTimer();
         
     }
 
@@ -1638,6 +1641,11 @@ class Nono {
             const timeString = this.formatTime(this.timer);
             this.showWinPopup(timeString);
         }
+    }
+
+    beginBoardTimer() {
+        this.firstKey = false;
+        this.startTimer();
     }
 
     startTimer() {
