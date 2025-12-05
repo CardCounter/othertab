@@ -107,7 +107,6 @@ class Nono {
         this.actionedCols = new Set();
         this.actionedRows = new Set();
 
-        this.firstKey = true;
         this.isGameOver = false;
         this.timer = 0;
         this.timerInterval = null;
@@ -216,7 +215,6 @@ class Nono {
 
         // ensure timer is fully reset and stopped until first interaction
         this.stopTimer();
-        this.firstKey = true;
         this.isGameOver = false;
         this.timer = 0;
         this.timerInterval = null;
@@ -270,7 +268,6 @@ class Nono {
         this.actionedCols = new Set();
         this.actionedRows = new Set();
 
-        this.firstKey = true;
         this.isGameOver = false;
         this.timer = 0;
         this.timerInterval = null;
@@ -496,10 +493,6 @@ class Nono {
             top.addEventListener('click', () => {
                 this.handleIfActive(() => {
                     if (top.classList.contains('complete')) {
-                        if (this.firstKey) {
-                            this.firstKey = false;
-                            this.startTimer();
-                        }
                         const col = top.dataset.col;
                         this.currentAction = { cells: [] };
                         for (let row = 0; row < this.size; row++) {
@@ -524,10 +517,6 @@ class Nono {
             side.addEventListener('click', () => {
                 this.handleIfActive(() => {
                     if (side.classList.contains('complete')) {
-                        if (this.firstKey) {
-                            this.firstKey = false;
-                            this.startTimer();
-                        }
                         const row = side.dataset.row;
                         this.currentAction = { cells: [] };
                         for (let col = 0; col < this.size; col++) {
@@ -741,11 +730,6 @@ class Nono {
     actionClick() {
         // block if keyboard action is already active
         if (this.inputMethod === 'keyboard') return;
-        
-        if (this.firstKey) {
-            this.firstKey = false;
-            this.startTimer();
-        }
         this.isActionDown = true;
         this.lastAction = 'clicked';
         this.currentAction = { cells: [] };
@@ -768,11 +752,6 @@ class Nono {
     actionGrey() {
         // block if keyboard action is already active
         if (this.inputMethod === 'keyboard') return;
-        
-        if (this.firstKey) {
-            this.firstKey = false;
-            this.startTimer();
-        }
         this.isActionDown = true;
         this.lastAction = 'greyed';
         this.currentAction = { cells: [] };
@@ -795,11 +774,6 @@ class Nono {
     actionMark() {
         // block if keyboard action is already active
         if (this.inputMethod === 'keyboard') return;
-        
-        if (this.firstKey) {
-            this.firstKey = false;
-            this.startTimer();
-        }
         this.isActionDown = true;
         this.lastAction = 'marked';
         this.currentAction = { cells: [] };
@@ -822,11 +796,6 @@ class Nono {
     actionClickKeyboard() {
         // block if mouse action is already active
         if (this.inputMethod === 'mouse') return;
-        
-        if (this.firstKey) {
-            this.firstKey = false;
-            this.startTimer();
-        }
         this.isActionDown = true;
         this.lastAction = 'clicked';
         this.currentAction = { cells: [] };
@@ -849,11 +818,6 @@ class Nono {
     actionGreyKeyboard() {
         // block if mouse action is already active
         if (this.inputMethod === 'mouse') return;
-        
-        if (this.firstKey) {
-            this.firstKey = false;
-            this.startTimer();
-        }
         this.isActionDown = true;
         this.lastAction = 'greyed';
         this.currentAction = { cells: [] };
@@ -876,11 +840,6 @@ class Nono {
     actionMarkKeyboard() {
         // block if mouse action is already active
         if (this.inputMethod === 'mouse') return;
-        
-        if (this.firstKey) {
-            this.firstKey = false;
-            this.startTimer();
-        }
         this.isActionDown = true;
         this.lastAction = 'marked';
         this.currentAction = { cells: [] };
@@ -1644,7 +1603,6 @@ class Nono {
     }
 
     beginBoardTimer() {
-        this.firstKey = false;
         this.startTimer();
     }
 
