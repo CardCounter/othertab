@@ -66,6 +66,28 @@ body {
     text-align: center;
 }
 
+.card-image-link {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 0.5rem;
+}
+
+.card-image {
+    width: 64px;
+    height: 64px;
+    display: block;
+    object-fit: contain;
+}
+
+.card-link {
+    display: inline-block;
+    margin-bottom: 0.5rem;
+}
+
+.card-description {
+    margin: 0;
+}
+
 .card-grid > .card:first-child {
     padding-top: 0;
 }
