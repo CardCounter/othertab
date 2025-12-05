@@ -1,6 +1,6 @@
 import { defineConfig } from 'vite';
-import { resolve, join } from 'node:path';
-import { readdirSync, statSync } from 'node:fs';
+import { resolve, join, relative, dirname } from 'node:path';
+import { readdirSync, statSync, cpSync, mkdirSync } from 'node:fs';
 import { minify } from 'html-minifier-terser';
 
 function collectHtmlInputs(rootDir) {
@@ -17,8 +17,26 @@ function collectHtmlInputs(rootDir) {
     return entries;
 }
 
+function collectDirectoriesByName(rootDir, directoryName) {
+    const directories = [];
+    for (const entry of readdirSync(rootDir)) {
+        const fullPath = join(rootDir, entry);
+        if (!statSync(fullPath).isDirectory()) {
+            continue;
+        }
+
+        if (entry === directoryName) {
+            directories.push(fullPath);
+        }
+
+        directories.push(...collectDirectoriesByName(fullPath, directoryName));
+    }
+    return directories;
+}
+
 const srcRoot = resolve(__dirname, 'src');
 const htmlInputs = collectHtmlInputs(srcRoot);
+const imageDirectories = collectDirectoriesByName(srcRoot, 'images');
 
 const htmlMinifyPlugin = {
     name: 'html-minify-post',
@@ -37,6 +55,20 @@ const htmlMinifyPlugin = {
     }
 };
 
+const copyImageDirectoriesPlugin = {
+    name: 'copy-image-directories',
+    apply: 'build',
+    closeBundle() {
+        const buildOutDir = resolve(__dirname, 'build');
+        for (const directory of imageDirectories) {
+            const relativeDir = relative(srcRoot, directory);
+            const targetDir = join(buildOutDir, relativeDir);
+            mkdirSync(dirname(targetDir), { recursive: true });
+            cpSync(directory, targetDir, { recursive: true });
+        }
+    }
+};
+
 export default defineConfig({
     root: 'src',
     build: {
@@ -46,5 +78,5 @@ export default defineConfig({
             input: htmlInputs
         }
     },
-    plugins: [htmlMinifyPlugin]
+    plugins: [htmlMinifyPlugin, copyImageDirectoriesPlugin]
 });
